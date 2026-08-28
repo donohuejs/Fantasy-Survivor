@@ -1,9 +1,37 @@
 rules_version = '2';
 service cloud.firestore {
+  function isAdmin() {
+    return request.auth != null && request.auth.token.email == 'donohue.js@gmail.com';
+  }
+
+  function isValidTurnPick() {
+    let oldGame = resource.data;
+    let newGame = request.resource.data;
+    let turn = oldGame.draft.turns[oldGame.draft.currentPick];
+    let pick = newGame.draftPicks[newGame.draftPicks.size() - 1];
+    return request.auth != null
+      && oldGame.draft.status == 'live'
+      && request.auth.token.email == turn.email
+      && newGame.diff(oldGame).affectedKeys().hasOnly(['draft', 'draftPicks'])
+      && newGame.draft.turns == oldGame.draft.turns
+      && newGame.draft.currentPick == oldGame.draft.currentPick + 1
+      && ((newGame.draft.currentPick < oldGame.draft.turns.size() && newGame.draft.status == 'live')
+        || (newGame.draft.currentPick == oldGame.draft.turns.size() && newGame.draft.status == 'complete'))
+      && newGame.draftPicks.size() == oldGame.draftPicks.size() + 1
+      && newGame.draftPicks.hasAll(oldGame.draftPicks)
+      && pick.keys().hasOnly(['id', 'playerId', 'castawayId', 'round', 'pickNumber', 'multiplier'])
+      && pick.playerId == turn.playerId
+      && pick.round == turn.round
+      && pick.pickNumber == turn.pickNumber
+      && pick.castawayId is string
+      && pick.multiplier == (turn.round == 3 ? 1.25 : 1);
+  }
+
   match /databases/{database}/documents {
     match /games/{gameId} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.token.email == 'donohue.js@gmail.com';
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || isValidTurnPick();
     }
   }
 }
