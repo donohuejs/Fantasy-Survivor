@@ -20,7 +20,8 @@ export function GameProvider({children}:{children:React.ReactNode}) {
   const [loading,setLoading] = useState(firebaseConfigured);
   const [user,setUser] = useState<FirebaseUser|null>(null);
   const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL?.toLowerCase();
-  const isAdmin = !firebaseConfigured || Boolean(user?.email && user.email.toLowerCase() === adminEmail);
+  const localSetup = !firebaseConfigured && process.env.NODE_ENV !== 'production';
+  const isAdmin = localSetup || Boolean(user?.email && user.email.toLowerCase() === adminEmail);
 
   useEffect(() => {
     if (!firebaseConfigured) {
