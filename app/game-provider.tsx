@@ -15,6 +15,16 @@ type GameContextValue = {
 const GameContext = createContext<GameContextValue | null>(null);
 const storageKey = 'fantasy-survivor-51-game';
 
+function withOfficialCastawayProfiles(saved:GameState):GameState {
+  return {
+    ...saved,
+    castaways:saved.castaways.map((castaway) => {
+      const official = initialGame.castaways.find((item) => item.id === castaway.id);
+      return official ? {...castaway,name:official.name,shortName:official.shortName,age:official.age,occupation:official.occupation,bio:official.bio,imageUrl:official.imageUrl} : castaway;
+    }),
+  };
+}
+
 export function GameProvider({children}:{children:React.ReactNode}) {
   const [game,setGame] = useState<GameState>(initialGame);
   const [loading,setLoading] = useState(firebaseConfigured);
@@ -27,13 +37,13 @@ export function GameProvider({children}:{children:React.ReactNode}) {
     if (!firebaseConfigured) {
       const saved = window.localStorage.getItem(storageKey);
       queueMicrotask(() => {
-        if (saved) try { setGame(JSON.parse(saved)); } catch { /* use clean seed */ }
+        if (saved) try { setGame(withOfficialCastawayProfiles(JSON.parse(saved))); } catch { /* use clean seed */ }
         setLoading(false);
       });
       return;
     }
     let stops:Array<()=>void>=[]; let active=true;
-    getFirebase().then((firebase)=>{if(!active||!firebase){setLoading(false);return}const auth=firebase.auth();const ref=firebase.firestore().collection('games').doc('survivor-51');stops=[auth.onAuthStateChanged(setUser),ref.onSnapshot((snapshot)=>{if(snapshot.exists){const saved=snapshot.data() as GameState;setGame({...saved,draft:saved.draft??initialGame.draft,players:saved.players.map((player,index)=>({...player,email:player.email??'',priorFinish:player.priorFinish??index+1,draftSlot:player.draftSlot??saved.players.length-index}))})}setLoading(false)},()=>setLoading(false))]});
+    getFirebase().then((firebase)=>{if(!active||!firebase){setLoading(false);return}const auth=firebase.auth();const ref=firebase.firestore().collection('games').doc('survivor-51');stops=[auth.onAuthStateChanged(setUser),ref.onSnapshot((snapshot)=>{if(snapshot.exists){const saved=snapshot.data() as GameState;setGame(withOfficialCastawayProfiles({...saved,draft:saved.draft??initialGame.draft,players:saved.players.map((player,index)=>({...player,email:player.email??'',priorFinish:player.priorFinish??index+1,draftSlot:player.draftSlot??saved.players.length-index}))}))}setLoading(false)},()=>setLoading(false))]});
     return () => { active=false; stops.forEach((stop)=>stop()); };
   },[]);
 
