@@ -1,8 +1,10 @@
+'use client';
 import Link from 'next/link';
-import { categories } from '@/lib/game-data';
+import { useGame } from '../game-provider';
 
 export default function Rules() {
-  const groups = Object.groupBy(categories,(category) => category.group);
+  const {game}=useGame();
+  const groups = Object.groupBy(game.categories,(category) => category.group);
   return <main className="inner-page">
     <header className="site-header"><Link className="brand" href="/"><span className="brand-mark">51</span><span><strong>Fantasy Survivor</strong><small>League rulebook</small></span></Link><nav><Link href="/">Standings</Link><Link href="/draft">Draft board</Link><Link href="/castaways">Castaways</Link><Link className="active" href="/rules">Rules</Link><Link className="admin-link" href="/admin">Game master</Link></nav></header>
     <section className="inner-hero rules-hero"><p className="eyebrow"><span/> Official scoring</p><h1>Every move has a price.</h1><p>The same scoring system as the workbook, including the round-three blind-pick multiplier.</p></section>

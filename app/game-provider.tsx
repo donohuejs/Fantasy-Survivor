@@ -3,13 +3,15 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { firebaseConfigured, getFirebase, authenticationError, type FirebaseUser } from '@/lib/firebase';
 import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { buildDraftTurns, categories, initialGame, type DraftPick, type GameState, type ScoreEvent } from '@/lib/game-data';
+import { doc, onSnapshot, setDoc, runTransaction } from 'firebase/firestore';
+import { buildDraftTurns, initialGame, type DraftPick, type GameState, type Tribe, type Castaway } from '@/lib/game-data';
+import { recordScoring,saveCustomAction,saveTribe,assignCastaway,type ScoringInput,type CustomActionInput } from '@/lib/scoring';
 
 type GameContextValue = {
   game:GameState; loading:boolean; user:FirebaseUser|null; isAdmin:boolean; cloud:boolean; authLoading:boolean; authBusy:boolean;
   castawayScores:Record<string,number>; standings:Array<{id:string;name:string;score:number;picks:string;rank:number}>;
-  login:()=>Promise<void>; logout:()=>Promise<void>; addScore:(data:Omit<ScoreEvent,'id'|'createdAt'|'points'> & {categoryId:string})=>Promise<void>;
+  login:()=>Promise<void>; logout:()=>Promise<void>; addScore:(data:ScoringInput)=>Promise<void>;
+  addCustomAction:(input:CustomActionInput)=>Promise<string>; updateTribe:(tribe:Tribe)=>Promise<void>; updateCastaway:(id:string,tribeId:string,status:Castaway['status'])=>Promise<void>;
   addAdjustment:(playerId:string,points:number,note:string)=>Promise<void>; savePick:(pick:Omit<DraftPick,'id'|'multiplier'> & {blind:boolean})=>Promise<void>;
   addPlayer:(name:string,email:string)=>Promise<void>; setPlayerEmail:(playerId:string,email:string)=>Promise<void>; startDraft:()=>Promise<void>; toggleDraft:()=>Promise<void>; undoDraftPick:()=>Promise<void>; submitPlayerPick:(castawayId:string)=>Promise<void>; resetSeason:()=>Promise<void>;
 };
@@ -20,6 +22,8 @@ const storageKey = 'fantasy-survivor-51-game';
 function withOfficialCastawayProfiles(saved:GameState):GameState {
   return {
     ...saved,
+    tribes:saved.tribes??initialGame.tribes,
+    categories:saved.categories??initialGame.categories,
     season:{...saved.season,entryFee:initialGame.season.entryFee},
     castaways:saved.castaways.map((castaway) => {
       const official = initialGame.castaways.find((item) => item.id === castaway.id);
@@ -107,10 +111,22 @@ export function GameProvider({children}:{children:React.ReactNode}) {
     catch(error){setAuthError(authenticationError(error));}
     finally{setAuthBusy(false);}
   }
-  async function addScore(input:Omit<ScoreEvent,'id'|'createdAt'|'points'> & {categoryId:string}) {
-    const category = categories.find((item) => item.id === input.categoryId); if (!category) return;
-    await persist({...game,season:{...game.season,currentEpisode:Math.max(game.season.currentEpisode,input.episode ?? 1)},scoreEvents:[...game.scoreEvents,{...input,id:crypto.randomUUID(),points:category.points,createdAt:new Date().toISOString()}]});
+  async function adminMutation(change:(current:GameState)=>GameState) {
+    if(!isAdmin)throw new Error('Only the game master can change scoring or tribes.');
+    if(!firebaseConfigured){await persist(change(game));return;}
+    const {db}=getFirebase();
+    // Re-read inside a transaction so scoring from another tab is never overwritten.
+    await runTransaction(db,async(transaction)=>{
+      const ref=doc(db,'games','survivor-51');
+      const snapshot=await transaction.get(ref);
+      const current=snapshot.exists()?withOfficialCastawayProfiles(snapshot.data() as GameState):initialGame;
+      transaction.set(ref,change(current));
+    });
   }
+  async function addScore(input:ScoringInput) {await adminMutation(current=>recordScoring(current,input));}
+  async function addCustomAction(input:CustomActionInput) {const id=crypto.randomUUID();await adminMutation(current=>saveCustomAction(current,input,id));return id;}
+  async function updateTribe(tribe:Tribe){await adminMutation(current=>saveTribe(current,tribe));}
+  async function updateCastaway(id:string,tribeId:string,status:Castaway['status']){await adminMutation(current=>assignCastaway(current,id,tribeId,status));}
   async function addAdjustment(playerId:string,points:number,note:string) { await persist({...game,scoreEvents:[...game.scoreEvents,{id:crypto.randomUUID(),playerId,points,note,createdAt:new Date().toISOString()}]}); }
   async function savePick(input:Omit<DraftPick,'id'|'multiplier'> & {blind:boolean}) {
     const draftPicks = game.draftPicks.filter((pick) => !(pick.playerId===input.playerId && pick.round===input.round));
@@ -127,7 +143,7 @@ export function GameProvider({children}:{children:React.ReactNode}) {
   async function undoDraftPick() { if(!game.draftPicks.length) return; const currentPick=Math.max(0,game.draft.currentPick-1); await persist({...game,draftPicks:game.draftPicks.slice(0,-1),draft:{...game.draft,currentPick,status:'paused'}}); }
   async function submitPlayerPick(castawayId:string) { const turn=game.draft.turns[game.draft.currentPick]; if(!turn||game.draft.status!=='live'||user?.email?.toLowerCase()!==turn.email) throw new Error('It is not your turn.'); const nextPick=game.draft.currentPick+1; const pick:DraftPick={id:crypto.randomUUID(),playerId:turn.playerId,castawayId,round:turn.round,pickNumber:turn.pickNumber,multiplier:turn.round===3?1.25:1}; await persist({...game,draftPicks:[...game.draftPicks,pick],draft:{...game.draft,currentPick:nextPick,status:nextPick>=game.draft.turns.length?'complete':'live'}}); }
   async function resetSeason() { const players=game.players.map((player)=>({...player})); await persist({...initialGame,players,draft:{status:'setup',currentPick:0,turns:buildDraftTurns(players)}}); }
-  return <GameContext.Provider value={{game,loading,user,isAdmin,cloud:firebaseConfigured,authLoading,authBusy,castawayScores,standings,login,logout,addScore,addAdjustment,savePick,addPlayer,setPlayerEmail,startDraft,toggleDraft,undoDraftPick,submitPlayerPick,resetSeason}}>{authError&&<div role="alert" className="setup-notice">{authError}</div>}{children}</GameContext.Provider>;
+  return <GameContext.Provider value={{game,loading,user,isAdmin,cloud:firebaseConfigured,authLoading,authBusy,castawayScores,standings,login,logout,addScore,addCustomAction,updateTribe,updateCastaway,addAdjustment,savePick,addPlayer,setPlayerEmail,startDraft,toggleDraft,undoDraftPick,submitPlayerPick,resetSeason}}>{authError&&<div role="alert" className="setup-notice">{authError}</div>}{children}</GameContext.Provider>;
 }
 
 export function useGame() { const value=useContext(GameContext); if (!value) throw new Error('GameProvider missing'); return value; }
