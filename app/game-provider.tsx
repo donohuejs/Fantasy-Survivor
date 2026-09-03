@@ -30,9 +30,12 @@ export function GameProvider({children}:{children:React.ReactNode}) {
   const [game,setGame] = useState<GameState>(initialGame);
   const [loading,setLoading] = useState(firebaseConfigured);
   const [user,setUser] = useState<FirebaseUser|null>(null);
-  const adminEmail = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'donohue.js@gmail.com').trim().toLowerCase();
+  const adminEmails = new Set([
+    'donohue.js@gmail.com',
+    process.env.NEXT_PUBLIC_ADMIN_EMAIL?.trim().toLowerCase(),
+  ].filter((email):email is string => Boolean(email)));
   const localSetup = !firebaseConfigured && process.env.NODE_ENV !== 'production';
-  const isAdmin = localSetup || Boolean(user?.email && user.email.trim().toLowerCase() === adminEmail);
+  const isAdmin = localSetup || Boolean(user?.email && adminEmails.has(user.email.trim().toLowerCase()));
 
   useEffect(() => {
     if (!firebaseConfigured) {
