@@ -26,6 +26,12 @@ function withOfficialCastawayProfiles(saved:GameState):GameState {
   };
 }
 
+function normalizedUser(user:FirebaseUser|null):FirebaseUser|null {
+  if (!user) return null;
+  const email = user.email ?? user.providerData?.find((profile) => profile.email)?.email ?? null;
+  return {email,displayName:user.displayName};
+}
+
 export function GameProvider({children}:{children:React.ReactNode}) {
   const [game,setGame] = useState<GameState>(initialGame);
   const [loading,setLoading] = useState(firebaseConfigured);
@@ -47,7 +53,7 @@ export function GameProvider({children}:{children:React.ReactNode}) {
       return;
     }
     let stops:Array<()=>void>=[]; let active=true;
-    getFirebase().then((firebase)=>{if(!active||!firebase){setLoading(false);return}const auth=firebase.auth();const ref=firebase.firestore().collection('games').doc('survivor-51');stops=[auth.onAuthStateChanged(setUser),ref.onSnapshot((snapshot)=>{if(snapshot.exists){const saved=snapshot.data() as GameState;setGame(withOfficialCastawayProfiles({...saved,draft:saved.draft??initialGame.draft,players:saved.players.map((player,index)=>({...player,email:player.email??'',priorFinish:player.priorFinish??index+1,draftSlot:player.draftSlot??saved.players.length-index}))}))}setLoading(false)},()=>setLoading(false))]});
+    getFirebase().then((firebase)=>{if(!active||!firebase){setLoading(false);return}const auth=firebase.auth();const ref=firebase.firestore().collection('games').doc('survivor-51');stops=[auth.onAuthStateChanged((nextUser)=>setUser(normalizedUser(nextUser))),ref.onSnapshot((snapshot)=>{if(snapshot.exists){const saved=snapshot.data() as GameState;setGame(withOfficialCastawayProfiles({...saved,draft:saved.draft??initialGame.draft,players:saved.players.map((player,index)=>({...player,email:player.email??'',priorFinish:player.priorFinish??index+1,draftSlot:player.draftSlot??saved.players.length-index}))}))}setLoading(false)},()=>setLoading(false))]});
     return () => { active=false; stops.forEach((stop)=>stop()); };
   },[]);
 
@@ -65,8 +71,8 @@ export function GameProvider({children}:{children:React.ReactNode}) {
     return {id:player.id,name:player.name,score:player.entryBonus + pickScore + direct,picks:picks.map((pick) => pick.round===3&&game.draft.status!=='complete'?'Blind pick locked':game.castaways.find((c) => c.id === pick.castawayId)?.shortName).filter(Boolean).join(' · ') || 'Draft pending',rank:0};
   }).sort((a,b) => b.score-a.score || a.name.localeCompare(b.name)).map((player,index) => ({...player,rank:index+1})),[game,castawayScores]);
 
-  async function login() { const firebase=await getFirebase(); if(firebase) await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
-  async function logout() { const firebase=await getFirebase(); if(firebase) await firebase.auth().signOut(); }
+  async function login() { const firebase=await getFirebase(); if(!firebase) throw new Error('Firebase authentication did not load.'); const provider=new firebase.auth.GoogleAuthProvider(); provider.setCustomParameters({prompt:'select_account'}); const result=await firebase.auth().signInWithPopup(provider); setUser(normalizedUser(result.user)); }
+  async function logout() { setUser(null); const firebase=await getFirebase(); if(firebase) await firebase.auth().signOut(); }
   async function addScore(input:Omit<ScoreEvent,'id'|'createdAt'|'points'> & {categoryId:string}) {
     const category = categories.find((item) => item.id === input.categoryId); if (!category) return;
     await persist({...game,season:{...game.season,currentEpisode:Math.max(game.season.currentEpisode,input.episode ?? 1)},scoreEvents:[...game.scoreEvents,{...input,id:crypto.randomUUID(),points:category.points,createdAt:new Date().toISOString()}]});
