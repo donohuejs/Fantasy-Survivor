@@ -43,7 +43,7 @@ export function buildDraftTurns(roster:Player[]):DraftTurn[]{
   return [first,[...first].reverse(),first].flatMap((roundPlayers,roundIndex)=>roundPlayers.map((player,index)=>({playerId:player.id,playerName:player.name,email:player.email.toLowerCase(),round:roundIndex+1,pickNumber:index+1})));
 }
 export const initialGame: GameState = {
-  season:{id:'season-51',name:'Survivor 51',number:51,currentEpisode:1,entryFee:20},
+  season:{id:'season-51',name:'Survivor 51',number:51,currentEpisode:1,entryFee:10},
   players,
   castaways:cast.map(([name,shortName,age,occupation,bio,imageSlug]) => ({id:`cast-${shortName.toLowerCase().replace(/\s/g,'-')}`,name,shortName,age,occupation,bio,imageUrl:photo(imageSlug),status:'active'})),
   draftPicks:[], scoreEvents:[], draft:{status:'setup',currentPick:0,turns:buildDraftTurns(players)},

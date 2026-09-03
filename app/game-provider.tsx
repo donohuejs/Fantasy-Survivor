@@ -18,6 +18,7 @@ const storageKey = 'fantasy-survivor-51-game';
 function withOfficialCastawayProfiles(saved:GameState):GameState {
   return {
     ...saved,
+    season:{...saved.season,entryFee:initialGame.season.entryFee},
     castaways:saved.castaways.map((castaway) => {
       const official = initialGame.castaways.find((item) => item.id === castaway.id);
       return official ? {...castaway,name:official.name,shortName:official.shortName,age:official.age,occupation:official.occupation,bio:official.bio,imageUrl:official.imageUrl} : castaway;
@@ -29,9 +30,9 @@ export function GameProvider({children}:{children:React.ReactNode}) {
   const [game,setGame] = useState<GameState>(initialGame);
   const [loading,setLoading] = useState(firebaseConfigured);
   const [user,setUser] = useState<FirebaseUser|null>(null);
-  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL?.toLowerCase();
+  const adminEmail = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'donohue.js@gmail.com').trim().toLowerCase();
   const localSetup = !firebaseConfigured && process.env.NODE_ENV !== 'production';
-  const isAdmin = localSetup || Boolean(user?.email && user.email.toLowerCase() === adminEmail);
+  const isAdmin = localSetup || Boolean(user?.email && user.email.trim().toLowerCase() === adminEmail);
 
   useEffect(() => {
     if (!firebaseConfigured) {
