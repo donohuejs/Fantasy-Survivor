@@ -2,9 +2,10 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useGame } from '../game-provider';
+import { AuthControls } from '../auth-controls';
 
 export default function Draft() {
-  const { game, standings, user, isAdmin, login, logout, submitPlayerPick } = useGame();
+  const { game, standings, user, isAdmin, submitPlayerPick } = useGame();
   const [message,setMessage] = useState('');
   const currentTurn = game.draft.turns[game.draft.currentPick];
   const isMyTurn = game.draft.status === 'live' && Boolean(user?.email && currentTurn?.email === user.email.toLowerCase());
@@ -14,7 +15,7 @@ export default function Draft() {
     <section className="inner-hero"><p className="eyebrow"><span/> Survivor 51</p><h1>Three rounds. No safe picks.</h1><p>Round one runs in reverse Season 50 finish order, round two snakes back, and round three is a private blind choice worth 1.25×.</p></section>
     <section className="draft-live-panel">
       <div><p className="eyebrow dark">Live draft room</p><h2>{game.draft.status==='setup'?'Waiting for the game master':game.draft.status==='complete'?'The draft is complete':game.draft.status==='paused'?'Draft paused':`${currentTurn?.playerName ?? 'Next player'} is on the clock`}</h2><p>{currentTurn?`Round ${currentTurn.round} · Pick ${currentTurn.pickNumber} · Overall ${game.draft.currentPick+1} of ${game.draft.turns.length}`:'The game master will publish the turn order before draft night.'}</p></div>
-      <div className="draft-auth">{user?<><span>Signed in as <strong>{user.email}</strong></span><button onClick={logout}>Sign out</button></>:<><span>Players sign in to make their pick.</span><button onClick={login}>Sign in with Google</button></>}</div>
+      <AuthControls/>
       {isMyTurn&&<form className="live-pick-form" onSubmit={choose}><label>Choose your castaway<select name="castawayId" required>{game.castaways.map((castaway)=><option key={castaway.id} value={castaway.id}>{castaway.name} · {castaway.occupation}</option>)}</select></label><button>Lock in pick</button></form>}
       {user&&game.draft.status==='live'&&!isMyTurn&&<p className="draft-waiting">You’re signed in. This screen will update automatically when it’s your turn.</p>}
       {message&&<p className="draft-message" role="status">{message}</p>}

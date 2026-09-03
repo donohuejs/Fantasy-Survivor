@@ -1,11 +1,13 @@
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { firebaseConfigured, getFirebase, type FirebaseUser } from '@/lib/firebase';
+import { firebaseConfigured, getFirebase, authenticationError, type FirebaseUser } from '@/lib/firebase';
+import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { buildDraftTurns, categories, initialGame, type DraftPick, type GameState, type ScoreEvent } from '@/lib/game-data';
 
 type GameContextValue = {
-  game:GameState; loading:boolean; user:FirebaseUser|null; isAdmin:boolean; cloud:boolean;
+  game:GameState; loading:boolean; user:FirebaseUser|null; isAdmin:boolean; cloud:boolean; authLoading:boolean; authBusy:boolean;
   castawayScores:Record<string,number>; standings:Array<{id:string;name:string;score:number;picks:string;rank:number}>;
   login:()=>Promise<void>; logout:()=>Promise<void>; addScore:(data:Omit<ScoreEvent,'id'|'createdAt'|'points'> & {categoryId:string})=>Promise<void>;
   addAdjustment:(playerId:string,points:number,note:string)=>Promise<void>; savePick:(pick:Omit<DraftPick,'id'|'multiplier'> & {blind:boolean})=>Promise<void>;
@@ -26,16 +28,13 @@ function withOfficialCastawayProfiles(saved:GameState):GameState {
   };
 }
 
-function normalizedUser(user:FirebaseUser|null):FirebaseUser|null {
-  if (!user) return null;
-  const email = user.email ?? user.providerData?.find((profile) => profile.email)?.email ?? null;
-  return {email,displayName:user.displayName};
-}
-
 export function GameProvider({children}:{children:React.ReactNode}) {
   const [game,setGame] = useState<GameState>(initialGame);
   const [loading,setLoading] = useState(firebaseConfigured);
   const [user,setUser] = useState<FirebaseUser|null>(null);
+  const [authLoading,setAuthLoading] = useState(firebaseConfigured);
+  const [authBusy,setAuthBusy] = useState(false);
+  const [authError,setAuthError] = useState('');
   const adminEmails = new Set([
     'donohue.js@gmail.com',
     process.env.NEXT_PUBLIC_ADMIN_EMAIL?.trim().toLowerCase(),
@@ -52,15 +51,34 @@ export function GameProvider({children}:{children:React.ReactNode}) {
       });
       return;
     }
-    let stops:Array<()=>void>=[]; let active=true;
-    getFirebase().then((firebase)=>{if(!active||!firebase){setLoading(false);return}const auth=firebase.auth();const ref=firebase.firestore().collection('games').doc('survivor-51');stops=[auth.onAuthStateChanged((nextUser)=>setUser(normalizedUser(nextUser))),ref.onSnapshot((snapshot)=>{if(snapshot.exists){const saved=snapshot.data() as GameState;setGame(withOfficialCastawayProfiles({...saved,draft:saved.draft??initialGame.draft,players:saved.players.map((player,index)=>({...player,email:player.email??'',priorFinish:player.priorFinish??index+1,draftSlot:player.draftSlot??saved.players.length-index}))}))}setLoading(false)},()=>setLoading(false))]});
-    return () => { active=false; stops.forEach((stop)=>stop()); };
+    const stops:Array<()=>void>=[];
+    let active=true;
+    const timer=setTimeout(()=>{if(active){setAuthLoading(false);setAuthError('Authentication is taking too long to initialize. Check your connection or content blocker, then reload.')}},15000);
+    try {
+      const {auth,db}=getFirebase();
+      stops.push(onAuthStateChanged(auth,(nextUser)=>{
+        if(!active)return;
+        clearTimeout(timer);setUser(nextUser);setAuthLoading(false);setAuthError('');
+      },(error)=>{clearTimeout(timer);if(active){setAuthLoading(false);setAuthError(authenticationError(error));}}));
+      stops.push(onSnapshot(doc(db,'games','survivor-51'),(snapshot)=>{
+        if(!active)return;
+        if(snapshot.exists()){
+          const saved=snapshot.data() as GameState;
+          setGame(withOfficialCastawayProfiles({...saved,draft:saved.draft??initialGame.draft,players:saved.players.map((player,index)=>({...player,email:player.email??'',priorFinish:player.priorFinish??index+1,draftSlot:player.draftSlot??saved.players.length-index}))}));
+        }
+        setLoading(false);
+      },()=>{if(active)setLoading(false);}));
+    } catch(error) {
+      clearTimeout(timer);
+      queueMicrotask(()=>{if(active){setAuthLoading(false);setLoading(false);setAuthError(authenticationError(error));}});
+    }
+    return () => {active=false;clearTimeout(timer);stops.forEach((stop)=>stop());};
   },[]);
 
   async function persist(next:GameState) {
-    setGame(next);
-    if (firebaseConfigured) { const firebase=await getFirebase(); if(!firebase) throw new Error('Firebase did not load'); await firebase.firestore().collection('games').doc('survivor-51').set(next); }
+    if (firebaseConfigured) { const {db}=getFirebase(); await setDoc(doc(db,'games','survivor-51'),next); }
     else window.localStorage.setItem(storageKey,JSON.stringify(next));
+    setGame(next);
   }
 
   const castawayScores = useMemo(() => Object.fromEntries(game.castaways.map((castaway) => [castaway.id,game.scoreEvents.filter((event) => event.castawayId === castaway.id).reduce((sum,event) => sum + event.points,0)])),[game]);
@@ -71,8 +89,24 @@ export function GameProvider({children}:{children:React.ReactNode}) {
     return {id:player.id,name:player.name,score:player.entryBonus + pickScore + direct,picks:picks.map((pick) => pick.round===3&&game.draft.status!=='complete'?'Blind pick locked':game.castaways.find((c) => c.id === pick.castawayId)?.shortName).filter(Boolean).join(' · ') || 'Draft pending',rank:0};
   }).sort((a,b) => b.score-a.score || a.name.localeCompare(b.name)).map((player,index) => ({...player,rank:index+1})),[game,castawayScores]);
 
-  async function login() { const firebase=await getFirebase(); if(!firebase) throw new Error('Firebase authentication did not load.'); const provider=new firebase.auth.GoogleAuthProvider(); provider.setCustomParameters({prompt:'select_account'}); const result=await firebase.auth().signInWithPopup(provider); setUser(normalizedUser(result.user)); }
-  async function logout() { setUser(null); const firebase=await getFirebase(); if(firebase) await firebase.auth().signOut(); }
+  async function login() {
+    if(authBusy)return;
+    setAuthError('');setAuthBusy(true);
+    try {
+      const {auth}=getFirebase();
+      const provider=new GoogleAuthProvider();provider.setCustomParameters({prompt:'select_account'});
+      const result=await signInWithPopup(auth,provider);
+      setUser(result.user);setAuthLoading(false);
+    } catch(error){setAuthError(authenticationError(error));}
+    finally{setAuthBusy(false);}
+  }
+  async function logout() {
+    if(authBusy)return;
+    setAuthError('');setAuthBusy(true);
+    try{await signOut(getFirebase().auth);setUser(null);}
+    catch(error){setAuthError(authenticationError(error));}
+    finally{setAuthBusy(false);}
+  }
   async function addScore(input:Omit<ScoreEvent,'id'|'createdAt'|'points'> & {categoryId:string}) {
     const category = categories.find((item) => item.id === input.categoryId); if (!category) return;
     await persist({...game,season:{...game.season,currentEpisode:Math.max(game.season.currentEpisode,input.episode ?? 1)},scoreEvents:[...game.scoreEvents,{...input,id:crypto.randomUUID(),points:category.points,createdAt:new Date().toISOString()}]});
@@ -93,7 +127,7 @@ export function GameProvider({children}:{children:React.ReactNode}) {
   async function undoDraftPick() { if(!game.draftPicks.length) return; const currentPick=Math.max(0,game.draft.currentPick-1); await persist({...game,draftPicks:game.draftPicks.slice(0,-1),draft:{...game.draft,currentPick,status:'paused'}}); }
   async function submitPlayerPick(castawayId:string) { const turn=game.draft.turns[game.draft.currentPick]; if(!turn||game.draft.status!=='live'||user?.email?.toLowerCase()!==turn.email) throw new Error('It is not your turn.'); const nextPick=game.draft.currentPick+1; const pick:DraftPick={id:crypto.randomUUID(),playerId:turn.playerId,castawayId,round:turn.round,pickNumber:turn.pickNumber,multiplier:turn.round===3?1.25:1}; await persist({...game,draftPicks:[...game.draftPicks,pick],draft:{...game.draft,currentPick:nextPick,status:nextPick>=game.draft.turns.length?'complete':'live'}}); }
   async function resetSeason() { const players=game.players.map((player)=>({...player})); await persist({...initialGame,players,draft:{status:'setup',currentPick:0,turns:buildDraftTurns(players)}}); }
-  return <GameContext.Provider value={{game,loading,user,isAdmin,cloud:firebaseConfigured,castawayScores,standings,login,logout,addScore,addAdjustment,savePick,addPlayer,setPlayerEmail,startDraft,toggleDraft,undoDraftPick,submitPlayerPick,resetSeason}}>{children}</GameContext.Provider>;
+  return <GameContext.Provider value={{game,loading,user,isAdmin,cloud:firebaseConfigured,authLoading,authBusy,castawayScores,standings,login,logout,addScore,addAdjustment,savePick,addPlayer,setPlayerEmail,startDraft,toggleDraft,undoDraftPick,submitPlayerPick,resetSeason}}>{authError&&<div role="alert" className="setup-notice">{authError}</div>}{children}</GameContext.Provider>;
 }
 
 export function useGame() { const value=useContext(GameContext); if (!value) throw new Error('GameProvider missing'); return value; }
