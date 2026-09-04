@@ -1,6 +1,5 @@
 'use client';
 import {SiteHeader} from '../site-header';
-import { FormEvent, useState } from 'react';
 import { useGame } from '../game-provider';
 import { AuthControls } from '../auth-controls';
 import {DraftChoice} from './draft-choice';
@@ -8,12 +7,9 @@ import {keepsUntilReveal} from '@/lib/draft';
 import Image from 'next/image';
 
 export default function Draft() {
-  const { game, standings, user, signups,registerPlayer,signupError,signupLoading } = useGame();
-  const [message,setMessage] = useState('');
-  const [busy,setBusy]=useState(false);
+  const { game, standings, user, signups,registrationStatus,signupError,signupLoading } = useGame();
   const currentTurn = game.draft.turns[game.draft.currentPick];
   const isMyTurn = !game.season.finalized&&game.draft.status === 'live' && Boolean(user&&currentTurn&&(currentTurn.uid?currentTurn.uid===user.uid:currentTurn.email===user.email?.toLowerCase()));
-  async function register(e:FormEvent<HTMLFormElement>){e.preventDefault();setBusy(true);try{await registerPlayer(String(new FormData(e.currentTarget).get('name')??''));setMessage('You’re registered. The game master will link your permanent league profile.')}catch(error){setMessage(error instanceof Error?error.message:'Unable to register.')}finally{setBusy(false);}}
   const assigned=user?game.players.find(player=>player.uid?player.uid===user.uid:player.email&&player.email===user.email?.toLowerCase()):undefined;
   const mySignup=user?signups.find(signup=>signup.uid===user.uid):undefined;
   return <main className="inner-page">
@@ -25,11 +21,9 @@ export default function Draft() {
       {signupError&&<p role="alert" className="scoring-error">{signupError}</p>}
       {signupLoading&&<p role="status">Checking your league profile…</p>}
       {assigned&&<p className="draft-waiting"><strong>{assigned.name} · Slot {assigned.draftSlot}</strong> · Your league profile stays linked to this Google account for future seasons.</p>}
-      {user&&!assigned&&!mySignup&&!signupLoading&&!signupError&&<form className="player-registration" onSubmit={register}><label>Your player name<input name="name" maxLength={50} required placeholder="Name shown in the league"/></label><button disabled={busy}>{busy?'Registering…':'Join the league'}</button></form>}
-      {user&&!assigned&&mySignup&&<p className="draft-waiting">Registered as <strong>{mySignup.name}</strong>. Waiting for the game master to assign your draft slot.</p>}
+      {user&&!assigned&&mySignup&&registrationStatus==='registered'&&<p className="draft-waiting">Registered as <strong>{mySignup.name}</strong>. Waiting for the game master to assign your draft slot.</p>}
       {isMyTurn&&<DraftChoice key={game.draft.runId+':'+game.draft.currentPick}/>}
       {assigned&&game.draft.status==='live'&&!isMyTurn&&<p className="draft-waiting">This screen will update automatically when it’s your turn.</p>}
-      {message&&<p className="draft-message" role="status">{message}</p>}
     </section>
     <section className="draft-order-section"><div className="section-title"><div><p className="eyebrow dark">Assigned slots</p><h2>Reverse Season {game.season.number-1} finish order</h2></div></div><div className="draft-slot-grid">{[...game.players].sort((a,b)=>a.draftSlot-b.draftSlot).map((player)=><article key={player.id}><strong>{player.draftSlot}</strong><span>{(player.uid||player.email)?player.name:'Awaiting assignment'}<small>{(player.uid||player.email)?`Season ${game.season.number-1} finish: ${player.priorFinish}`:'Player signup pending'}</small></span></article>)}</div></section>
     {game.draft.version===2&&<section className="draft-order-section"><div className="section-title"><div><p className="eyebrow dark">Independent shuffle</p><h2>Round three turn order</h2></div></div><div className="draft-slot-grid">{game.draft.turns.filter(t=>t.round===3).map(t=><article key={t.playerId}><strong>{t.pickNumber}</strong><span>{t.playerName}<small>{game.draft.blind?(game.draftPicks.some(p=>p.round===3&&p.playerId===t.playerId)?'Decision recorded':'One card dealt face down'):'Blind cards open after round two'}</small></span></article>)}</div></section>}

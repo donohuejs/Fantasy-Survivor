@@ -8,6 +8,7 @@ import { buildDraftTurns, initialGame, type GameState, type Tribe, type Castaway
 import { recordScoring,saveCustomAction,saveTribe,assignCastaway,type ScoringInput,type CustomActionInput } from '@/lib/scoring';
 import {bindProfile,lockSeason,prepareNextSeason,seasonStandings,type PlayerSignup} from '@/lib/league';
 import {combinedHistory} from '@/lib/history-data';
+import {automaticRegistration,registrationForAccount,registrationErrorMessage,type RegistrationState} from '@/lib/registration';
 import {executeDraft,type DraftCommand,type PrivateDeal} from '@/lib/draft';
 export type {PlayerSignup} from '@/lib/league';
 
@@ -18,7 +19,7 @@ type GameContextValue = {
   addCustomAction:(input:CustomActionInput)=>Promise<string>; updateTribe:(tribe:Tribe)=>Promise<void>; updateCastaway:(id:string,tribeId:string,status:Castaway['status'])=>Promise<void>;
   addAdjustment:(playerId:string,points:number,note:string,episode?:number)=>Promise<void>;
   addPlayer:(name:string,email:string)=>Promise<void>; setPlayerEmail:(playerId:string,email:string)=>Promise<void>; startDraft:()=>Promise<void>; toggleDraft:()=>Promise<void>; undoDraftPick:()=>Promise<void>; submitPlayerPick:(castawayId:string,decision?:'select'|'keep'|'swap',onBehalf?:boolean)=>Promise<void>; resetSeason:()=>Promise<void>;
-  signups:PlayerSignup[]; registerPlayer:(name:string)=>Promise<void>; assignSignup:(signup:PlayerSignup,playerId:string)=>Promise<void>; setPlayerPaid:(playerId:string,paid:boolean)=>Promise<void>;
+  signups:PlayerSignup[]; registrationStatus:'idle'|'registering'|'registered'|'error'; retryRegistration:()=>void; assignSignup:(signup:PlayerSignup,playerId:string)=>Promise<void>; setPlayerPaid:(playerId:string,paid:boolean)=>Promise<void>;
   signupError:string; signupLoading:boolean; finalizeSeason:(order:string[])=>Promise<void>; beginNextSeason:()=>Promise<void>; addCastaway:(input:Omit<Castaway,'id'|'status'>)=>Promise<void>;
 };
 
@@ -46,6 +47,11 @@ export function GameProvider({children}:{children:React.ReactNode}) {
   const [authLoading,setAuthLoading] = useState(firebaseConfigured);
   const [authBusy,setAuthBusy] = useState(false);
   const [authError,setAuthError] = useState('');
+  const [registrationState,setRegistrationState]=useState<RegistrationState|null>(null);
+  const [registrationAttempt,setRegistrationAttempt]=useState(0);
+  const registration=registrationForAccount(registrationState,user?.uid);
+  const registrationStatus=registration.status;
+  function retryRegistration(){setRegistrationAttempt(attempt=>attempt+1);}
   const [signupState,setSignupState] = useState<{owner:string;rows:PlayerSignup[];error:string;loaded:boolean}>({owner:'',rows:[],error:'',loaded:false});
   const signups=signupState.owner===user?.uid?signupState.rows:[];
   const signupError=signupState.owner===user?.uid?signupState.error:'';
@@ -99,6 +105,32 @@ export function GameProvider({children}:{children:React.ReactNode}) {
     const stop=isAdmin?onSnapshot(collection(db,'games','survivor-51','signups'),snapshot=>save(snapshot.docs.map(item=>item.data() as PlayerSignup).sort((a,b)=>a.createdAt.localeCompare(b.createdAt))),fail):onSnapshot(doc(db,'games','survivor-51','signups',user.uid),snapshot=>save(snapshot.exists()?[snapshot.data() as PlayerSignup]:[]),fail);
     return ()=>{active=false;stop();};
   },[user,isAdmin]);
+
+  // Runs after every Google sign-in AND when Firebase restores a saved session.
+  // Creation is transactional and keyed by UID, so tabs/retries cannot duplicate players.
+  useEffect(()=>{
+    if(!firebaseConfigured||!user)return;
+    let active=true;
+    queueMicrotask(()=>{if(active)setRegistrationState({owner:user.uid,status:'registering',error:''});});
+    const timeout=setTimeout(()=>{if(active)setRegistrationState({owner:user.uid,status:'error',error:'Registration is taking longer than expected. Check your connection and retry.'});},15000);
+    const {auth,db}=getFirebase();
+    void runTransaction(db,async transaction=>{
+      if(auth.currentUser?.uid!==user.uid)throw new Error('Your signed-in account changed.');
+      const ref=doc(db,'games','survivor-51','signups',user.uid);
+      const snapshot=await transaction.get(ref);
+      if(!active||auth.currentUser?.uid!==user.uid)throw new Error('Your signed-in account changed.');
+      const signup=automaticRegistration(user,snapshot.exists()?snapshot.data() as PlayerSignup:null,new Date().toISOString());
+      if(!snapshot.exists())transaction.set(ref,signup);
+      return signup;
+    }).then(signup=>{
+      clearTimeout(timeout);
+      if(active)setRegistrationState({owner:user.uid,status:'registered',signup,error:''});
+    }).catch(error=>{
+      clearTimeout(timeout);
+      if(active)setRegistrationState({owner:user.uid,status:'error',error:registrationErrorMessage(error)});
+    });
+    return ()=>{active=false;clearTimeout(timeout);};
+  },[user,registrationAttempt]);
 
   async function persist(next:GameState) {
     if (firebaseConfigured) { const {db}=getFirebase(); await setDoc(doc(db,'games','survivor-51'),next); }
@@ -184,12 +216,6 @@ export function GameProvider({children}:{children:React.ReactNode}) {
   async function toggleDraft(){await draftRequest('toggle');}
   async function undoDraftPick(){await draftRequest('undo');}
   async function submitPlayerPick(castawayId:string,decision:'select'|'keep'|'swap'='select',onBehalf=false){await draftRequest('pick',castawayId,decision,onBehalf);}
-  async function registerPlayer(name:string){
-    if(!firebaseConfigured||!user?.uid||!user.email)throw new Error('Sign in with Google before registering.');
-    const clean=name.trim();if(clean.length<1||clean.length>50)throw new Error('Enter a name between 1 and 50 characters.');
-    const signup:PlayerSignup={uid:user.uid,name:clean,email:user.email.toLowerCase(),createdAt:new Date().toISOString()};
-    await runTransaction(getFirebase().db,async transaction=>{const ref=doc(getFirebase().db,'games','survivor-51','signups',user.uid);const existing=await transaction.get(ref);if(!existing.exists())transaction.set(ref,signup);});
-  }
   async function assignSignup(signup:PlayerSignup,playerId:string){
     if(!isAdmin||!firebaseConfigured)throw new Error('Connect Firebase and sign in as game master to assign registered profiles.');
     const {db}=getFirebase();
@@ -218,7 +244,8 @@ export function GameProvider({children}:{children:React.ReactNode}) {
     });
   }
   async function addCastaway(input:Omit<Castaway,'id'|'status'>){await adminMutation(current=>{if(current.draft.status!=='setup')throw new Error('Add castaways before the draft.');if(!input.name.trim()||!Number.isInteger(input.age)||input.age<18)throw new Error('Enter a name and an adult age.');if(input.imageUrl&&!/^https:\/\//i.test(input.imageUrl))throw new Error('Use an HTTPS photo URL.');return {...current,castaways:[...current.castaways,{...input,id:crypto.randomUUID(),status:'active'}]};});}
-  return <GameContext.Provider value={{game,loading,user,isAdmin,cloud:firebaseConfigured,authLoading,authBusy,castawayScores,standings,login,logout,addScore,addCustomAction,updateTribe,updateCastaway,addAdjustment,addPlayer,setPlayerEmail,startDraft,toggleDraft,undoDraftPick,submitPlayerPick,resetSeason,signups,registerPlayer,assignSignup,setPlayerPaid,signupError,signupLoading,finalizeSeason,beginNextSeason,addCastaway}}>{authError&&<div role="alert" className="setup-notice">{authError}</div>}{children}</GameContext.Provider>;
+  const assignedAccount=Boolean(user&&game.players.some(p=>p.uid?p.uid===user.uid:Boolean(p.email)&&p.email.toLowerCase()===user.email?.toLowerCase()));
+  return <GameContext.Provider value={{game,loading,user,isAdmin,cloud:firebaseConfigured,authLoading,authBusy,castawayScores,standings,login,logout,addScore,addCustomAction,updateTribe,updateCastaway,addAdjustment,addPlayer,setPlayerEmail,startDraft,toggleDraft,undoDraftPick,submitPlayerPick,resetSeason,signups,registrationStatus,retryRegistration,assignSignup,setPlayerPaid,signupError,signupLoading,finalizeSeason,beginNextSeason,addCastaway}}>{authError&&<div role="alert" className="setup-notice">{authError}</div>}{user&&registration.status==='registering'&&<div className="registration-banner" role="status">Signed in. Completing your league registration…</div>}{user&&registration.status==='error'&&<div className="registration-banner registration-failed" role="alert"><span><strong>You’re signed in, but league registration has not been confirmed.</strong> {registration.error}</span><button type="button" onClick={retryRegistration}>Retry registration</button></div>}{user&&!isAdmin&&!loading&&!assignedAccount&&registration.status==='registered'&&<div className="registration-banner" role="status">You’re registered as <strong>{registration.signup?.name}</strong>. The game master will assign your league profile and draft slot—nothing else to submit.</div>}{children}</GameContext.Provider>;
 }
 
 export function useGame() { const value=useContext(GameContext); if (!value) throw new Error('GameProvider missing'); return value; }

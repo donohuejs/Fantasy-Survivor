@@ -17,6 +17,6 @@ export function AuthControls({compact=false}:{compact?:boolean}) {
   </section>;
   if(authLoading)return <p role="status">Checking Google sign-in…</p>;
   return <div className="draft-auth">
-    {user?<><span>Signed in as <strong>{user.email || 'an account without an email address'}</strong></span><button type="button" disabled={authBusy} onClick={logout}>{authBusy?'Signing out…':'Sign out'}</button></>:<><span>Choose your Google account to continue.</span><button type="button" disabled={authBusy} onClick={login}>{authBusy?'Opening Google sign-in…':'Sign in with Google'}</button></>}
+    {user?<><span>Signed in as <strong>{user.email || 'an account without an email address'}</strong></span><button type="button" disabled={authBusy} onClick={logout}>{authBusy?'Signing out…':'Sign out'}</button></>:<><span>Signing in with Google automatically registers you for the league.</span><button type="button" disabled={authBusy} onClick={login}>{authBusy?'Opening Google sign-in…':'Sign in with Google'}</button></>}
   </div>;
 }

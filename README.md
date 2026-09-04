@@ -41,7 +41,7 @@ Import this directory's GitHub repository into Vercel, keep the seven public set
 
 ## Permanent profiles and future seasons
 
-- Players use Google sign-in on `/draft` and register a display name. Registrations live under `games/survivor-51/signups/{Firebase UID}`. Despite the legacy parent path, this registry persists across seasons.
+- Players are registered automatically when they sign in with Google on any page. New registrations use their Google display name (or the email name if absent); existing registrations and assigned profiles are never overwritten. Registrations live under `games/survivor-51/signups/{Firebase UID}`. Despite the legacy parent path, this registry persists across seasons.
 - Game Master links each account to its **existing league profile** once. The confirmation names the historical profile being linked; do not assign an unrelated person just to fill a slot. New people get a new profile first. Adding a returning historical player's exact old league name reuses their historical profile ID.
 - Assignment is transactional, rejects duplicate account/profile links, and removes the email from the public player record. Email stays in the private signup document; UID authenticates subsequent picks. Existing manual-email assignments remain compatible until linked.
 - Registered players cannot choose or change their permanent profile assignment. A mistaken identity link needs a deliberate administrator recovery; this release does not expose an account-reassignment shortcut.
