@@ -16,7 +16,7 @@ type GameContextValue = {
   castawayScores:Record<string,number>; standings:Array<{id:string;name:string;score:number;picks:string;rank:number}>;
   login:()=>Promise<void>; logout:()=>Promise<void>; addScore:(data:ScoringInput)=>Promise<void>;
   addCustomAction:(input:CustomActionInput)=>Promise<string>; updateTribe:(tribe:Tribe)=>Promise<void>; updateCastaway:(id:string,tribeId:string,status:Castaway['status'])=>Promise<void>;
-  addAdjustment:(playerId:string,points:number,note:string)=>Promise<void>;
+  addAdjustment:(playerId:string,points:number,note:string,episode?:number)=>Promise<void>;
   addPlayer:(name:string,email:string)=>Promise<void>; setPlayerEmail:(playerId:string,email:string)=>Promise<void>; startDraft:()=>Promise<void>; toggleDraft:()=>Promise<void>; undoDraftPick:()=>Promise<void>; submitPlayerPick:(castawayId:string,decision?:'select'|'keep'|'swap',onBehalf?:boolean)=>Promise<void>; resetSeason:()=>Promise<void>;
   signups:PlayerSignup[]; registerPlayer:(name:string)=>Promise<void>; assignSignup:(signup:PlayerSignup,playerId:string)=>Promise<void>; setPlayerPaid:(playerId:string,paid:boolean)=>Promise<void>;
   signupError:string; signupLoading:boolean; finalizeSeason:(order:string[])=>Promise<void>; beginNextSeason:()=>Promise<void>; addCastaway:(input:Omit<Castaway,'id'|'status'>)=>Promise<void>;
@@ -152,7 +152,13 @@ export function GameProvider({children}:{children:React.ReactNode}) {
   async function addCustomAction(input:CustomActionInput) {const id=crypto.randomUUID();await adminMutation(current=>saveCustomAction(current,input,id));return id;}
   async function updateTribe(tribe:Tribe){await adminMutation(current=>saveTribe(current,tribe));}
   async function updateCastaway(id:string,tribeId:string,status:Castaway['status']){await adminMutation(current=>assignCastaway(current,id,tribeId,status));}
-  async function addAdjustment(playerId:string,points:number,note:string) { await adminMutation(current=>({...current,scoreEvents:[...current.scoreEvents,{id:crypto.randomUUID(),playerId,points,note,createdAt:new Date().toISOString()}]})); }
+  async function addAdjustment(playerId:string,points:number,note:string,episode?:number) {
+    await adminMutation(current=>{
+      if(!current.players.some(p=>p.id===playerId)||!Number.isFinite(points))throw new Error('Choose a player and valid points.');
+      if(episode!==undefined&&(!Number.isInteger(episode)||episode<1))throw new Error('Episode must be a positive whole number, or leave it blank.');
+      return {...current,season:{...current.season,currentEpisode:Math.max(current.season.currentEpisode,episode??0)},scoreEvents:[...current.scoreEvents,{id:crypto.randomUUID(),playerId,points,note,...(episode!==undefined?{episode}:{}),createdAt:new Date().toISOString()}]};
+    });
+  }
   async function draftRequest(action:DraftCommand['action'],castawayId='',decision:DraftCommand['decision']='select',onBehalf=false) {
     const command:DraftCommand={action,season:game.season.number,runId:game.draft.runId??'',revision:game.draft.revision??0,currentPick:game.draft.currentPick,castawayId,decision,onBehalf};
     if(localSetup){

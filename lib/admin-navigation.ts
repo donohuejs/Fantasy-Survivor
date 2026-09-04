@@ -1,5 +1,6 @@
 export const adminTabs=[
   {id:'scoring',label:'Scoring'},
+  {id:'recaps-polls',label:'Recaps & polls'},
   {id:'league-setup',label:'League setup'},
   {id:'tribe-membership',label:'Tribe membership'},
   {id:'player-check-in',label:'Player check-in'},

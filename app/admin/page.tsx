@@ -9,6 +9,7 @@ import {PlayerSignups} from './player-signups';
 import {SeasonManager} from './season-manager';
 import {DraftChoice} from '../draft/draft-choice';
 import {AdminTabs} from './admin-tabs';
+import {RecapManager} from './recap-manager';
 
 export default function Admin(){
   const {game,standings,user,isAdmin,cloud,authLoading,addAdjustment,addPlayer,startDraft,toggleDraft,undoDraftPick,resetSeason}=useGame();
@@ -21,7 +22,7 @@ export default function Admin(){
   }
   function adjust(event:FormEvent<HTMLFormElement>){
     event.preventDefault();const form=event.currentTarget,data=new FormData(form);
-    void run(async()=>{await addAdjustment(String(data.get('playerId')),Number(data.get('points')),String(data.get('note')));form.reset();},'Player adjustment saved.');
+    void run(async()=>{await addAdjustment(String(data.get('playerId')),Number(data.get('points')),String(data.get('note')),data.get('episode')?Number(data.get('episode')):undefined);form.reset();},'Player adjustment saved.');
   }
   function player(event:FormEvent<HTMLFormElement>){
     event.preventDefault();const form=event.currentTarget,data=new FormData(form);
@@ -35,7 +36,7 @@ export default function Admin(){
   const scoring=<>
     {locked?<p className="setup-notice">Final results are locked. Open the next season in League setup before recording new scores.</p>:<ScoringManager key={game.season.number}/>}
     <div className="admin-grid"><article className="admin-panel"><div className="admin-panel-title"><span>+</span><div><p>Bonus desk</p><h2>Adjust a player score</h2></div></div>
-      <form onSubmit={adjust} className="admin-form"><label>Player<select name="playerId">{game.players.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label><label>Points<input name="points" type="number" step=".01" defaultValue="1" required/></label><label className="wide">Reason<input name="note" required/></label><button disabled={locked||busy} className="secondary-button wide">Apply adjustment</button></form>
+      <form onSubmit={adjust} className="admin-form"><label>Player<select name="playerId">{game.players.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label><label>Points<input name="points" type="number" step=".01" defaultValue="1" required/></label><label>Episode (optional)<input name="episode" type="number" min="1" step="1" defaultValue={game.season.currentEpisode} placeholder="Blank for a general adjustment"/></label><label className="wide">Reason<input name="note" required/></label><button disabled={locked||busy} className="secondary-button wide">Apply adjustment</button></form>
     </article></div>
   </>;
   const setup=<>
@@ -66,6 +67,7 @@ export default function Admin(){
     {saved&&<p className="admin-feedback" role="status">{saved}</p>}
     <AdminTabs key={game.season.number} panels={{
       scoring,
+      'recaps-polls':<RecapManager/>,
       'league-setup':setup,
       'tribe-membership':locked?<p className="setup-notice">This season is finalized. Tribe membership is locked.</p>:<TribeManagement/>,
       'player-check-in':<PlayerSignups/>,

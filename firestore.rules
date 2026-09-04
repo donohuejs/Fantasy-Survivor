@@ -10,6 +10,25 @@ service cloud.firestore {
       allow create, delete: if isAdmin();
       // Player decisions are verified by /api/draft using the Admin SDK.
       allow update: if isAdmin();
+      // Community writes and per-player ballots are handled by the authenticated server.
+      match /episodes/{episodeId} {
+        allow read: if isAdmin() || resource.data.status == 'published';
+        allow write: if false;
+        match /comments/{commentId} {
+          allow read: if isAdmin() || get(/databases/$(database)/documents/games/$(gameId)/episodes/$(episodeId)).data.status == 'published';
+          allow write: if false;
+        }
+      }
+      match /polls/{pollId} {
+        allow read: if true;
+        allow write: if false;
+        match /votes/{profileId} {
+          allow read, write: if false;
+        }
+      }
+      match /communityPrivate/{userId} {
+        allow read, write: if false;
+      }
       match /draftPrivate/{document} {
         // No browser, including the game master's, may inspect the hidden deck.
         allow read, write: if false;

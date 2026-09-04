@@ -11,11 +11,14 @@ A standalone Next.js fantasy league application designed for Vercel, with Fireba
 - Weekly scoring actions, player adjustments, automatic totals, and an audit trail
 - Local setup mode when Firebase has not yet been connected
 - Prominent Google sign-in/sign-out controls in the shared header, outside the mobile scrolling navigation
+- Public Episodes page with scoring recaps, owner commentary, linked-player comments, and league polls
 - Game Master tabs for Scoring, League setup, Tribe membership, Player check-in, Draft room, and Activity log
 
 Game Master sections have shareable hash links (for example, `/admin#player-check-in`) and support arrow keys, Home, and End. Switching tabs preserves unfinished form entries; changing the season resets the forms. Access checks still guard the entire control room, and Firebase remains the authority for permissions.
 
 ## Local development
+
+See [Episode recaps and polls](docs/episode-recaps.md) for the publishing workflow, participation rules, and Firebase deployment changes.
 
 1. Run `npm install`.
 2. Copy `.env.example` to `.env.local`.

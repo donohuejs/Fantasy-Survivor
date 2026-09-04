@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {adminTabs,tabFromHash,tabForKey} from '../lib/admin-navigation.ts';
 
-test('all six game-master sections have distinct deep links',()=>{
-  assert.deepEqual(adminTabs.map(t=>t.label),['Scoring','League setup','Tribe membership','Player check-in','Draft room','Activity log']);
-  assert.equal(new Set(adminTabs.map(t=>t.id)).size,6);
+test('all seven game-master sections have distinct deep links',()=>{
+  assert.deepEqual(adminTabs.map(t=>t.label),['Scoring','Recaps & polls','League setup','Tribe membership','Player check-in','Draft room','Activity log']);
+  assert.equal(new Set(adminTabs.map(t=>t.id)).size,7);
   for(const tab of adminTabs)assert.equal(tabFromHash('#'+tab.id),tab.id);
 });
 test('empty and invalid section links safely open Scoring',()=>{
