@@ -1,7 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   function isAdmin() {
-    return request.auth != null && request.auth.token.email == 'donohue.js@gmail.com';
+    return request.auth != null && request.auth.token.email_verified == true && request.auth.token.email == 'donohue.js@gmail.com';
   }
 
   function isValidTurnPick() {
@@ -11,7 +11,8 @@ service cloud.firestore {
     let pick = newGame.draftPicks[newGame.draftPicks.size() - 1];
     return request.auth != null
       && oldGame.draft.status == 'live'
-      && request.auth.token.email == turn.email
+      && !oldGame.season.get('finalized', false)
+      && (turn.get('uid', '') != '' ? request.auth.uid == turn.uid : request.auth.token.email == turn.email)
       && newGame.diff(oldGame).affectedKeys().hasOnly(['draft', 'draftPicks'])
       && newGame.draft.turns == oldGame.draft.turns
       && newGame.draft.currentPick == oldGame.draft.currentPick + 1
@@ -32,6 +33,30 @@ service cloud.firestore {
       allow read: if true;
       allow create, delete: if isAdmin();
       allow update: if isAdmin() || isValidTurnPick();
+      match /archives/{season} {
+        allow read, write: if isAdmin();
+      }
+      match /signups/{userId} {
+        allow create: if isAdmin() || (request.auth != null
+          && request.auth.uid == userId
+          && request.auth.token.email_verified == true
+          && request.resource.data.keys().hasOnly(['uid', 'name', 'email', 'createdAt'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.email == request.auth.token.email.lower()
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 50
+          && request.resource.data.createdAt is string);
+        allow update: if isAdmin() || (request.auth != null
+          && request.auth.uid == userId
+          && !('assignedPlayerId' in resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 50
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.email == resource.data.email);
+        allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+        allow delete: if isAdmin();
+      }
     }
   }
 }

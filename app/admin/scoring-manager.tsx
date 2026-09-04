@@ -105,7 +105,7 @@ function MembershipRow({castaway}:{castaway:Castaway}){
 
 function TribeManagement(){
   const {game}=useGame();
-  return <section className="setup-section"><h2>Tribes & castaway membership</h2><p>Savu is purple and Toka is yellow. Starting memberships are unconfirmed; assign them here when known. Update these after swaps and eliminations. Existing points never move with a castaway.</p>
+  return <section className="setup-section"><h2>Tribes & castaway membership</h2><p>{game.season.number===51?'Savu is purple and Toka is yellow. Starting memberships are unconfirmed; assign them here when known.':'Add this season’s tribes and assign their members.'} Update these after swaps and eliminations. Existing points never move with a castaway.</p>
     <div className="tribe-summaries">{game.tribes.map(t=><div key={t.id} className="tribe-summary" style={{borderLeftColor:t.color}}><strong>{t.name}</strong><span>{game.castaways.filter(c=>c.tribeId===t.id&&c.status==='active').length} active members</span></div>)}</div>
     <details><summary>Edit tribe names, colors, or add a tribe</summary><div className="setup-grid">{game.tribes.map(t=><TribeEditor key={t.id} tribe={t}/>)}<TribeEditor/></div></details>
     <div className="membership-list">{game.castaways.map(c=><MembershipRow key={c.id} castaway={c}/>)}</div>

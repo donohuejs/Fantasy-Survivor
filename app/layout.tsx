@@ -3,15 +3,15 @@ import './globals.css';
 import { GameProvider } from './game-provider';
 
 export const metadata: Metadata = {
-  title: 'Fantasy Survivor 51',
+  title: 'Fantasy Survivor',
   description: 'Draft castaways, score every episode, and follow the fantasy leaderboard.',
   openGraph: {
-    title: 'Fantasy Survivor 51',
+    title: 'Fantasy Survivor',
     description: 'Outwit. Outdraft. Outscore.',
   },
   twitter: {
     card: 'summary',
-    title: 'Fantasy Survivor 51',
+    title: 'Fantasy Survivor',
     description: 'Outwit. Outdraft. Outscore.',
   },
 };

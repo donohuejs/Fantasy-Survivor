@@ -1,12 +1,14 @@
-export type Player = { id:string; name:string; email:string; entryBonus:number; priorFinish:number; draftSlot:number };
+export type Player = { id:string; name:string; email:string; uid?:string; entryBonus:number; priorFinish:number; draftSlot:number; paid?:boolean };
 export type Castaway = { id:string; name:string; shortName:string; age:number; occupation:string; bio:string; imageUrl:string; status:'active'|'voted-out'; tribeId?:string };
 export type Tribe = {id:string;name:string;color:string};
 export type DraftPick = { id:string; playerId:string; castawayId:string; round:number; pickNumber:number; multiplier:number };
 export type ScoreEvent = { id:string; castawayId?:string; playerId?:string; categoryId?:string; points:number; episode?:number; note?:string; createdAt:string; batchId?:string; actionLabel?:string; recipientName?:string; tribeId?:string; tribeName?:string };
 export type Category = { id:string; label:string; points:number; group:string; details?:string; target:'individual'|'tribe'; custom?:boolean };
-export type DraftTurn = { playerId:string; playerName:string; email:string; round:number; pickNumber:number };
+export type DraftTurn = { playerId:string; playerName:string; email:string; uid?:string; round:number; pickNumber:number };
 export type DraftState = { status:'setup'|'live'|'paused'|'complete'; currentPick:number; turns:DraftTurn[] };
-export type GameState = { season:{ id:string; name:string; number:number; currentEpisode:number; entryFee:number }; players:Player[]; castaways:Castaway[]; draftPicks:DraftPick[]; scoreEvents:ScoreEvent[]; draft:DraftState; tribes:Tribe[]; categories:Category[] };
+export type SeasonResult={profileId:string;name:string;score:number;finish:number};
+export type SeasonArchive={season:number;finalizedAt:string;results:SeasonResult[]};
+export type GameState = { season:{ id:string; name:string; number:number; currentEpisode:number; entryFee:number; finalized?:boolean }; players:Player[]; castaways:Castaway[]; draftPicks:DraftPick[]; scoreEvents:ScoreEvent[]; draft:DraftState; tribes:Tribe[]; categories:Category[]; history?:SeasonArchive[] };
 
 const photo = (filename:string) => `https://public-assets-pressexpress.s3.amazonaws.com/assets/releases/docimages/ac468eba/${filename}`;
 const cast: Array<[string,string,number,string,string,string]> = [
@@ -41,7 +43,7 @@ const priorFinish = ['Chad','Jennie','Joey','Ross','Josh','Dunna','Katie','Jacki
 const players = priorFinish.map((name,index) => ({id:`player-${name.toLowerCase()}`,name,email:'',entryBonus:0,priorFinish:index+1,draftSlot:priorFinish.length-index}));
 export function buildDraftTurns(roster:Player[]):DraftTurn[]{
   const first=[...roster].sort((a,b)=>a.draftSlot-b.draftSlot);
-  return [first,[...first].reverse(),first].flatMap((roundPlayers,roundIndex)=>roundPlayers.map((player,index)=>({playerId:player.id,playerName:player.name,email:player.email.toLowerCase(),round:roundIndex+1,pickNumber:index+1})));
+  return [first,[...first].reverse(),first].flatMap((roundPlayers,roundIndex)=>roundPlayers.map((player,index)=>({playerId:player.id,playerName:player.name,email:player.uid?'':player.email.toLowerCase(),...(player.uid?{uid:player.uid}:{}),round:roundIndex+1,pickNumber:index+1})));
 }
 export const initialGame: GameState = {
   tribes:[{id:'savu',name:'Savu',color:'#7030A0'},{id:'toka',name:'Toka',color:'#F2CC24'}],
