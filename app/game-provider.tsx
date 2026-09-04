@@ -4,10 +4,11 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { firebaseConfigured, getFirebase, authenticationError, type FirebaseUser } from '@/lib/firebase';
 import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc, runTransaction } from 'firebase/firestore';
-import { buildDraftTurns, initialGame, type DraftPick, type GameState, type Tribe, type Castaway } from '@/lib/game-data';
+import { buildDraftTurns, initialGame, type GameState, type Tribe, type Castaway } from '@/lib/game-data';
 import { recordScoring,saveCustomAction,saveTribe,assignCastaway,type ScoringInput,type CustomActionInput } from '@/lib/scoring';
 import {bindProfile,lockSeason,prepareNextSeason,seasonStandings,type PlayerSignup} from '@/lib/league';
 import {combinedHistory} from '@/lib/history-data';
+import {executeDraft,type DraftCommand,type PrivateDeal} from '@/lib/draft';
 export type {PlayerSignup} from '@/lib/league';
 
 type GameContextValue = {
@@ -15,8 +16,8 @@ type GameContextValue = {
   castawayScores:Record<string,number>; standings:Array<{id:string;name:string;score:number;picks:string;rank:number}>;
   login:()=>Promise<void>; logout:()=>Promise<void>; addScore:(data:ScoringInput)=>Promise<void>;
   addCustomAction:(input:CustomActionInput)=>Promise<string>; updateTribe:(tribe:Tribe)=>Promise<void>; updateCastaway:(id:string,tribeId:string,status:Castaway['status'])=>Promise<void>;
-  addAdjustment:(playerId:string,points:number,note:string)=>Promise<void>; savePick:(pick:Omit<DraftPick,'id'|'multiplier'> & {blind:boolean})=>Promise<void>;
-  addPlayer:(name:string,email:string)=>Promise<void>; setPlayerEmail:(playerId:string,email:string)=>Promise<void>; startDraft:()=>Promise<void>; toggleDraft:()=>Promise<void>; undoDraftPick:()=>Promise<void>; submitPlayerPick:(castawayId:string)=>Promise<void>; resetSeason:()=>Promise<void>;
+  addAdjustment:(playerId:string,points:number,note:string)=>Promise<void>;
+  addPlayer:(name:string,email:string)=>Promise<void>; setPlayerEmail:(playerId:string,email:string)=>Promise<void>; startDraft:()=>Promise<void>; toggleDraft:()=>Promise<void>; undoDraftPick:()=>Promise<void>; submitPlayerPick:(castawayId:string,decision?:'select'|'keep'|'swap',onBehalf?:boolean)=>Promise<void>; resetSeason:()=>Promise<void>;
   signups:PlayerSignup[]; registerPlayer:(name:string)=>Promise<void>; assignSignup:(signup:PlayerSignup,playerId:string)=>Promise<void>; setPlayerPaid:(playerId:string,paid:boolean)=>Promise<void>;
   signupError:string; signupLoading:boolean; finalizeSeason:(order:string[])=>Promise<void>; beginNextSeason:()=>Promise<void>; addCastaway:(input:Omit<Castaway,'id'|'status'>)=>Promise<void>;
 };
@@ -110,7 +111,7 @@ export function GameProvider({children}:{children:React.ReactNode}) {
     const picks = game.draftPicks.filter((pick) => pick.playerId === player.id);
     const pickScore = picks.reduce((sum,pick) => sum + (castawayScores[pick.castawayId] ?? 0) * pick.multiplier,0);
     const direct = game.scoreEvents.filter((event) => event.playerId === player.id).reduce((sum,event) => sum + event.points,0);
-    return {id:player.id,name:player.name,score:player.entryBonus + pickScore + direct,picks:picks.map((pick) => pick.round===3&&game.draft.status!=='complete'?'Blind pick locked':game.castaways.find((c) => c.id === pick.castawayId)?.shortName).filter(Boolean).join(' · ') || 'Draft pending',rank:0};
+    return {id:player.id,name:player.name,score:player.entryBonus + pickScore + direct,picks:picks.map((pick) => !pick.castawayId?'Blind pick locked':game.castaways.find((c) => c.id === pick.castawayId)?.shortName).filter(Boolean).join(' · ') || 'Draft pending',rank:0};
   }).sort((a,b) => {
     const final=game.season.finalized?game.history?.find(s=>s.season===game.season.number):undefined;
     return final?(final.results.find(r=>r.profileId===a.id)?.finish??999)-(final.results.find(r=>r.profileId===b.id)?.finish??999):b.score-a.score||a.name.localeCompare(b.name);
@@ -152,33 +153,31 @@ export function GameProvider({children}:{children:React.ReactNode}) {
   async function updateTribe(tribe:Tribe){await adminMutation(current=>saveTribe(current,tribe));}
   async function updateCastaway(id:string,tribeId:string,status:Castaway['status']){await adminMutation(current=>assignCastaway(current,id,tribeId,status));}
   async function addAdjustment(playerId:string,points:number,note:string) { await adminMutation(current=>({...current,scoreEvents:[...current.scoreEvents,{id:crypto.randomUUID(),playerId,points,note,createdAt:new Date().toISOString()}]})); }
-  async function savePick(input:Omit<DraftPick,'id'|'multiplier'> & {blind:boolean}) {
-    await adminMutation(game=>{
-    const draftPicks = game.draftPicks.filter((pick) => !(pick.playerId===input.playerId && pick.round===input.round));
-    draftPicks.push({id:crypto.randomUUID(),playerId:input.playerId,castawayId:input.castawayId,round:input.round,pickNumber:input.pickNumber,multiplier:input.round===3&&input.blind?1.25:1});
-    const turn=game.draft.turns[game.draft.currentPick];
-    const advances=game.draft.status==='live'&&turn?.playerId===input.playerId&&turn.round===input.round;
-    const currentPick=advances?game.draft.currentPick+1:game.draft.currentPick;
-    return {...game,draftPicks,draft:{...game.draft,currentPick,status:advances&&currentPick>=game.draft.turns.length?'complete':game.draft.status}};
-    });
+  async function draftRequest(action:DraftCommand['action'],castawayId='',decision:DraftCommand['decision']='select',onBehalf=false) {
+    const command:DraftCommand={action,season:game.season.number,runId:game.draft.runId??'',revision:game.draft.revision??0,currentPick:game.draft.currentPick,castawayId,decision,onBehalf};
+    if(localSetup){
+      const saved=window.localStorage.getItem(storageKey);
+      const current=saved?withOfficialCastawayProfiles(JSON.parse(saved)):game;
+      const secret=window.localStorage.getItem(storageKey+'-private-deal');
+      const result=executeDraft(current,secret?JSON.parse(secret) as PrivateDeal:null,{uid:'local-owner',email:'donohue.js@gmail.com',verified:true},{...command,onBehalf:true});
+      if(action==='start')window.localStorage.setItem(storageKey+'-private-deal',JSON.stringify(result.deal));
+      await persist(result.game);return;
+    }
+    const account=getFirebase().auth.currentUser;
+    if(!account)throw new Error('Sign in with Google before drafting.');
+    const token=await account.getIdToken();
+    let response:Response;
+    try{response=await fetch('/api/draft',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(command)});}
+    catch{throw new Error('Connection lost. Reload to check whether your pick saved before trying again.');}
+    const result=await response.json().catch(()=>({error:'The draft server returned an unexpected response. Reload and check the draft before retrying.'}));
+    if(!response.ok)throw new Error(result.error??'Unable to update the draft.');
   }
   async function addPlayer(name:string,email:string) { await adminMutation(current=>{if(current.draft.status!=='setup')throw new Error('Add profiles before starting the draft.');const clean=name.trim();if(!clean||clean.length>50)throw new Error('Enter a name between 1 and 50 characters.');if(current.players.some(p=>p.name.toLowerCase()===clean.toLowerCase()))throw new Error('That name already has a profile in this season.');const historical=combinedHistory(current.history).find(r=>r.name.toLowerCase()===clean.toLowerCase());if(historical&&current.players.some(p=>p.id===historical.profileId))throw new Error('That historical profile is already in this season.');const slot=Math.max(0,...current.players.map(p=>p.draftSlot))+1;return {...current,players:[...current.players,{id:historical?.profileId??crypto.randomUUID(),name:clean,email:email.trim().toLowerCase(),entryBonus:0,priorFinish:slot,draftSlot:slot}]};}); }
   async function setPlayerEmail(playerId:string,email:string) { await adminMutation(current=>{if(current.players.find(p=>p.id===playerId)?.uid)throw new Error('This permanent profile is locked to its Google account.');if(current.draft.status!=='setup')throw new Error('Change player access before starting the draft.');return {...current,players:current.players.map(player=>player.id===playerId?{...player,email:email.trim().toLowerCase()}:player)};}); }
-  async function startDraft() { await adminMutation(current=>{const turns=buildDraftTurns(current.players);if(current.draft.status!=='setup')throw new Error('This draft has already started.');if(!turns.length||turns.some(turn=>!turn.uid&&!turn.email))throw new Error('Assign every player to an account before starting the draft.');if(!current.castaways.length)throw new Error('Add this season’s castaways before starting the draft.');return {...current,draftPicks:[],draft:{status:'live',currentPick:0,turns}};}); }
-  async function toggleDraft() { await adminMutation(current=>({...current,draft:{...current.draft,status:current.draft.status==='live'?'paused':current.draft.status==='paused'?'live':current.draft.status}})); }
-  async function undoDraftPick() { await adminMutation(current=>{if(!current.draftPicks.length)return current;return {...current,draftPicks:current.draftPicks.slice(0,-1),draft:{...current.draft,currentPick:Math.max(0,current.draft.currentPick-1),status:'paused'}};}); }
-  async function submitPlayerPick(castawayId:string) {
-    if(!user||!firebaseConfigured)throw new Error('Sign in to draft.');
-    await runTransaction(getFirebase().db,async transaction=>{
-      const ref=doc(getFirebase().db,'games','survivor-51'),snapshot=await transaction.get(ref);
-      if(!snapshot.exists())throw new Error('The draft is not ready.');
-      const current=snapshot.data() as GameState,turn=current.draft.turns[current.draft.currentPick];
-      if(current.season.finalized||current.draft.status!=='live'||!turn||(turn.uid?turn.uid!==user.uid:turn.email!==user.email?.toLowerCase()))throw new Error('It is not your turn.');
-      if(!current.castaways.some(c=>c.id===castawayId))throw new Error('Choose a valid castaway.');
-      const nextPick=current.draft.currentPick+1,pick:DraftPick={id:crypto.randomUUID(),playerId:turn.playerId,castawayId,round:turn.round,pickNumber:turn.pickNumber,multiplier:turn.round===3?1.25:1};
-      transaction.update(ref,{draftPicks:[...current.draftPicks,pick],draft:{...current.draft,currentPick:nextPick,status:nextPick>=current.draft.turns.length?'complete':'live'}});
-    });
-  }
+  async function startDraft(){await draftRequest('start');}
+  async function toggleDraft(){await draftRequest('toggle');}
+  async function undoDraftPick(){await draftRequest('undo');}
+  async function submitPlayerPick(castawayId:string,decision:'select'|'keep'|'swap'='select',onBehalf=false){await draftRequest('pick',castawayId,decision,onBehalf);}
   async function registerPlayer(name:string){
     if(!firebaseConfigured||!user?.uid||!user.email)throw new Error('Sign in with Google before registering.');
     const clean=name.trim();if(clean.length<1||clean.length>50)throw new Error('Enter a name between 1 and 50 characters.');
@@ -213,7 +212,7 @@ export function GameProvider({children}:{children:React.ReactNode}) {
     });
   }
   async function addCastaway(input:Omit<Castaway,'id'|'status'>){await adminMutation(current=>{if(current.draft.status!=='setup')throw new Error('Add castaways before the draft.');if(!input.name.trim()||!Number.isInteger(input.age)||input.age<18)throw new Error('Enter a name and an adult age.');if(input.imageUrl&&!/^https:\/\//i.test(input.imageUrl))throw new Error('Use an HTTPS photo URL.');return {...current,castaways:[...current.castaways,{...input,id:crypto.randomUUID(),status:'active'}]};});}
-  return <GameContext.Provider value={{game,loading,user,isAdmin,cloud:firebaseConfigured,authLoading,authBusy,castawayScores,standings,login,logout,addScore,addCustomAction,updateTribe,updateCastaway,addAdjustment,savePick,addPlayer,setPlayerEmail,startDraft,toggleDraft,undoDraftPick,submitPlayerPick,resetSeason,signups,registerPlayer,assignSignup,setPlayerPaid,signupError,signupLoading,finalizeSeason,beginNextSeason,addCastaway}}>{authError&&<div role="alert" className="setup-notice">{authError}</div>}{children}</GameContext.Provider>;
+  return <GameContext.Provider value={{game,loading,user,isAdmin,cloud:firebaseConfigured,authLoading,authBusy,castawayScores,standings,login,logout,addScore,addCustomAction,updateTribe,updateCastaway,addAdjustment,addPlayer,setPlayerEmail,startDraft,toggleDraft,undoDraftPick,submitPlayerPick,resetSeason,signups,registerPlayer,assignSignup,setPlayerPaid,signupError,signupLoading,finalizeSeason,beginNextSeason,addCastaway}}>{authError&&<div role="alert" className="setup-notice">{authError}</div>}{children}</GameContext.Provider>;
 }
 
 export function useGame() { const value=useContext(GameContext); if (!value) throw new Error('GameProvider missing'); return value; }

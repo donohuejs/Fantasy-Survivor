@@ -4,35 +4,16 @@ service cloud.firestore {
     return request.auth != null && request.auth.token.email_verified == true && request.auth.token.email == 'donohue.js@gmail.com';
   }
 
-  function isValidTurnPick() {
-    let oldGame = resource.data;
-    let newGame = request.resource.data;
-    let turn = oldGame.draft.turns[oldGame.draft.currentPick];
-    let pick = newGame.draftPicks[newGame.draftPicks.size() - 1];
-    return request.auth != null
-      && oldGame.draft.status == 'live'
-      && !oldGame.season.get('finalized', false)
-      && (turn.get('uid', '') != '' ? request.auth.uid == turn.uid : request.auth.token.email == turn.email)
-      && newGame.diff(oldGame).affectedKeys().hasOnly(['draft', 'draftPicks'])
-      && newGame.draft.turns == oldGame.draft.turns
-      && newGame.draft.currentPick == oldGame.draft.currentPick + 1
-      && ((newGame.draft.currentPick < oldGame.draft.turns.size() && newGame.draft.status == 'live')
-        || (newGame.draft.currentPick == oldGame.draft.turns.size() && newGame.draft.status == 'complete'))
-      && newGame.draftPicks.size() == oldGame.draftPicks.size() + 1
-      && newGame.draftPicks.hasAll(oldGame.draftPicks)
-      && pick.keys().hasOnly(['id', 'playerId', 'castawayId', 'round', 'pickNumber', 'multiplier'])
-      && pick.playerId == turn.playerId
-      && pick.round == turn.round
-      && pick.pickNumber == turn.pickNumber
-      && pick.castawayId is string
-      && pick.multiplier == (turn.round == 3 ? 1.25 : 1);
-  }
-
   match /databases/{database}/documents {
     match /games/{gameId} {
       allow read: if true;
       allow create, delete: if isAdmin();
-      allow update: if isAdmin() || isValidTurnPick();
+      // Player decisions are verified by /api/draft using the Admin SDK.
+      allow update: if isAdmin();
+      match /draftPrivate/{document} {
+        // No browser, including the game master's, may inspect the hidden deck.
+        allow read, write: if false;
+      }
       match /archives/{season} {
         allow read, write: if isAdmin();
       }

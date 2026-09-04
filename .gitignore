@@ -19,6 +19,9 @@
 # misc
 .DS_Store
 *.pem
+*service-account*.json
+*firebase-adminsdk*.json
+*-firebase-adminsdk-*.json
 
 # debug
 npm-debug.log*
@@ -28,6 +31,7 @@ yarn-error.log*
 
 # local environment
 .env*
+!.env.example
 
 # deployment and generated files
 .vercel

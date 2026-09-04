@@ -53,7 +53,7 @@ export function ScoringManager(){
             <label className="wide">{action?.target==='tribe'?'Tribe':'Castaway'}<select value={recipientId} onChange={e=>setRecipientId(e.target.value)} required><option value="">Choose {action?.target==='tribe'?'a tribe':'a castaway'}…</option>{action?.target==='tribe'?game.tribes.map(t=><option value={t.id} key={t.id}>{t.name} ({game.castaways.filter(c=>c.tribeId===t.id&&c.status==='active').length} active)</option>):game.castaways.map(c=><option value={c.id} key={c.id}>{c.name}{c.status==='voted-out'?' · voted out':''}</option>)}</select></label>
             <div className="score-preview wide" aria-live="polite">
               {action?.target==='tribe'&&<p>Tribe points go to current active members only. For a past episode, verify the membership and status before recording.</p>}
-              {selected.length>0?<><strong>{pointsText(action?.points??0)} per castaway · {selected.length} recipient{selected.length===1?'':'s'}</strong><p>{selected.map(c=>c.name).join(', ')}</p></>:<p>{recipientId?'No active members. Assign castaways below before scoring.':'Choose a recipient to preview the award.'}</p>}
+              {selected.length>0?<><strong>{pointsText(action?.points??0)} per castaway · {selected.length} recipient{selected.length===1?'':'s'}</strong><p>{selected.map(c=>c.name).join(', ')}</p></>:<p>{recipientId?'No active members. Assign castaways in the Tribe membership tab before scoring.':'Choose a recipient to preview the award.'}</p>}
             </div>
             <label className="wide">Note (optional)<input name="note" maxLength={500} placeholder="Immunity challenge, episode recap, or explanation"/></label>
             <button disabled={!selected.length||!action} className="primary-button wide">{busy?'Saving…':'Confirm & award points'}</button>
@@ -74,7 +74,6 @@ export function ScoringManager(){
         {customError&&<p role="alert" className="scoring-error">{customError}</p>}
       </article>
     </div>
-    <TribeManagement/>
   </section>;
 }
 
@@ -103,7 +102,7 @@ function MembershipRow({castaway}:{castaway:Castaway}){
   </form>;
 }
 
-function TribeManagement(){
+export function TribeManagement(){
   const {game}=useGame();
   return <section className="setup-section"><h2>Tribes & castaway membership</h2><p>{game.season.number===51?'Savu is purple and Toka is yellow. Starting memberships are unconfirmed; assign them here when known.':'Add this season’s tribes and assign their members.'} Update these after swaps and eliminations. Existing points never move with a castaway.</p>
     <div className="tribe-summaries">{game.tribes.map(t=><div key={t.id} className="tribe-summary" style={{borderLeftColor:t.color}}><strong>{t.name}</strong><span>{game.castaways.filter(c=>c.tribeId===t.id&&c.status==='active').length} active members</span></div>)}</div>

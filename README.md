@@ -10,6 +10,10 @@ A standalone Next.js fantasy league application designed for Vercel, with Fireba
 - Three-round draft with a 1.25x blind-pick multiplier
 - Weekly scoring actions, player adjustments, automatic totals, and an audit trail
 - Local setup mode when Firebase has not yet been connected
+- Prominent Google sign-in/sign-out controls in the shared header, outside the mobile scrolling navigation
+- Game Master tabs for Scoring, League setup, Tribe membership, Player check-in, Draft room, and Activity log
+
+Game Master sections have shareable hash links (for example, `/admin#player-check-in`) and support arrow keys, Home, and End. Switching tabs preserves unfinished form entries; changing the season resets the forms. Access checks still guard the entire control room, and Firebase remains the authority for permissions.
 
 ## Local development
 
@@ -30,7 +34,7 @@ Without Firebase values, the app runs in local setup mode and stores changes in 
 
 ## Vercel deployment
 
-Import this directory's GitHub repository into Vercel, add the seven values from `.env.example`, and deploy. The first administrator write creates the shared `games/survivor-51` document from the clean built-in seed.
+Import this directory's GitHub repository into Vercel, keep the seven public settings from `.env.example`, add the private server credential described in [the draft deployment checklist](docs/draft-deployment.md), and deploy. The first administrator write creates the shared `games/survivor-51` document from the clean built-in seed.
 
 ## Permanent profiles and future seasons
 
@@ -49,11 +53,12 @@ Import this directory's GitHub repository into Vercel, add the seven values from
 
 The `/history` page aggregates by permanent profile ID (not display name), supports season filtering, and includes newly finalized seasons once only. The initial historical data is bundled with the app; no production import mutation has been run.
 
-## Release checklist for this update
+## Draft rules and deployment
 
-1. Deploy `firestore.rules` to project `fantasy-survivor-9da59` separately from Vercel. The new signup and archive paths need these rules. A GitHub/Vercel deployment does **not** deploy Firebase rules.
-2. Deploy the website, then verify with a real non-admin Google account: register, observe pending status, link from Game Master, verify assigned profile/slot, and check wrong-account access is denied.
-3. Verify a paid checkbox persists across reloads. Test drafting with two separate accounts before draft night.
-4. The pre-existing round-three blind-pick privacy limitation is **not fixed** here: picks remain in the public game document and are merely hidden by the UI. Do not describe blind picks as secure/private until storage and rules are redesigned.
+The draft now resets the castaway pool each round, prevents duplicate two-castaway pairs after rounds one and two, and independently randomizes round three. In round three, the server deals one face-down card per player and displays the rest as discards. Keeping awards 1.25×; swapping awards 1× and releases the original dealt card for later players. Each kept card reveals after two additional keeps, with all remaining cards revealed at completion. Round three allows repeats from the player's earlier rounds.
 
-Validation: `npm run build`, `npm run lint`, and `node --experimental-strip-types --test tests/*.test.ts`. Browser checks covered the historical season filter and payment-checkmark persistence on a local test copy. Firebase emulator authorization tests still require a Java runtime; no live Firebase accounts/data were modified for testing.
+Hidden card assignments are stored outside the public game document and never returned in draft API responses. The rulebook and draft board describe the new flow. Owner proxy picks use the same validation as player picks.
+
+Before publishing, follow [the private draft deployment checklist](docs/draft-deployment.md): add the server-only credential in Vercel, publish Firestore rules separately, then deploy and rehearse with non-admin test accounts. Existing scores, profiles and payment records are not automatically reset. Old-format active drafts require explicit review.
+
+Validation: `npm run build`, `npm run lint`, and `node --experimental-strip-types --test tests/*.test.ts`. There are 51 passing local tests. Live Firebase/emulator authorization tests are still outstanding; see the deployment checklist for limitations and dependency-audit findings.

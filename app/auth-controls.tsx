@@ -2,9 +2,13 @@
 
 import { missingFirebaseSettings } from '@/lib/firebase';
 import { useGame } from './game-provider';
+import Link from 'next/link';
 
-export function AuthControls() {
+export function AuthControls({compact=false}:{compact?:boolean}) {
   const {cloud,user,authLoading,authBusy,login,logout}=useGame();
+  if(compact)return <div className="header-account">
+    {!cloud?<Link href="/draft" className="header-sign-in">Sign in with Google</Link>:authLoading?<button className="header-sign-in" disabled aria-live="polite">Checking sign-in…</button>:user?<><span className="account-identity" title={user.email??''}><small>Signed in</small><strong>{user.displayName||user.email||'Google account'}</strong></span><button className="header-sign-out" type="button" disabled={authBusy} onClick={logout}>{authBusy?'Signing out…':'Sign out'}</button></>:<button className="header-sign-in" type="button" disabled={authBusy} onClick={login}>{authBusy?'Opening Google…':'Sign in with Google'}</button>}
+  </div>;
   if(!cloud)return <section role="alert" className="setup-notice">
     <h2>Firebase setup is incomplete</h2>
     <p>No account is signed in. Google sign-in is unavailable because this deployment is missing:</p>
