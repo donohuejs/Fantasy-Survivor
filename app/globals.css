@@ -320,3 +320,17 @@ input:not([type=checkbox]):not([type=radio]),select,textarea,
   .panel-heading,.section-title { flex-wrap:wrap; }
   .admin-header { flex-wrap:wrap; }
 }
+
+.castaway-pool-section{width:min(1140px,calc(100% - 40px));margin:0 auto 62px}
+.castaway-pool-intro{margin:8px 0 0;color:#65736a;font-size:var(--text-small);line-height:1.5}
+.castaway-pool-legend{display:flex;flex-wrap:wrap;gap:14px;align-items:center;color:#65736a;font-size:var(--text-small)}
+.castaway-pool-legend span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.pool-status-dot{width:9px;height:9px;display:inline-block;border-radius:50%;background:#9da69f}
+.pool-status-dot.available{background:#3f9168}.pool-status-dot.drafted{background:#c77936}.pool-status-dot.private{background:#7265a6}
+.castaway-pool-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.castaway-pool-card{min-width:0;display:grid;gap:8px;padding:15px 16px;background:#fffaf0;border:1px solid #d9cfbd;border-left:5px solid #9da69f;border-radius:3px 12px 3px 3px}
+.castaway-pool-card-heading{display:flex;align-items:center;gap:10px;min-width:0}.castaway-pool-card-heading img{display:block;width:48px;height:48px;flex:0 0 48px;border-radius:50%;object-fit:cover;object-position:center 20%;background:#ded4c2}.castaway-pool-card-copy{display:grid;gap:4px;min-width:0}.castaway-pool-card strong{min-width:0;font-size:var(--text-small);overflow-wrap:anywhere}.castaway-pool-card small{color:#737f77;font-size:var(--text-caption);overflow-wrap:anywhere}.castaway-pool-card em{color:#8a5e32;font-size:var(--text-caption);font-style:normal;overflow-wrap:anywhere}
+.castaway-pool-card.pool-available{border-left-color:#3f9168}.castaway-pool-card.pool-drafted{border-left-color:#c77936;background:#f6eee0}.castaway-pool-card.pool-private{border-left-color:#7265a6;background:#f0edf7}.castaway-pool-card.pool-private .pool-status{color:#62568e}.castaway-pool-card.pool-unavailable{opacity:.67}
+.pool-status{flex:0 0 auto;color:#347858;font-size:var(--text-caption);font-weight:700;white-space:nowrap}.pool-drafted .pool-status{color:#995a28}.pool-unavailable .pool-status{color:#737f77}
+.castaway-pool-note{margin:14px 0 0;color:#65736a;font-size:var(--text-small);line-height:1.5}
+@media(max-width:600px){.castaway-pool-section{width:calc(100% - 28px);margin-bottom:46px}.castaway-pool-legend{justify-content:flex-start}.castaway-pool-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.castaway-pool-card{padding:13px 12px}.castaway-pool-card-heading{align-items:flex-start}.castaway-pool-card-heading img{width:40px;height:40px;flex-basis:40px}.pool-status{white-space:normal}.castaway-pool-card em{font-size:var(--text-caption)}}

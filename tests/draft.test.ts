@@ -186,3 +186,18 @@ test('many complete drafts preserve round uniqueness, deck conservation and priv
     assert.equal(new Set([...third,...state.game.draft.blind!.discards]).size,8);
   }
 });
+
+test('eight-player round three handles mixed keeps, swaps, reveals, and a full discard pool',()=>{
+  let state=blind(8,12);
+  const decisions:['keep'|'swap',number?][]=[['keep'],['keep'],['swap',0],['keep'],['swap',0],['keep'],['swap',0],['keep']];
+  for(const [decision,discardIndex] of decisions){
+    const discard=decision==='swap'?state.game.draft.blind!.discards[discardIndex??0]:'';
+    state=play(state,decision,discard);
+  }
+  assert.equal(state.game.draft.status,'complete');
+  const roundThree=state.game.draftPicks.filter(pick=>pick.round===3);
+  assert.equal(roundThree.length,8);
+  assert.equal(new Set(roundThree.map(pick=>pick.castawayId)).size,8);
+  assert.equal(state.game.draft.blind!.discards.length,4);
+  assert(roundThree.every(pick=>pick.castawayId));
+});

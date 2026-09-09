@@ -5,6 +5,7 @@ import { AuthControls } from '../auth-controls';
 import {DraftChoice} from './draft-choice';
 import {keepsUntilReveal} from '@/lib/draft';
 import Image from 'next/image';
+import {CastawayPool} from './castaway-pool';
 
 export default function Draft() {
   const { game, standings, user, signups,registrationStatus,signupError,signupLoading } = useGame();
@@ -14,7 +15,7 @@ export default function Draft() {
   const mySignup=user?signups.find(signup=>signup.uid===user.uid):undefined;
   return <main className="inner-page">
     <SiteHeader active="/draft" subtitle="Draft board"/>
-    <section className="inner-hero"><p className="eyebrow"><span/> Survivor {game.season.number}</p><h1>Three rounds. No safe picks.</h1><p>Round one runs in reverse Season {game.season.number-1} finish order, round two snakes back, and round three uses a separately randomized order. Each round starts with the full castaway pool.</p></section>
+    <section className="inner-hero"><p className="eyebrow"><span/> Survivor {game.season.number}</p><h1>Three rounds. Every pick counts.</h1><p>Round one runs in reverse Season {game.season.number-1} finish order, round two snakes back, and round three uses a separately randomized order. Each round starts with the full castaway pool.</p></section>
     <section className="draft-live-panel">
       <div><p className="eyebrow dark">Live draft room</p><h2>{game.draft.status==='setup'?'Waiting for the game master':game.draft.status==='complete'?'The draft is complete':game.draft.status==='paused'?'Draft paused':`${currentTurn?.playerName ?? 'Next player'} is on the clock`}</h2><p>{currentTurn?`Round ${currentTurn.round} · Pick ${currentTurn.pickNumber} · Overall ${game.draft.currentPick+1} of ${game.draft.turns.length}`:'The game master will publish the turn order before draft night.'}</p></div>
       <AuthControls/>
@@ -25,6 +26,7 @@ export default function Draft() {
       {isMyTurn&&<DraftChoice key={game.draft.runId+':'+game.draft.currentPick}/>}
       {assigned&&game.draft.status==='live'&&!isMyTurn&&<p className="draft-waiting">This screen will update automatically when it’s your turn.</p>}
     </section>
+    <CastawayPool/>
     <section className="draft-order-section"><div className="section-title"><div><p className="eyebrow dark">Assigned slots</p><h2>Reverse Season {game.season.number-1} finish order</h2></div></div><div className="draft-slot-grid">{[...game.players].sort((a,b)=>a.draftSlot-b.draftSlot).map((player)=><article key={player.id}><strong>{player.draftSlot}</strong><span>{(player.uid||player.email)?player.name:'Awaiting assignment'}<small>{(player.uid||player.email)?`Season ${game.season.number-1} finish: ${player.priorFinish}`:'Player signup pending'}</small></span></article>)}</div></section>
     {game.draft.version===2&&<section className="draft-order-section"><div className="section-title"><div><p className="eyebrow dark">Independent shuffle</p><h2>Round three turn order</h2></div></div><div className="draft-slot-grid">{game.draft.turns.filter(t=>t.round===3).map(t=><article key={t.playerId}><strong>{t.pickNumber}</strong><span>{t.playerName}<small>{game.draft.blind?(game.draftPicks.some(p=>p.round===3&&p.playerId===t.playerId)?'Decision recorded':'One card dealt face down'):'Blind cards open after round two'}</small></span></article>)}</div></section>}
     {game.draft.blind&&<section className="discard-section"><div className="section-title"><div><p className="eyebrow dark">Face-up discard pile</p><h2>{game.draft.blind.discards.length} castaways available</h2><p>Swapping takes one of these at 1× and puts your dealt card here for later players. Earlier-round picks do not limit round three.</p></div></div><div className="discard-grid">{game.draft.blind.discards.map(id=>{const cast=game.castaways.find(c=>c.id===id);return cast?<article className="discard-card" key={id}>{cast.imageUrl&&<Image src={cast.imageUrl} alt={cast.name} width={180} height={225} unoptimized/>}<h3>{cast.name}</h3><p>{cast.occupation}</p></article>:null;})}</div>{!game.draft.blind.discards.length&&<p>No discards are available yet.</p>}</section>}
