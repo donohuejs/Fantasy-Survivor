@@ -3,6 +3,7 @@ import {useEffect,useRef,useState,type FormEvent} from 'react';
 import type {EpisodeRecap,LeaguePoll} from '@/lib/community';
 import {useGame} from '../game-provider';
 import {communityRequest,useComments} from './community-client';
+import {PlayerName} from '../player-name';
 
 export function ScoringSummary({recap}:{recap:EpisodeRecap}){
   return <section className="episode-scoring"><h3>Scoring actions</h3><p className="community-note">Scoring snapshot saved with this recap. These points are already included in the leaderboard—not awarded again here.</p>
@@ -27,7 +28,7 @@ export function CommentThread({recap}:{recap:EpisodeRecap}){
   return <section className="episode-comments"><h3>Campfire comments</h3><p className="community-note">Comments are public. Your league name is shown, never your email.</p>
     {comments.loading&&<p role="status">Loading comments…</p>}{comments.error&&<p role="alert">{comments.error}</p>}
     {comments.rows.length===count&&<button type="button" onClick={()=>setCount(count+50)}>Load older comments</button>}
-    {comments.rows.map(comment=><article className="episode-comment" key={comment.id}><header><strong>{comment.authorName}</strong><time dateTime={comment.createdAt}>{new Date(comment.createdAt).toLocaleString()}</time></header><p className="community-prose">{comment.text}</p>{(isAdmin||player?.id===comment.authorId)&&<button disabled={busy} className="comment-remove" onClick={()=>remove(comment.id)}>Remove comment</button>}</article>)}
+    {comments.rows.map(comment=>{const author=game.players.find(item=>item.id===comment.authorId);return <article className="episode-comment" key={comment.id}><header><strong>{author?<PlayerName id={author.id} name={author.name} history={game.history}/>:comment.authorName}</strong><time dateTime={comment.createdAt}>{new Date(comment.createdAt).toLocaleString()}</time></header><p className="community-prose">{comment.text}</p>{(isAdmin||player?.id===comment.authorId)&&<button disabled={busy} className="comment-remove" onClick={()=>remove(comment.id)}>Remove comment</button>}</article>;})}
     {!comments.loading&&!comments.error&&!comments.rows.length&&<p>No comments yet. Start the conversation.</p>}
     {user&&(player||isAdmin)?<form onSubmit={post} className="community-form"><label>Your comment<textarea value={text} onChange={e=>setText(e.target.value)} maxLength={2000} rows={3} required disabled={busy}/></label><button disabled={busy||!text.trim()}>{busy?'Saving…':'Post comment'}</button></form>:user?<p>Your account must be linked to a league profile before commenting. Signing in registers you automatically; ask the game master to link your account in Player check-in.</p>:<button onClick={login}>Sign in with Google to comment</button>}
     {message&&<p role="status">{message}</p>}

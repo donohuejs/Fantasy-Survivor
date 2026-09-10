@@ -334,3 +334,59 @@ input:not([type=checkbox]):not([type=radio]),select,textarea,
 .pool-status{flex:0 0 auto;color:#347858;font-size:var(--text-caption);font-weight:700;white-space:nowrap}.pool-drafted .pool-status{color:#995a28}.pool-unavailable .pool-status{color:#737f77}
 .castaway-pool-note{margin:14px 0 0;color:#65736a;font-size:var(--text-small);line-height:1.5}
 @media(max-width:600px){.castaway-pool-section{width:calc(100% - 28px);margin-bottom:46px}.castaway-pool-legend{justify-content:flex-start}.castaway-pool-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.castaway-pool-card{padding:13px 12px}.castaway-pool-card-heading{align-items:flex-start}.castaway-pool-card-heading img{width:40px;height:40px;flex-basis:40px}.pool-status{white-space:normal}.castaway-pool-card em{font-size:var(--text-caption)}}
+
+.player-name{display:inline-flex;align-items:baseline;gap:6px;min-width:0;max-width:100%;vertical-align:baseline;overflow-wrap:anywhere}.player-honor-trophy,.player-honor-stars{display:inline-block;flex:0 0 auto;line-height:1}.player-honor-trophy{font-size:var(--text-small)}.player-honor-stars{color:#bd7b1e;letter-spacing:1px;font-size:var(--text-caption);white-space:nowrap}.honor-legend{margin:0 0 14px;color:#68766d;font-size:var(--text-caption);line-height:1.5}.honor-legend span{font-size:var(--text-body)}
+
+/* Midnight + Flame palette */
+:root { --ink:#17262d; --forest:#17262d; --forest-deep:#0c171c; --flame:#f0783f; --sand:#f6f0e5; --paper:#fffdf8; --line:#d7e0dc; --teal:#449e96; --mist:#bfd0cd; --gold:#e8b35a; --night-soft:#243941; }
+body { background:var(--sand); color:var(--ink); }
+.site-header,.admin-header { background:rgba(255,253,248,.96); border-color:rgba(23,38,45,.14); }
+.brand-mark { color:var(--paper); background:var(--forest); box-shadow:inset 0 0 0 3px var(--gold); }
+.brand small,nav a { color:#5f6f73; }
+.nav a:hover,.nav a.active,nav a:hover,nav a.active { color:var(--forest); }
+.admin-link { border-color:#aabbb8; }
+.hero { color:var(--paper); background:radial-gradient(circle at 76% 52%,rgba(240,120,63,.25),transparent 22%),radial-gradient(circle at 17% 8%,rgba(68,158,150,.2),transparent 28%),linear-gradient(125deg,var(--forest-deep),#253e45 58%,#182d35); }
+.hero::after { border-color:rgba(246,240,229,.14); box-shadow:0 0 0 34px rgba(246,240,229,.035),0 0 0 78px rgba(246,240,229,.025); }
+.eyebrow,.torch-kicker,.draft-round>header span { color:#f1b668; }
+.hero h1 em { color:#f4a066; }
+.hero-copy { color:var(--mist); }
+.torch-card { background:rgba(12,26,31,.76); border-color:rgba(240,120,63,.3); }
+.champion-row { border-color:rgba(255,255,255,.15); }
+.champion-avatar { background:linear-gradient(145deg,var(--teal),var(--flame)); color:var(--paper); }
+.champion-row small,.champion-margin { color:var(--mist); }
+.champion-margin strong { color:var(--paper); }
+.panel { background:var(--paper); border-color:rgba(23,38,45,.16); }
+.season-button { color:#5f6f73; border-color:var(--line); }
+.leader-row { border-color:#dce4e1; }
+.leader-row.winner { background:linear-gradient(90deg,rgba(240,120,63,.14),transparent); }
+.rank { color:#71807f; }
+.avatar { background:#dbe8e5; color:var(--forest); }
+.winner .avatar { background:var(--forest); color:var(--gold); }
+.leader-name small,.episode-card>p:not(.eyebrow),.castaway-card .castaway-bio,.castaway-score,.team-grid p,.draft-pick small,.event-list small { color:#70807e; }
+.change { color:#83908f; }.change.up,.event-list b { color:var(--teal); }.change.down,.negative { color:#c85f4a; }
+.rule-callout { color:var(--paper); background:var(--forest); }.rule-number,.rule-summary span { color:var(--gold); }.rule-callout p,.rule-summary p { color:var(--mist); }
+footer { color:var(--mist); background:#111f25; } footer span { color:var(--gold); }
+.inner-hero,.admin-intro { color:var(--paper); background:radial-gradient(circle at 82% 20%,rgba(240,120,63,.23),transparent 24%),linear-gradient(120deg,var(--forest-deep),#253e45); }
+.inner-hero>p:last-child,.admin-intro>div>p:last-child { color:var(--mist); }
+.castaway-card,.draft-round,.draft-live-panel,.draft-slot-grid article,.team-grid article,.rules-groups article,.admin-panel,.mini-form,.season-admin,.episode-recap,.episode-comments,.recap-empty,.league-poll,.discard-section,.discard-card,.castaway-pool-card { background:var(--paper); border-color:var(--line); }
+.castaway-card>img,.castaway-pool-card-heading img { background:#dbe8e5; }
+.castaway-status,.castaway-pool-intro,.castaway-pool-legend,.castaway-pool-note,.history-toolbar p,.history-source { color:#657579; }
+.status-dot.active,.pool-status-dot.available { background:var(--teal); }.status-dot.active { box-shadow:0 0 0 3px #d5e9e5; }.castaway-pool-card.pool-available { background:var(--paper); border-left-color:var(--teal); }
+.castaway-pool-card.pool-drafted { border-left-color:var(--flame); background:#fbede5; }.castaway-pool-card.pool-private { border-left-color:#776aa4; background:#f0edf7; }
+.pool-status { color:#347f7b; }.pool-drafted .pool-status { color:#ad5e38; }
+.draft-round>header,.draft-slot-grid article>strong { background:var(--forest); color:var(--paper); }
+.draft-pick,.team-grid { border-color:var(--line); }.draft-pick b { color:#713c25; background:#f6d6bd; }
+.rules-layout>aside .rule-summary { background:var(--forest); color:var(--paper); }
+.scoring-rule { border-color:var(--line); }.scoring-rule>span { color:#347f7b; }.scoring-rule>span.negative,.negative { color:#c85f4a!important; }
+.admin-shell { background:var(--sand); }.admin-header>div,.admin-overview-stats span { color:#657579; }.admin-kpis span { color:var(--mist); }.admin-kpis strong,.admin-overview-stats strong { color:var(--gold); }
+.admin-form label,.admin-panel-title p { color:#53656a; }.admin-form label span { color:#8b999b; }
+.admin-form input,.admin-form select,.mini-form input,.mini-form select,.live-pick-form select,.history-toolbar select,.final-result-list select,.community-heading select,.community-form input:not([type=radio]),.community-form select,.community-form textarea,.recap-editor-picker input { color:var(--ink); background:#fffdf8; border-color:#cbd8d5; }
+.primary-button,.header-sign-in,.draft-auth button,.live-pick-form button,.secondary-button,.mini-form button,.draft-admin-actions button,.admin-danger button,.season-admin button,.episode-picker button[aria-pressed=true],.community-shell button,.recap-manager button { background:var(--forest); color:var(--paper); }
+.header-sign-in:hover { background:#253e45; }.header-sign-out { border-color:#aabbb8; background:var(--paper); color:var(--forest); }
+.admin-tabs-bar { background:var(--paper); border-color:var(--line); box-shadow:0 5px 18px rgba(23,38,45,.08); }.admin-tabs-bar button { color:#53656a; }.admin-tabs-bar button:hover { background:#e7efed; }.admin-tabs-bar button[aria-selected="true"] { background:var(--forest); color:var(--paper); }
+.success-banner,.admin-feedback,.draft-message { color:#216d68; background:#dcece9; border-color:#bfdad5; }.setup-notice { color:#62451f; background:#fff1d6; border-color:#dca657; }
+.admin-danger { background:#fff0e9; border-color:#ddb7a7; }.score-preview { background:#edf3f1; border-color:#cadbd7; }.scoring-error { color:#9b3f35; background:#fff0ed; }
+.tribe-summary { background:#edf3f1; }.membership-row { border-color:#cbd8d5; }.membership-row select { border-color:#cbd8d5; background:var(--paper); color:var(--ink); }.membership-row button { background:var(--forest); }
+.paid-badge,.payment-list b { color:#ad5e38; }.paid-badge.paid,.payment-list input:checked~span+ b { color:#277c76; }
+.episode-picker button { background:var(--paper); color:var(--forest); border-color:var(--forest); }.community-heading>p,.recap-manager>p { color:#657579; }.episode-recap,.episode-comments,.recap-empty { border-color:var(--line); }.community-note { color:#6c7d7e; }.episode-scoring>article,.episode-comment,.poll-option { border-color:var(--line); }.episode-scoring>article>strong { color:var(--forest); }.league-poll { border-color:var(--line); }.poll-heading { color:#527b7a; }.poll-option input { accent-color:var(--teal); }.poll-option progress { accent-color:var(--teal); }
+.player-honor-stars { color:var(--gold); }.honor-legend { color:#657579; }

@@ -10,6 +10,8 @@ import {SeasonManager} from './season-manager';
 import {DraftChoice} from '../draft/draft-choice';
 import {AdminTabs} from './admin-tabs';
 import {RecapManager} from './recap-manager';
+import {PlayerName} from '../player-name';
+import {playerDisplayName} from '@/lib/player-honors';
 
 export default function Admin(){
   const {game,standings,user,isAdmin,cloud,authLoading,addAdjustment,addPlayer,startDraft,toggleDraft,undoDraftPick,resetSeason}=useGame();
@@ -36,7 +38,7 @@ export default function Admin(){
   const scoring=<>
     {locked?<p className="setup-notice">Final results are locked. Open the next season in League setup before recording new scores.</p>:<ScoringManager key={game.season.number}/>}
     <div className="admin-grid"><article className="admin-panel"><div className="admin-panel-title"><span>+</span><div><p>Bonus desk</p><h2>Adjust a player score</h2></div></div>
-      <form onSubmit={adjust} className="admin-form"><label>Player<select name="playerId">{game.players.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label><label>Points<input name="points" type="number" step=".01" defaultValue="1" required/></label><label>Episode (optional)<input name="episode" type="number" min="1" step="1" defaultValue={game.season.currentEpisode} placeholder="Blank for a general adjustment"/></label><label className="wide">Reason<input name="note" required/></label><button disabled={locked||busy} className="secondary-button wide">Apply adjustment</button></form>
+      <form onSubmit={adjust} className="admin-form"><label>Player<select name="playerId">{game.players.map(p=><option key={p.id} value={p.id}>{playerDisplayName(p.id,p.name,game.history)}</option>)}</select></label><label>Points<input name="points" type="number" step=".01" defaultValue="1" required/></label><label>Episode (optional)<input name="episode" type="number" min="1" step="1" defaultValue={game.season.currentEpisode} placeholder="Blank for a general adjustment"/></label><label className="wide">Reason<input name="note" required/></label><button disabled={locked||busy} className="secondary-button wide">Apply adjustment</button></form>
     </article></div>
   </>;
   const setup=<>
@@ -56,7 +58,7 @@ export default function Admin(){
     <div className="admin-grid"><article className="admin-panel"><h2>Submit the current player’s decision</h2>{game.draft.status==='live'?<DraftChoice onBehalf key={game.draft.runId+':'+game.draft.currentPick}/>:<p>Start or resume the draft to submit a decision for an absent player. The same draft rules apply.</p>}</article></div>
   </>;
   const activity=<section className="setup-section"><p className="eyebrow dark">Activity log</p><h2>Recent scoring items</h2><p>Showing the latest {Math.min(50,game.scoreEvents.length)} of {game.scoreEvents.length} scoring entries.</p><article className="admin-panel"><div className="event-list">
-    {game.scoreEvents.slice(-50).reverse().map(event=><div key={event.id}><span><strong>{event.recipientName??game.castaways.find(c=>c.id===event.castawayId)?.shortName??game.players.find(p=>p.id===event.playerId)?.name}</strong><small>{event.actionLabel||game.categories.find(c=>c.id===event.categoryId)?.label||'Adjustment'}{event.tribeName?' · '+event.tribeName:''}{event.episode?' · Episode '+event.episode:''}{event.note?' · '+event.note:''}</small></span><b className={event.points<0?'negative':''}>{event.points>0?'+':''}{event.points}</b></div>)}
+    {game.scoreEvents.slice(-50).reverse().map(event=>{const eventPlayer=event.playerId?game.players.find(player=>player.id===event.playerId):undefined;const recipient=event.recipientName??game.castaways.find(c=>c.id===event.castawayId)?.shortName??eventPlayer?.name;return <div key={event.id}><span><strong>{eventPlayer?<PlayerName id={eventPlayer.id} name={eventPlayer.name} history={game.history}/>:recipient}</strong><small>{event.actionLabel||game.categories.find(c=>c.id===event.categoryId)?.label||'Adjustment'}{event.tribeName?' · '+event.tribeName:''}{event.episode?' · Episode '+event.episode:''}{event.note?' · '+event.note:''}</small></span><b className={event.points<0?'negative':''}>{event.points>0?'+':''}{event.points}</b></div>;})}
     {!game.scoreEvents.length&&<p className="admin-empty">No Season {game.season.number} scoring items yet.</p>}
   </div></article></section>;
 
