@@ -1,10 +1,10 @@
-import type {GameState,Player,SeasonResult} from './game-data';
+import {activePlayers,type GameState,type Player,type SeasonResult} from './game-data';
 
 export type PlayerSignup={uid:string;name:string;email:string;createdAt:string;assignedPlayerId?:string};
 export function seasonStandings(game:GameState):SeasonResult[]{
   const points:Record<string,number>={};
   for(const event of game.scoreEvents)if(event.castawayId)points[event.castawayId]=(points[event.castawayId]??0)+event.points;
-  return game.players.map(player=>({profileId:player.id,name:player.name,score:player.entryBonus+game.draftPicks.filter(p=>p.playerId===player.id).reduce((total,p)=>total+(points[p.castawayId]??0)*p.multiplier,0)+game.scoreEvents.filter(e=>e.playerId===player.id).reduce((total,e)=>total+e.points,0),finish:0})).sort((a,b)=>b.score-a.score||a.profileId.localeCompare(b.profileId)).map((row,index)=>({...row,finish:index+1}));
+  return activePlayers(game.players).map(player=>({profileId:player.id,name:player.name,score:player.entryBonus+game.draftPicks.filter(p=>p.playerId===player.id).reduce((total,p)=>total+(points[p.castawayId]??0)*p.multiplier,0)+game.scoreEvents.filter(e=>e.playerId===player.id).reduce((total,e)=>total+e.points,0),finish:0})).sort((a,b)=>b.score-a.score||a.profileId.localeCompare(b.profileId)).map((row,index)=>({...row,finish:index+1}));
 }
 export function bindProfile(game:GameState,signup:PlayerSignup,playerId:string):GameState{
   if(game.season.finalized||game.draft.status!=='setup')throw new Error('Assign profiles before starting the draft.');
@@ -31,10 +31,13 @@ export function lockSeason(game:GameState,orderedProfileIds:string[],finalizedAt
 export function nextSeasonRoster(game:GameState):Player[]{
   const archive=game.history?.find(s=>s.season===game.season.number);
   if(!game.season.finalized||!archive)throw new Error('Lock the current season’s final results first.');
-  return [...archive.results].sort((a,b)=>a.finish-b.finish).map(result=>{
+  const active=[...archive.results].sort((a,b)=>a.finish-b.finish).map(result=>{
     const player=game.players.find(p=>p.id===result.profileId);if(!player)throw new Error('A finalized profile is missing.');
-    return {...player,priorFinish:result.finish,draftSlot:archive.results.length-result.finish+1,paid:false,entryBonus:0};
+    return {...player,active:true,priorFinish:result.finish,draftSlot:archive.results.length-result.finish+1,paid:false,entryBonus:0};
   });
+  const activeIds=new Set(active.map(player=>player.id));
+  const inactive=game.players.filter(player=>player.active===false&&!activeIds.has(player.id)).map(player=>({...player,active:false,paid:false,entryBonus:0}));
+  return [...active,...inactive];
 }
 export function prepareNextSeason(game:GameState):GameState{
   const players=nextSeasonRoster(game),number=game.season.number+1;

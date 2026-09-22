@@ -12,10 +12,12 @@ import {AdminTabs} from './admin-tabs';
 import {RecapManager} from './recap-manager';
 import {PlayerName} from '../player-name';
 import {playerDisplayName} from '@/lib/player-honors';
+import {activePlayers} from '@/lib/game-data';
 
 export default function Admin(){
   const {game,standings,user,isAdmin,cloud,authLoading,addAdjustment,addPlayer,startDraft,toggleDraft,undoDraftPick,resetSeason}=useGame();
   const [saved,setSaved]=useState(''),[busy,setBusy]=useState(false);
+  const activeRoster=activePlayers(game.players);
   async function run(action:()=>Promise<void>,message:string){
     if(busy)return;
     setBusy(true);setSaved('');
@@ -38,7 +40,7 @@ export default function Admin(){
   const scoring=<>
     {locked?<p className="setup-notice">Final results are locked. Open the next season in League setup before recording new scores.</p>:<ScoringManager key={game.season.number}/>}
     <div className="admin-grid"><article className="admin-panel"><div className="admin-panel-title"><span>+</span><div><p>Bonus desk</p><h2>Adjust a player score</h2></div></div>
-      <form onSubmit={adjust} className="admin-form"><label>Player<select name="playerId">{game.players.map(p=><option key={p.id} value={p.id}>{playerDisplayName(p.id,p.name,game.history)}</option>)}</select></label><label>Points<input name="points" type="number" step=".01" defaultValue="1" required/></label><label>Episode (optional)<input name="episode" type="number" min="1" step="1" defaultValue={game.season.currentEpisode} placeholder="Blank for a general adjustment"/></label><label className="wide">Reason<input name="note" required/></label><button disabled={locked||busy} className="secondary-button wide">Apply adjustment</button></form>
+      <form onSubmit={adjust} className="admin-form"><label>Player<select name="playerId">{activePlayers(game.players).map(p=><option key={p.id} value={p.id}>{playerDisplayName(p.id,p.name,game.history)}</option>)}</select></label><label>Points<input name="points" type="number" step=".01" defaultValue="1" required/></label><label>Episode (optional)<input name="episode" type="number" min="1" step="1" defaultValue={game.season.currentEpisode} placeholder="Blank for a general adjustment"/></label><label className="wide">Reason<input name="note" required/></label><button disabled={locked||busy} className="secondary-button wide">Apply adjustment</button></form>
     </article></div>
   </>;
   const setup=<>
@@ -49,13 +51,13 @@ export default function Admin(){
     <section className="setup-section admin-danger"><details><summary>Reset current season’s draft and scores</summary><p>This deletes current picks, scores, and entry bonuses. Profiles, payment checkmarks, castaways, and archived results remain. Do not use this to fix sign-in or deployment issues.</p><button disabled={locked||busy} type="button" onClick={()=>{if(confirm('Reset Season '+game.season.number+' picks and scores? Profiles and archived results will remain.'))void run(resetSeason,'Current-season picks and scores cleared.');}}>Reset clean season</button></details></section>
   </>;
   const draft=<>
-    <section className="setup-section"><div><p className="eyebrow dark">Draft room</p><h2>{game.draft.status==='complete'?'Draft complete':game.draft.status==='setup'?'Prepare for draft night':game.draft.status==='paused'?'Draft paused':(currentTurn?.playerName??'Next player')+' is on the clock'}</h2><p>{game.players.filter(p=>p.uid||p.email).length} of {game.players.length} accounts linked · {game.draftPicks.length} picks recorded{currentTurn&&game.draft.status!=='setup'?' · Round '+currentTurn.round+', pick '+currentTurn.pickNumber:''}</p></div>
+    <section className="setup-section"><div><p className="eyebrow dark">Draft room</p><h2>{game.draft.status==='complete'?'Draft complete':game.draft.status==='setup'?'Prepare for draft night':game.draft.status==='paused'?'Draft paused':(currentTurn?.playerName??'Next player')+' is on the clock'}</h2><p>{activeRoster.filter(p=>p.uid||p.email).length} of {activeRoster.length} active player profiles have an email or account · {game.draftPicks.length} picks recorded{currentTurn&&game.draft.status!=='setup'?' · Round '+currentTurn.round+', pick '+currentTurn.pickNumber:''}</p></div>
       <div className="draft-admin-actions">
         {game.draft.status==='setup'?<button disabled={locked||busy} onClick={()=>{if(confirm('Start the live draft and lock the player order?'))void run(startDraft,'Live draft started.');}}>Start live draft</button>:<><button disabled={locked||busy||game.draft.status==='complete'} onClick={()=>run(toggleDraft,'Draft status updated.')}>{game.draft.status==='live'?'Pause draft':'Resume draft'}</button><button disabled={locked||busy||Boolean(game.draft.blind)||!game.draftPicks.length} onClick={()=>run(undoDraftPick,'Last pick removed. The draft is paused for review.')}>Undo last pick</button></>}
         <Link href="/draft">View player draft board →</Link>
       </div><p>Undo pauses the draft and is available only before the round-three deal opens.</p>
     </section>
-    <div className="admin-grid"><article className="admin-panel"><h2>Submit the current player’s decision</h2>{game.draft.status==='live'?<DraftChoice onBehalf key={game.draft.runId+':'+game.draft.currentPick}/>:<p>Start or resume the draft to submit a decision for an absent player. The same draft rules apply.</p>}</article></div>
+    <div className="admin-grid"><article className="admin-panel"><h2>Submit the current player’s decision</h2><p>For players who cannot access the site, ask for their pick and submit it here. Email-only profiles work; players do not need to sign in.</p>{game.draft.status==='live'?<DraftChoice onBehalf key={game.draft.runId+':'+game.draft.currentPick}/>:<p>Start or resume the draft to submit a decision for an absent player. The same draft rules apply.</p>}</article></div>
   </>;
   const activity=<section className="setup-section"><p className="eyebrow dark">Activity log</p><h2>Recent scoring items</h2><p>Showing the latest {Math.min(50,game.scoreEvents.length)} of {game.scoreEvents.length} scoring entries.</p><article className="admin-panel"><div className="event-list">
     {game.scoreEvents.slice(-50).reverse().map(event=>{const eventPlayer=event.playerId?game.players.find(player=>player.id===event.playerId):undefined;const recipient=event.recipientName??game.castaways.find(c=>c.id===event.castawayId)?.shortName??eventPlayer?.name;return <div key={event.id}><span><strong>{eventPlayer?<PlayerName id={eventPlayer.id} name={eventPlayer.name} history={game.history}/>:recipient}</strong><small>{event.actionLabel||game.categories.find(c=>c.id===event.categoryId)?.label||'Adjustment'}{event.tribeName?' · '+event.tribeName:''}{event.episode?' · Episode '+event.episode:''}{event.note?' · '+event.note:''}</small></span><b className={event.points<0?'negative':''}>{event.points>0?'+':''}{event.points}</b></div>;})}
@@ -64,7 +66,7 @@ export default function Admin(){
 
   return <main className="admin-shell">
     <header className="admin-header"><Link className="brand" href="/"><span className="brand-mark">{game.season.number}</span><span><strong>Game Master</strong><small>Fantasy Survivor</small></span></Link><div className="admin-header-actions"><Link href="/" className="back-to-game">View game</Link><AuthControls compact/></div></header>
-    <section className="admin-overview"><div><p className="eyebrow dark">Season {game.season.number} control room</p><h1>Run your league.</h1><p>Choose a section below. Your unfinished entries stay in place when you switch tabs.</p></div><div className="admin-overview-stats"><span><strong>{standings.length}</strong> players</span><span><strong>{game.players.filter(p=>p.paid).length}</strong> paid</span><span><strong>{game.draftPicks.length}</strong> picks</span></div></section>
+    <section className="admin-overview"><div><p className="eyebrow dark">Season {game.season.number} control room</p><h1>Run your league.</h1><p>Choose a section below. Your unfinished entries stay in place when you switch tabs.</p></div><div className="admin-overview-stats"><span><strong>{standings.length}</strong> players</span><span><strong>{activePlayers(game.players).filter(p=>p.paid).length}</strong> paid</span><span><strong>{game.draftPicks.length}</strong> picks</span></div></section>
     {!cloud&&<p className="setup-notice">Local setup mode: connect Firebase before publishing so everyone sees the same data.</p>}
     {saved&&<p className="admin-feedback" role="status">{saved}</p>}
     <AdminTabs key={game.season.number} panels={{

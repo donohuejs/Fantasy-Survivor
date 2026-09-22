@@ -1,4 +1,4 @@
-export type Player = { id:string; name:string; email:string; uid?:string; entryBonus:number; priorFinish:number; draftSlot:number; paid?:boolean };
+export type Player = { id:string; name:string; email:string; uid?:string; entryBonus:number; priorFinish:number; draftSlot:number; paid?:boolean; active?:boolean };
 export type Castaway = { id:string; name:string; shortName:string; age:number; occupation:string; bio:string; imageUrl:string; status:'active'|'voted-out'; tribeId?:string };
 export type Tribe = {id:string;name:string;color:string};
 export type DraftPick = { id:string; playerId:string; castawayId:string; round:number; pickNumber:number; multiplier:number; decision?:'keep'|'swap'; keptAt?:number };
@@ -41,8 +41,9 @@ export const categories: Category[] = [
 
 const priorFinish = ['Chad','Jennie','Joey','Ross','Josh','Dunna','Katie','Jackie','Steph','Hilary','Dustin','Zoda','Stanzi'];
 const players = priorFinish.map((name,index) => ({id:`player-${name.toLowerCase()}`,name,email:'',entryBonus:0,priorFinish:index+1,draftSlot:priorFinish.length-index}));
+export function activePlayers(roster:Player[]):Player[]{return roster.filter(player=>player.active!==false);}
 export function buildDraftTurns(roster:Player[],thirdRound:Player[]=[]):DraftTurn[]{
-  const first=[...roster].sort((a,b)=>a.draftSlot-b.draftSlot);
+  const first=[...activePlayers(roster)].sort((a,b)=>a.draftSlot-b.draftSlot);
   return [first,[...first].reverse(),thirdRound].flatMap((roundPlayers,roundIndex)=>roundPlayers.map((player,index)=>({playerId:player.id,playerName:player.name,email:player.uid?'':player.email.toLowerCase(),...(player.uid?{uid:player.uid}:{}),round:roundIndex+1,pickNumber:index+1})));
 }
 export const initialGame: GameState = {

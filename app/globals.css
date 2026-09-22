@@ -312,6 +312,9 @@ input:not([type=checkbox]):not([type=radio]),select,textarea,
 .site-header .brand strong,.admin-header .brand strong { font-size:var(--text-lead); }
 .leader-name small { white-space:normal; overflow-wrap:anywhere; }
 .castaway-card .castaway-meta,.castaway-score,.signup-list small { overflow-wrap:anywhere; }
+.draft-email-form{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:10px}.draft-email-form label{display:grid;gap:5px;font-size:var(--text-caption);font-weight:700}.draft-email-form input{width:100%;height:40px;padding:0 9px;border:1px solid var(--line);border-radius:5px;background:var(--paper)}.draft-email-form button{height:40px;padding:0 14px;border:0;border-radius:5px;background:var(--forest);color:var(--paper);font-weight:700;cursor:pointer}.draft-email-form button:disabled{opacity:.6;cursor:wait}
+.roster-toggle{min-height:40px;padding:0 12px;border:1px solid var(--line);border-radius:5px;background:transparent;color:var(--ink);font-weight:700;cursor:pointer}.roster-toggle:disabled{opacity:.5;cursor:not-allowed}.inactive-roster-list article{grid-template-columns:minmax(170px,1fr) auto}
+@media(max-width:620px){.draft-email-form{grid-template-columns:1fr}.draft-email-form button{width:100%}.inactive-roster-list article{grid-template-columns:1fr}}
 .castaway-score { flex-wrap:wrap; gap:8px; }
 .admin-tabs-bar button { overflow-wrap:anywhere; }
 .setup-notice { min-width:0; max-width:100%; overflow-wrap:anywhere; }

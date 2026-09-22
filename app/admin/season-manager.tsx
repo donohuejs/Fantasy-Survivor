@@ -2,13 +2,14 @@
 import {useState,type FormEvent} from 'react';
 import {useGame} from '../game-provider';
 import {seasonStandings,nextSeasonRoster} from '@/lib/league';
+import {activePlayers} from '@/lib/game-data';
 import {PlayerName} from '../player-name';
 
 export function SeasonManager(){
   const {game,finalizeSeason,beginNextSeason,addCastaway}=useGame();
   const [message,setMessage]=useState(''),[busy,setBusy]=useState(false),[tieRanks,setTieRanks]=useState<Record<string,string>>({});
   const standings=seasonStandings(game),locked=Boolean(game.season.finalized);
-  const next=locked?nextSeasonRoster(game).sort((a,b)=>a.draftSlot-b.draftSlot):[];
+  const next=locked?activePlayers(nextSeasonRoster(game)).sort((a,b)=>a.draftSlot-b.draftSlot):[];
   async function finalize(){
     try{
       const ranked=standings.map(row=>{const tied=standings.filter(r=>r.score===row.score);const rank=tied.length>1?Number(tieRanks[row.profileId]):row.finish;if(!rank||!tied.some(r=>r.finish===rank))throw new Error('Assign each tied player a distinct final position before locking results.');return {...row,finish:rank};}).sort((a,b)=>a.finish-b.finish);
