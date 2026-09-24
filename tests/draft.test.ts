@@ -39,6 +39,15 @@ test('independent order and card shuffles, full one-to-one deal, no public mappi
   assert.equal(game.draft.blind,undefined);assert.equal('dealt' in game.draft,false);
   assert.equal(game.draftPicks.length,0);
 });
+test('starting a legacy appended Adam roster repairs Slot 1 and persists the snake source order',()=>{
+  const game=setup(3,4);delete game.draftOrderVersion;
+  game.players.push({...initialGame.players[3],id:'player-adam',name:'Adam',email:'',uid:'account-adam',priorFinish:0,draftSlot:4});
+  game.draft={status:'setup',currentPick:0,turns:[]};
+  const result=executeDraft(game,null,owner,command(game,'start'),()=>0),roundOne=result.game.draft.turns.filter(turn=>turn.round===1),roundTwo=result.game.draft.turns.filter(turn=>turn.round===2);
+  assert.equal(result.game.players.find(player=>player.id==='player-adam')!.draftSlot,1);
+  assert.deepEqual(roundTwo.map(turn=>turn.playerId),[...roundOne].reverse().map(turn=>turn.playerId));
+  assert.equal(result.game.draftOrderVersion,2);
+});
 test('shuffle does not mutate the source and uses bounds for every position',()=>{
   const source=[1,2,3,4],bounds:number[]=[];
   assert.deepEqual(shuffle(source,max=>{bounds.push(max);return max-1;}),source);

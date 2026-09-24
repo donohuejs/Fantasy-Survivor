@@ -1,4 +1,4 @@
-import type {PlayerSignup} from './league';
+import type {PlayerSignup} from './league.ts';
 
 export type RegistrationIdentity={uid:string;email:string|null;displayName:string|null;emailVerified:boolean};
 export function automaticRegistration(user:RegistrationIdentity,existing:PlayerSignup|null,createdAt:string):PlayerSignup{

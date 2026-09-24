@@ -8,7 +8,7 @@ export type DraftTurn = { playerId:string; playerName:string; email:string; uid?
 export type DraftState = { status:'setup'|'live'|'paused'|'complete'; currentPick:number; turns:DraftTurn[]; version?:2; runId?:string; revision?:number; blind?:{discards:string[];keptCount:number} };
 export type SeasonResult={profileId:string;name:string;score:number;finish:number};
 export type SeasonArchive={season:number;finalizedAt:string;results:SeasonResult[]};
-export type GameState = { season:{ id:string; name:string; number:number; currentEpisode:number; entryFee:number; finalized?:boolean }; players:Player[]; castaways:Castaway[]; draftPicks:DraftPick[]; scoreEvents:ScoreEvent[]; draft:DraftState; tribes:Tribe[]; categories:Category[]; history?:SeasonArchive[] };
+export type GameState = { season:{ id:string; name:string; number:number; currentEpisode:number; entryFee:number; finalized?:boolean }; players:Player[]; castaways:Castaway[]; draftPicks:DraftPick[]; scoreEvents:ScoreEvent[]; draft:DraftState; tribes:Tribe[]; categories:Category[]; history?:SeasonArchive[]; draftOrderVersion?:2 };
 
 const photo = (filename:string) => `https://public-assets-pressexpress.s3.amazonaws.com/assets/releases/docimages/ac468eba/${filename}`;
 const cast: Array<[string,string,number,string,string,string]> = [
@@ -41,9 +41,35 @@ export const categories: Category[] = [
 
 const priorFinish = ['Chad','Jennie','Joey','Ross','Josh','Dunna','Katie','Jackie','Steph','Hilary','Dustin','Zoda','Stanzi'];
 const players = priorFinish.map((name,index) => ({id:`player-${name.toLowerCase()}`,name,email:'',entryBonus:0,priorFinish:index+1,draftSlot:priorFinish.length-index}));
+export const DRAFT_ORDER_VERSION = 2;
 export function activePlayers(roster:Player[]):Player[]{return roster.filter(player=>player.active!==false);}
+export function draftOrder(roster:Player[]):Player[]{
+  return [...activePlayers(roster)].sort((a,b)=>a.draftSlot-b.draftSlot||a.priorFinish-b.priorFinish||a.id.localeCompare(b.id));
+}
+export function movePlayerToDraftFront(roster:Player[],playerId:string):Player[]{
+  const player=roster.find(item=>item.id===playerId);
+  if(!player||player.active===false)return roster;
+  const slots=new Map<string,number>([[playerId,1]]);
+  draftOrder(roster).filter(item=>item.id!==playerId).forEach((item,index)=>slots.set(item.id,index+2));
+  return roster.map(item=>{
+    const slot=slots.get(item.id);
+    return slot===undefined||item.draftSlot===slot?item:{...item,draftSlot:slot};
+  });
+}
+export function insertPlayerAtDraftFront(roster:Player[],player:Player):Player[]{
+  return movePlayerToDraftFront([...roster.filter(item=>item.id!==player.id),player],player.id);
+}
+export function migrateLegacyDraftOrder(game:GameState):GameState{
+  if(game.draftOrderVersion===DRAFT_ORDER_VERSION)return game;
+  const canReorder=game.draft.status==='setup'&&game.draftPicks.length===0;
+  const adam=game.players.find(player=>player.active!==false&&player.name.trim().toLowerCase()==='adam');
+  const previousWinner=adam&&((adam.priorFinish===1)||game.history?.some(archive=>archive.season===game.season.number-1&&archive.results.some(result=>result.profileId===adam.id&&result.finish===1)));
+  const legacyNewPlayer=Boolean(adam&&!previousWinner&&adam.priorFinish===adam.draftSlot);
+  const players=canReorder&&adam&&!previousWinner?movePlayerToDraftFront(game.players,adam.id).map(player=>legacyNewPlayer&&player.id===adam.id?{...player,priorFinish:0}:player):game.players;
+  return {...game,draftOrderVersion:DRAFT_ORDER_VERSION,players,draft:canReorder?{...game.draft,turns:buildDraftTurns(players)}:game.draft};
+}
 export function buildDraftTurns(roster:Player[],thirdRound:Player[]=[]):DraftTurn[]{
-  const first=[...activePlayers(roster)].sort((a,b)=>a.draftSlot-b.draftSlot);
+  const first=draftOrder(roster);
   return [first,[...first].reverse(),thirdRound].flatMap((roundPlayers,roundIndex)=>roundPlayers.map((player,index)=>({playerId:player.id,playerName:player.name,email:player.uid?'':player.email.toLowerCase(),...(player.uid?{uid:player.uid}:{}),round:roundIndex+1,pickNumber:index+1})));
 }
 export const initialGame: GameState = {
@@ -52,5 +78,5 @@ export const initialGame: GameState = {
   season:{id:'season-51',name:'Survivor 51',number:51,currentEpisode:1,entryFee:10},
   players,
   castaways:cast.map(([name,shortName,age,occupation,bio,imageSlug]) => ({id:`cast-${shortName.toLowerCase().replace(/\s/g,'-')}`,name,shortName,age,occupation,bio,imageUrl:photo(imageSlug),status:'active'})),
-  draftPicks:[], scoreEvents:[], draft:{status:'setup',currentPick:0,turns:buildDraftTurns(players)},
+  draftPicks:[], scoreEvents:[], draft:{status:'setup',currentPick:0,turns:buildDraftTurns(players)}, draftOrderVersion:DRAFT_ORDER_VERSION,
 };

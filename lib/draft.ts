@@ -1,4 +1,4 @@
-import {activePlayers,buildDraftTurns, type GameState, type DraftPick} from './game-data.ts';
+import {activePlayers,buildDraftTurns,migrateLegacyDraftOrder, type GameState, type DraftPick} from './game-data.ts';
 
 // Never include this type in the public game document or an API response.
 export type PrivateDeal = {runId:string;dealt:Record<string,string>;initialDiscards:string[]};
@@ -57,13 +57,14 @@ export function executeDraft(game:GameState,deal:PrivateDeal|null,actor:DraftAct
   if(game.season.finalized)throw new DraftError('This season’s results are locked.');
   if(command.action!=='pick'&&!admin)throw new DraftError('Only the game master can control the draft.');
   if(command.action==='start'){
-    if(game.draft.status!=='setup'||game.draftPicks.length)throw new DraftError('The draft has already started or contains picks. Do not start it again.');
-    const roster=activePlayers(game.players);
+    const prepared=migrateLegacyDraftOrder(game);
+    if(prepared.draft.status!=='setup'||prepared.draftPicks.length)throw new DraftError('The draft has already started or contains picks. Do not start it again.');
+    const roster=activePlayers(prepared.players);
     if(!roster.length||roster.some(p=>!p.uid&&!p.email))throw new DraftError('Assign every active player a unique email or linked account before starting the draft.');
     if(new Set(roster.map(p=>p.id)).size!==roster.length||new Set(roster.map(p=>p.uid||p.email.toLowerCase())).size!==roster.length)throw new DraftError('Each active player needs a separate profile and email or account.');
-    if(game.castaways.length<roster.length||new Set(game.castaways.map(c=>c.id)).size!==game.castaways.length)throw new DraftError('Add at least one distinct castaway per active player before starting.');
-    const third=shuffle(roster,randomIndex),deck=shuffle(game.castaways.map(c=>c.id),randomIndex),runId=crypto.randomUUID();
-    return {game:{...game,draft:{version:2,runId,revision:1,status:'live',currentPick:0,turns:buildDraftTurns(roster,third)}},deal:{runId,dealt:Object.fromEntries(third.map((p,i)=>[p.id,deck[i]])),initialDiscards:deck.slice(third.length)}};
+    if(prepared.castaways.length<roster.length||new Set(prepared.castaways.map(c=>c.id)).size!==prepared.castaways.length)throw new DraftError('Add at least one distinct castaway per active player before starting.');
+    const third=shuffle(roster,randomIndex),deck=shuffle(prepared.castaways.map(c=>c.id),randomIndex),runId=crypto.randomUUID();
+    return {game:{...prepared,draft:{version:2,runId,revision:1,status:'live',currentPick:0,turns:buildDraftTurns(roster,third)}},deal:{runId,dealt:Object.fromEntries(third.map((p,i)=>[p.id,deck[i]])),initialDiscards:deck.slice(third.length)}};
   }
   if(game.draft.version!==2)throw new DraftError('This draft uses the old format. Ask the game master to review it before continuing.');
   if(!deal||deal.runId!==game.draft.runId)throw new DraftError('The private deal is unavailable. Contact the game master; do not reset the draft.');

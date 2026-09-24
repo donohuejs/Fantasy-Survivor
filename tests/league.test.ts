@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {initialGame,buildDraftTurns} from '../lib/game-data.ts';
+import {initialGame,buildDraftTurns,insertPlayerAtDraftFront,migrateLegacyDraftOrder} from '../lib/game-data.ts';
 import {bindProfile,seasonStandings,lockSeason,nextSeasonRoster,prepareNextSeason} from '../lib/league.ts';
 import {historicalResults,allTimeStandings,combinedHistory} from '../lib/history-data.ts';
 
@@ -28,6 +28,20 @@ test('draft turn identity uses UID and preserves reverse/snake order',()=>{
   const game=bindProfile(initialGame,signup,'player-stanzi');const turns=buildDraftTurns(game.players);
   assert.equal(turns[0].uid,signup.uid);assert.equal(turns[0].email,'');assert.equal(turns[13].playerId,'player-chad');
 });
+test('new player is inserted into Round 1 Slot 1 and Round 2 reverses the new order',()=>{
+  const game=structuredClone(initialGame);
+  const roster=game.players.slice(0,3).map((player,index)=>({...player,draftSlot:index+1}));
+  const adam={id:'player-adam',name:'Adam',email:'adam@example.com',entryBonus:0,priorFinish:0,draftSlot:99};
+  const next=insertPlayerAtDraftFront(roster,adam),roundOne=buildDraftTurns(next).filter(turn=>turn.round===1),roundTwo=buildDraftTurns(next).filter(turn=>turn.round===2);
+  assert.deepEqual(next.map(player=>player.draftSlot),[2,3,4,1]);
+  assert.deepEqual(roundOne.map(turn=>turn.playerId),['player-adam',...roster.map(player=>player.id)]);
+  assert.deepEqual(roundTwo.map(turn=>turn.playerId),[...roundOne].reverse().map(turn=>turn.playerId));
+});
+test('legacy appended Adam is migrated unless winner ordering identifies him as the prior winner',()=>{
+  const game=structuredClone(initialGame);delete game.draftOrderVersion;game.players=[...game.players.slice(0,2).map((player,index)=>({...player,draftSlot:index+1})),{id:'player-adam',name:'Adam',email:'adam@example.com',entryBonus:0,priorFinish:3,draftSlot:3}];game.draft={status:'setup',currentPick:0,turns:buildDraftTurns(game.players)};
+  const migrated=migrateLegacyDraftOrder(game);assert.equal(migrated.players.find(player=>player.id==='player-adam')!.draftSlot,1);assert.equal(migrated.players.find(player=>player.id==='player-adam')!.priorFinish,0);assert.equal(migrated.draft.turns[0].playerId,'player-adam');assert.equal(migrated.draft.turns[5].playerId,'player-adam');
+  const winner=structuredClone(game);winner.players[2].priorFinish=1;delete winner.draftOrderVersion;const preserved=migrateLegacyDraftOrder(winner);assert.equal(preserved.players.find(player=>player.id==='player-adam')!.draftSlot,3);
+});
 test('season scoring includes castaway multiplier, bonus, and adjustments',()=>{
   const game=finished();game.players[0].entryBonus=2;game.draftPicks=[{id:'p',playerId:game.players[0].id,castawayId:'c',round:3,pickNumber:1,multiplier:1.25}];game.scoreEvents.push({id:'cast',castawayId:'c',points:8,createdAt:''});
   assert.equal(seasonStandings(game)[0].score,42);
@@ -45,6 +59,7 @@ test('admin-specified tied order determines next draft slots',()=>{
   const game=finished();game.scoreEvents[1].points=30;const ids=[game.players[1].id,game.players[0].id,game.players[2].id];
   const locked=lockSeason(game,ids,'now'),next=nextSeasonRoster(locked);
   assert.equal(next[0].id,ids[0]);assert.equal(next[0].draftSlot,3);assert.equal(next[1].draftSlot,2);
+  const turns=buildDraftTurns(next);assert.equal(turns.find(turn=>turn.round===1)!.playerId,ids[2]);assert.equal(turns.find(turn=>turn.round===2)!.playerId,ids[0]);
 });
 test('new season keeps identities, archives and custom actions; clears seasonal state',()=>{
   const game=finished(),locked=lockSeason(game,seasonStandings(game).map(r=>r.profileId),'now'),next=prepareNextSeason(locked);

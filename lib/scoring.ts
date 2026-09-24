@@ -1,4 +1,4 @@
-import type {Category,GameState,Tribe,Castaway} from './game-data';
+import type {Category,GameState,Tribe,Castaway} from './game-data.ts';
 
 export type ScoringInput={categoryId:string;recipientId:string;episode:number;note:string;expectedRecipientIds:string[];batchId:string};
 export type CustomActionInput={label:string;points:number;target:Category['target']};

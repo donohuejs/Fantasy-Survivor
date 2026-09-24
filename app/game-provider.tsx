@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { firebaseConfigured, getFirebase, authenticationError, type FirebaseUser } from '@/lib/firebase';
 import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc, runTransaction } from 'firebase/firestore';
-import { activePlayers,buildDraftTurns, initialGame, type GameState, type Tribe, type Castaway } from '@/lib/game-data';
+import { activePlayers,buildDraftTurns,initialGame,insertPlayerAtDraftFront,migrateLegacyDraftOrder,type GameState, type Tribe, type Castaway } from '@/lib/game-data';
 import { recordScoring,saveCustomAction,saveTribe,assignCastaway,type ScoringInput,type CustomActionInput } from '@/lib/scoring';
 import {bindProfile,lockSeason,prepareNextSeason,seasonStandings,type PlayerSignup} from '@/lib/league';
 import {combinedHistory} from '@/lib/history-data';
@@ -25,19 +25,28 @@ type GameContextValue = {
 
 const GameContext = createContext<GameContextValue | null>(null);
 const storageKey = 'fantasy-survivor-51-game';
+const administratorEmails = new Set([
+  'donohue.js@gmail.com',
+  process.env.NEXT_PUBLIC_ADMIN_EMAIL?.trim().toLowerCase(),
+].filter((email):email is string => Boolean(email)));
 
 function withOfficialCastawayProfiles(saved:GameState):GameState {
-  return {
+  const normalized={
     ...saved,
     tribes:saved.tribes??(saved.season.number===51?initialGame.tribes:[]),
     categories:saved.categories??initialGame.categories,
     history:saved.history??[],
     season:{...saved.season,entryFee:saved.season.entryFee??initialGame.season.entryFee},
+    draft:saved.draft??initialGame.draft,
+    draftPicks:saved.draftPicks??[],
+    scoreEvents:saved.scoreEvents??[],
+    players:saved.players.map((player,index)=>({...player,email:player.email??'',priorFinish:player.priorFinish??index+1,draftSlot:player.draftSlot??saved.players.length-index})),
     castaways:saved.castaways.map((castaway) => {
       const official = saved.season.number===51?initialGame.castaways.find((item) => item.id === castaway.id):undefined;
       return official ? {...castaway,name:official.name,shortName:official.shortName,age:official.age,occupation:official.occupation,bio:official.bio,imageUrl:official.imageUrl} : castaway;
     }),
   };
+  return migrateLegacyDraftOrder(normalized);
 }
 
 export function GameProvider({children}:{children:React.ReactNode}) {
@@ -56,18 +65,14 @@ export function GameProvider({children}:{children:React.ReactNode}) {
   const signups=signupState.owner===user?.uid?signupState.rows:[];
   const signupError=signupState.owner===user?.uid?signupState.error:'';
   const signupLoading=Boolean(firebaseConfigured&&user&&(signupState.owner!==user.uid||!signupState.loaded));
-  const adminEmails = new Set([
-    'donohue.js@gmail.com',
-    process.env.NEXT_PUBLIC_ADMIN_EMAIL?.trim().toLowerCase(),
-  ].filter((email):email is string => Boolean(email)));
   const localSetup = !firebaseConfigured && process.env.NODE_ENV !== 'production';
-  const isAdmin = localSetup || Boolean(user?.email && adminEmails.has(user.email.trim().toLowerCase()));
+  const isAdmin = localSetup || Boolean(user?.email && administratorEmails.has(user.email.trim().toLowerCase()));
 
   useEffect(() => {
     if (!firebaseConfigured) {
       const saved = window.localStorage.getItem(storageKey);
       queueMicrotask(() => {
-        if (saved) try { setGame(withOfficialCastawayProfiles(JSON.parse(saved))); } catch { /* use clean seed */ }
+        if (saved) try { const normalized=withOfficialCastawayProfiles(JSON.parse(saved)); setGame(normalized); window.localStorage.setItem(storageKey,JSON.stringify(normalized)); } catch { /* use clean seed */ }
         setLoading(false);
       });
       return;
@@ -85,7 +90,17 @@ export function GameProvider({children}:{children:React.ReactNode}) {
         if(!active)return;
         if(snapshot.exists()){
           const saved=snapshot.data() as GameState;
-          setGame(withOfficialCastawayProfiles({...saved,draft:saved.draft??initialGame.draft,players:saved.players.map((player,index)=>({...player,email:player.email??'',priorFinish:player.priorFinish??index+1,draftSlot:player.draftSlot??saved.players.length-index}))}));
+          const normalized=withOfficialCastawayProfiles(saved);
+          setGame(normalized);
+          if(saved.draftOrderVersion!==normalized.draftOrderVersion&&auth.currentUser?.email&&administratorEmails.has(auth.currentUser.email.trim().toLowerCase())){
+            void runTransaction(db,async transaction=>{
+              const ref=doc(db,'games','survivor-51'),latest=await transaction.get(ref);
+              if(!latest.exists())return;
+              const current=latest.data() as GameState;
+              if(current.draftOrderVersion===normalized.draftOrderVersion)return;
+              transaction.set(ref,withOfficialCastawayProfiles(current));
+            }).catch(()=>{ /* the next admin mutation or draft start retries this migration */ });
+          }
         }
         setLoading(false);
       },()=>{if(active)setLoading(false);}));
@@ -169,7 +184,7 @@ export function GameProvider({children}:{children:React.ReactNode}) {
   }
   async function adminMutation(change:(current:GameState)=>GameState,allowFinalized=false) {
     if(!isAdmin)throw new Error('Only the game master can change scoring or tribes.');
-    const apply=(current:GameState)=>{if(current.season.number!==game.season.number)throw new Error('The active season changed. Reload before saving.');if(current.season.finalized&&!allowFinalized)throw new Error('This season’s results are locked. Start the next season to make changes.');return change(current);};
+    const apply=(current:GameState)=>{const normalized=withOfficialCastawayProfiles(current);if(normalized.season.number!==game.season.number)throw new Error('The active season changed. Reload before saving.');if(normalized.season.finalized&&!allowFinalized)throw new Error('This season’s results are locked. Start the next season to make changes.');return change(normalized);};
     if(!firebaseConfigured){await persist(apply(game));return;}
     const {db}=getFirebase();
     // Re-read inside a transaction so scoring from another tab is never overwritten.
@@ -210,9 +225,9 @@ export function GameProvider({children}:{children:React.ReactNode}) {
     const result=await response.json().catch(()=>({error:'The draft server returned an unexpected response. Reload and check the draft before retrying.'}));
     if(!response.ok)throw new Error(result.error??'Unable to update the draft.');
   }
-  async function addPlayer(name:string,email:string) { await adminMutation(current=>{if(current.draft.status!=='setup')throw new Error('Add profiles before starting the draft.');const clean=name.trim();if(!clean||clean.length>50)throw new Error('Enter a name between 1 and 50 characters.');if(current.players.some(p=>p.name.toLowerCase()===clean.toLowerCase()))throw new Error('That name already has a profile in this season.');const historical=combinedHistory(current.history).find(r=>r.name.toLowerCase()===clean.toLowerCase());if(historical&&current.players.some(p=>p.id===historical.profileId))throw new Error('That historical profile is already in this season.');const slot=Math.max(0,...current.players.map(p=>p.draftSlot))+1;return {...current,players:[...current.players,{id:historical?.profileId??crypto.randomUUID(),name:clean,email:email.trim().toLowerCase(),entryBonus:0,priorFinish:slot,draftSlot:slot}]};}); }
+  async function addPlayer(name:string,email:string) { await adminMutation(current=>{if(current.draft.status!=='setup')throw new Error('Add profiles before starting the draft.');const clean=name.trim();if(!clean||clean.length>50)throw new Error('Enter a name between 1 and 50 characters.');if(current.players.some(p=>p.name.toLowerCase()===clean.toLowerCase()))throw new Error('That name already has a profile in this season.');const historical=combinedHistory(current.history).find(r=>r.name.toLowerCase()===clean.toLowerCase());if(historical&&current.players.some(p=>p.id===historical.profileId))throw new Error('That historical profile is already in this season.');const player={id:historical?.profileId??crypto.randomUUID(),name:clean,email:email.trim().toLowerCase(),entryBonus:0,priorFinish:0,draftSlot:1};const players=insertPlayerAtDraftFront(current.players,player);return {...current,players,draft:{...current.draft,turns:buildDraftTurns(players)}};}); }
   async function setPlayerEmail(playerId:string,email:string) { await adminMutation(current=>{const player=current.players.find(p=>p.id===playerId);if(!player)throw new Error('Choose a current player profile.');if(player.uid)throw new Error('This permanent profile is locked to its Google account.');if(current.draft.status!=='setup')throw new Error('Change player access before starting the draft.');const clean=email.trim().toLowerCase();if(!clean||!/^\S+@\S+\.\S+$/.test(clean))throw new Error('Enter a valid email address.');if(current.players.some(other=>other.id!==playerId&&other.email.trim().toLowerCase()===clean))throw new Error('That email is already assigned to another player.');return {...current,players:current.players.map(player=>player.id===playerId?{...player,email:clean}:player)};}); }
-  async function setPlayerActive(playerId:string,active:boolean) { await adminMutation(current=>{if(current.draft.status!=='setup'||current.draftPicks.length)throw new Error('Season roster changes are available only before the draft starts.');const player=current.players.find(item=>item.id===playerId);if(!player)throw new Error('Choose a league profile.');if((player.active!==false)===active)return current;if(!active&&(player.entryBonus!==0||current.scoreEvents.some(event=>event.playerId===playerId)))throw new Error('This player already has Season '+current.season.number+' scoring. Review those entries before removing the player.');let players=current.players.map(item=>item.id===playerId?{...item,active}:item);if(active){const lastSlot=Math.max(0,...activePlayers(players.filter(item=>item.id!==playerId)).map(item=>item.draftSlot));players=players.map(item=>item.id===playerId?{...item,draftSlot:lastSlot+1}:item);}else{const ordered=activePlayers(players).sort((a,b)=>a.draftSlot-b.draftSlot);const slots=new Map(ordered.map((item,index)=>[item.id,index+1]));players=players.map(item=>slots.has(item.id)?{...item,draftSlot:slots.get(item.id)!}:item);}return {...current,players};}); }
+  async function setPlayerActive(playerId:string,active:boolean) { await adminMutation(current=>{if(current.draft.status!=='setup'||current.draftPicks.length)throw new Error('Season roster changes are available only before the draft starts.');const player=current.players.find(item=>item.id===playerId);if(!player)throw new Error('Choose a league profile.');if((player.active!==false)===active)return current;if(!active&&(player.entryBonus!==0||current.scoreEvents.some(event=>event.playerId===playerId)))throw new Error('This player already has Season '+current.season.number+' scoring. Review those entries before removing the player.');let players=current.players.map(item=>item.id===playerId?{...item,active}:item);if(active){const lastSlot=Math.max(0,...activePlayers(players.filter(item=>item.id!==playerId)).map(item=>item.draftSlot));players=players.map(item=>item.id===playerId?{...item,draftSlot:lastSlot+1}:item);}else{const ordered=activePlayers(players).sort((a,b)=>a.draftSlot-b.draftSlot);const slots=new Map(ordered.map((item,index)=>[item.id,index+1]));players=players.map(item=>slots.has(item.id)?{...item,draftSlot:slots.get(item.id)!}:item);}return {...current,players,draft:{...current.draft,turns:buildDraftTurns(players)}};}); }
   async function startDraft(){await draftRequest('start');}
   async function toggleDraft(){await draftRequest('toggle');}
   async function undoDraftPick(){await draftRequest('undo');}

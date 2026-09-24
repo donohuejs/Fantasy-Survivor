@@ -1,4 +1,4 @@
-import type {GameState} from './game-data';
+import type {GameState} from './game-data.ts';
 
 export type EpisodeAction={id:string;label:string;points:number;recipients:string[];tribeName:string;note:string;target:'castaway'|'player'};
 export type EpisodeRecap={id:string;season:number;episode:number;title:string;body:string;status:'draft'|'published';actions:EpisodeAction[];createdAt:string;updatedAt:string;publishedAt:string};

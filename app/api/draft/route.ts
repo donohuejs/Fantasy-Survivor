@@ -25,8 +25,8 @@ export async function POST(request:NextRequest){
       if(!snapshot.exists)throw new DraftError('The game is not initialized. Ask the game master to finish league setup.');
       const current=snapshot.data() as GameState;
       const result=executeDraft(current,privateSnapshot.exists?privateSnapshot.data() as PrivateDeal:null,actor,command);
-      // Only draft fields are changed. The transaction retries if scores/profiles change concurrently.
-      transaction.update(ref,{draft:result.game.draft,draftPicks:result.game.draftPicks});
+      // Starting a legacy setup may also repair the persisted player slots. Later turns only change draft fields.
+      transaction.update(ref,{draft:result.game.draft,draftPicks:result.game.draftPicks,...(command.action==='start'?{players:result.game.players,draftOrderVersion:result.game.draftOrderVersion}: {})});
       if(command.action==='start')transaction.set(privateRef,result.deal!);
     });
     // Do not return the transaction result: it contains the hidden deck.

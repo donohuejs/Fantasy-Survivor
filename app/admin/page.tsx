@@ -44,7 +44,7 @@ export default function Admin(){
     </article></div>
   </>;
   const setup=<>
-    <section className="setup-section"><h2>League setup</h2><p>Add new profiles here, then link their Google accounts in <a href="#player-check-in">Player check-in</a>. Returning accounts remain linked to their permanent profiles.</p>
+    <section className="setup-section"><h2>League setup</h2><p>Add new profiles here, then link their Google accounts in <a href="#player-check-in">Player check-in</a>. New profiles automatically enter Round 1 at Slot 1; existing active players shift down, and Round 2 reverses that order. Returning accounts remain linked to their permanent profiles.</p>
       <form onSubmit={player} className="mini-form"><h3>Add a new league profile</h3><label>Player name<input name="name" placeholder="New player name" maxLength={50} required/></label><button disabled={locked||busy||game.draft.status!=='setup'}>Add player</button>{game.draft.status!=='setup'&&<p>New profiles can be added before the draft starts.</p>}</form>
     </section>
     <SeasonManager/>

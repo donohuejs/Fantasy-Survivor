@@ -48,7 +48,7 @@ Import this directory's GitHub repository into Vercel, keep the seven public set
 - Paid checkboxes track receipts for the current season only. They do not charge players, award points, or prevent drafting.
 - At the end of a season, open **Review and lock final standings**. Resolve each tie explicitly, review totals, then confirm. Finalization freezes app scoring and adds one public archive of results to the all-time leaderboard.
 - **Open Season N+1** makes an admin-only full backup in `games/survivor-51/archives/N`, keeps public results in `history`, and starts the next season in the existing active document. It preserves profile IDs, UIDs and names; reverses the finalized finish order; clears cast, tribes, scores, draft picks, bonuses and paid flags. Add the new cast and tribes before starting that draft. Custom scoring categories carry forward.
-- All existing participants carry forward. New profiles append after the automatic draft order. No automatic season rollover runs in the background.
+- All existing participants carry forward. New profiles enter Round 1 at Slot 1, shifting existing active players down; Round 2 reverses that order, so the prior-season Survivor winner remains the first Round 2 picker. No automatic season rollover runs in the background.
 
 ## Historical import
 

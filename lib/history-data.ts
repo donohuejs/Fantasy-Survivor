@@ -1,4 +1,4 @@
-import type {SeasonArchive,Player} from './game-data';
+import type {SeasonArchive,Player} from './game-data.ts';
 export type HistoricalResult={season:number;profileId:string;name:string;score:number;finish:number};
 // Source: Fantasy Survivor 50.xlsx, Avg Finish!A3:G34 and K21:M94.
 // The detailed season list includes Anna (46), omitted from the workbook's summary matrix.

@@ -1,4 +1,4 @@
-import {activePlayers,type GameState,type Player,type SeasonResult} from './game-data';
+import {activePlayers,DRAFT_ORDER_VERSION,type GameState,type Player,type SeasonResult} from './game-data.ts';
 
 export type PlayerSignup={uid:string;name:string;email:string;createdAt:string;assignedPlayerId?:string};
 export function seasonStandings(game:GameState):SeasonResult[]{
@@ -41,5 +41,5 @@ export function nextSeasonRoster(game:GameState):Player[]{
 }
 export function prepareNextSeason(game:GameState):GameState{
   const players=nextSeasonRoster(game),number=game.season.number+1;
-  return {...game,season:{id:`season-${number}`,name:`Survivor ${number}`,number,currentEpisode:1,entryFee:game.season.entryFee,finalized:false},players,castaways:[],tribes:[],draftPicks:[],scoreEvents:[],draft:{status:'setup',currentPick:0,turns:[]}};
+  return {...game,season:{id:`season-${number}`,name:`Survivor ${number}`,number,currentEpisode:1,entryFee:game.season.entryFee,finalized:false},players,castaways:[],tribes:[],draftPicks:[],scoreEvents:[],draft:{status:'setup',currentPick:0,turns:[]},draftOrderVersion:DRAFT_ORDER_VERSION};
 }
