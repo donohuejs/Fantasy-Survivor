@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { GameProvider } from './game-provider';
 
@@ -14,6 +14,11 @@ export const metadata: Metadata = {
     title: 'Fantasy Survivor',
     description: 'Outwit. Outdraft. Outscore.',
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#217082',
+  colorScheme: 'light',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
