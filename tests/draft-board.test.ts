@@ -11,6 +11,11 @@ test('setup board shows the full castaway pool as available',()=>{
   assert.equal(board.items.length,initialGame.castaways.length);
   assert(board.items.every(item=>item.status==='available'));
 });
+test('voted-out castaways are unavailable on the public draft board',()=>{
+  const game=copy();game.castaways[0].status='voted-out';
+  const board=castawayBoard(game);
+  assert.equal(board.items.find(item=>item.castawayId===game.castaways[0].id)?.status,'unavailable');
+});
 
 test('round one board marks picked names and leaves legal choices available',()=>{
   const game=copy();

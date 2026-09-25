@@ -25,7 +25,7 @@ export function castawayBoard(game:GameState):CastawayBoard {
   const privateRound=round===3&&game.draft.status!=='complete';
   return {round,items:game.castaways.map(castaway=>({
     castawayId:castaway.id,
-    status:drafted.has(castaway.id)?'drafted':available.has(castaway.id)?'available':privateRound?'private':'unavailable',
+    status:drafted.has(castaway.id)?'drafted':castaway.status==='voted-out'?'unavailable':available.has(castaway.id)?'available':privateRound?'private':'unavailable',
     ...(drafted.get(castaway.id)?{draftedBy:drafted.get(castaway.id)}:{}),
   }))};
 }

@@ -80,6 +80,7 @@ export function ScoringManager(){
       <MergeControl/>
       <EpisodeWideAward/>
       <FirstTribalCouncilAward/>
+      <TribalSurvivalAward/>
       <CastawayBonus/>
     </div>
   </section>;
@@ -144,7 +145,7 @@ function CastawayBonus(){
     catch(error){setError(messageOf(error));}finally{setBusy(false);}
   }
   return <article className="admin-panel">
-    <div className="admin-panel-title"><span>05</span><div><p>Direct bonus</p><h2>One-time castaway bonus</h2></div></div>
+    <div className="admin-panel-title"><span>06</span><div><p>Direct bonus</p><h2>One-time castaway bonus</h2></div></div>
     <p>This writes one direct score event and does not create a reusable scoring category. Use the reusable action form above only for rules that will be awarded repeatedly.</p>
     <form className="admin-form" onSubmit={submit} onChange={()=>{batchId.current=null;}}>
       <label className="wide">Castaway<select name="castawayId" required><option value="">Choose a castaway…</option>{game.castaways.map(castaway=><option key={castaway.id} value={castaway.id}>{castaway.name}{castaway.status==='voted-out'?' · voted out':''}</option>)}</select></label>
@@ -153,6 +154,40 @@ function CastawayBonus(){
       <label className="wide">Reason / note<input name="note" maxLength={500} required placeholder="Required reason for this one-time bonus"/></label>
       <button className="secondary-button wide" disabled={loading||busy}>{busy?'Saving…':'Save one-time bonus'}</button>
     </form>
+    {error&&<p className="scoring-error" role="alert">{error}</p>}{message&&<p className="success-banner" role="status">{message}</p>}
+  </article>;
+}
+
+function TribalSurvivalAward(){
+  const {game,loading,addTribalCouncilSurvival}=useGame();
+  const [tribeId,setTribeId]=useState('');
+  const [episode,setEpisode]=useState(String(game.season.currentEpisode));
+  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
+  const tribe=game.tribes.find(item=>item.id===tribeId);
+  const remaining=game.castaways.filter(castaway=>castaway.tribeId===tribeId&&castaway.status==='active');
+  const selectedEpisode=Number(episode);
+  const awardKey=tribe&&Number.isInteger(selectedEpisode)&&selectedEpisode>0?`${game.season.id}:survive-tribal:${selectedEpisode}:${tribe.id}`:'';
+  const alreadyAwarded=Boolean(awardKey&&game.scoreEvents.some(event=>event.awardKey===awardKey||event.batchId===awardKey));
+  async function submit(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();if(busy||!tribe)return;
+    const data=new FormData(event.currentTarget);setBusy(true);setMessage('');setError('');
+    try{await addTribalCouncilSurvival({tribeId:tribe.id,episode:Number(data.get('episode')),note:String(data.get('note')??''),expectedActiveCastawayIds:remaining.map(castaway=>castaway.id)});setMessage(`Pre-merge Tribal Council survival: +1 saved for ${remaining.length} remaining castaways.`);}
+    catch(error){setError(messageOf(error));}finally{setBusy(false);}
+  }
+  return <article className="admin-panel accent-panel episode-wide-award">
+    <div className="admin-panel-title"><span>05</span><div><p>Tribal Council scoring</p><h2>Survive pre-merge Tribal Council · +1</h2></div></div>
+    <p>Use this once after a pre-merge Tribal Council. It awards +1 to every currently active member of the selected tribe, so eliminated castaways are excluded and do not need to be entered one at a time.</p>
+    <form className="admin-form" onSubmit={submit}>
+      <label>Episode<input name="episode" type="number" min="1" step="1" value={episode} onChange={event=>setEpisode(event.target.value)} required/></label>
+      <label>Tribe<select value={tribeId} onChange={event=>setTribeId(event.target.value)} required><option value="">Choose a tribe…</option>{game.tribes.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+      <div className="score-preview wide" aria-live="polite">
+        {tribe&&remaining.length>0?<><strong>+1 each · {remaining.length} remaining castaway{remaining.length===1?'':'s'}</strong><ul className="active-roster-preview">{remaining.map(castaway=><li key={castaway.id}>{castaway.name}</li>)}</ul></>:<p>Choose a tribe to preview every remaining active castaway.</p>}
+      </div>
+      <label className="wide">Note (optional)<input name="note" maxLength={500} placeholder="Toka survived Episode 1 Tribal Council"/></label>
+      <button className="primary-button wide" disabled={loading||busy||!tribe||!remaining.length||alreadyAwarded}>{alreadyAwarded?'Survival already awarded':busy?'Saving…':'Confirm +1 for the remaining roster'}</button>
+    </form>
+    {!remaining.length&&tribe&&<p className="scoring-error" role="alert">This tribe has no active members to receive survival points.</p>}
+    {alreadyAwarded&&<p className="admin-feedback" role="status">This tribe’s survival award is already recorded for this episode.</p>}
     {error&&<p className="scoring-error" role="alert">{error}</p>}{message&&<p className="success-banner" role="status">{message}</p>}
   </article>;
 }

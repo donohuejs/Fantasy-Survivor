@@ -31,7 +31,9 @@ export function parseDraftCommand(value:unknown):DraftCommand {
 export function pickProblem(game:GameState,castawayId:string):string|undefined {
   const turn=game.draft.turns[game.draft.currentPick];
   if(!turn)return 'The draft is not accepting picks.';
-  if(!game.castaways.some(c=>c.id===castawayId))return 'Choose a castaway from this season.';
+  const castaway=game.castaways.find(c=>c.id===castawayId);
+  if(!castaway)return 'Choose a castaway from this season.';
+  if(castaway.status==='voted-out')return 'That castaway has been voted out and cannot be drafted.';
   if(turn.round===3)return game.draft.blind?.discards.includes(castawayId)?undefined:'That castaway is not in the face-up discard pile.';
   if(game.draftPicks.some(p=>p.round===turn.round&&p.castawayId===castawayId))return 'That castaway was already picked this round.';
   if(turn.round===2){
@@ -62,8 +64,9 @@ export function executeDraft(game:GameState,deal:PrivateDeal|null,actor:DraftAct
     const roster=activePlayers(prepared.players);
     if(!roster.length||roster.some(p=>!p.uid&&!p.email))throw new DraftError('Assign every active player a unique email or linked account before starting the draft.');
     if(new Set(roster.map(p=>p.id)).size!==roster.length||new Set(roster.map(p=>p.uid||p.email.toLowerCase())).size!==roster.length)throw new DraftError('Each active player needs a separate profile and email or account.');
-    if(prepared.castaways.length<roster.length||new Set(prepared.castaways.map(c=>c.id)).size!==prepared.castaways.length)throw new DraftError('Add at least one distinct castaway per active player before starting.');
-    const third=shuffle(roster,randomIndex),deck=shuffle(prepared.castaways.map(c=>c.id),randomIndex),runId=crypto.randomUUID();
+    const draftable=prepared.castaways.filter(castaway=>castaway.status!=='voted-out');
+    if(draftable.length<roster.length||new Set(draftable.map(c=>c.id)).size!==draftable.length)throw new DraftError('Add at least one distinct active castaway per active player before starting.');
+    const third=shuffle(roster,randomIndex),deck=shuffle(draftable.map(c=>c.id),randomIndex),runId=crypto.randomUUID();
     return {game:{...prepared,draft:{version:2,runId,revision:1,status:'live',currentPick:0,turns:buildDraftTurns(roster,third)}},deal:{runId,dealt:Object.fromEntries(third.map((p,i)=>[p.id,deck[i]])),initialDiscards:deck.slice(third.length)}};
   }
   if(game.draft.version!==2)throw new DraftError('This draft uses the old format. Ask the game master to review it before continuing.');

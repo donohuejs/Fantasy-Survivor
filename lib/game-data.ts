@@ -2,7 +2,7 @@ export type Player = { id:string; name:string; email:string; uid?:string; entryB
 export type Castaway = { id:string; name:string; shortName:string; age:number; occupation:string; bio:string; imageUrl:string; status:'active'|'voted-out'; tribeId?:string };
 export type Tribe = {id:string;name:string;color:string};
 export type DraftPick = { id:string; playerId:string; castawayId:string; round:number; pickNumber:number; multiplier:number; decision?:'keep'|'swap'; keptAt?:number };
-export type ScoreEvent = { id:string; castawayId?:string; playerId?:string; categoryId?:string; points:number; episode?:number; note?:string; createdAt:string; batchId?:string; awardKey?:string; actionLabel?:string; recipientName?:string; tribeId?:string; tribeName?:string; source?:'standard'|'episode-wide'|'one-time-bonus'|'first-tribal-council' };
+export type ScoreEvent = { id:string; castawayId?:string; playerId?:string; categoryId?:string; points:number; episode?:number; note?:string; createdAt:string; batchId?:string; awardKey?:string; actionLabel?:string; recipientName?:string; tribeId?:string; tribeName?:string; source?:'standard'|'episode-wide'|'one-time-bonus'|'first-tribal-council'|'tribe-wide' };
 export type CategoryPhase = 'pre-merge'|'merge-only';
 export type Category = { id:string; label:string; points:number; group:string; details?:string; target:'individual'|'tribe'; custom?:boolean; phase?:CategoryPhase; recipientStatus?:Castaway['status']; bulkOnly?:boolean; retired?:boolean; dynamicPoints?:'episode' };
 export type DraftTurn = { playerId:string; playerName:string; email:string; uid?:string; round:number; pickNumber:number };
@@ -70,7 +70,7 @@ export const categories: Category[] = [
   {id:'title-quote',label:'Episode title quote',points:1,group:'Weekly',target:'individual'},
   {id:'majority',label:'Vote with the majority',points:2,group:'Tribal council',target:'individual',phase:'merge-only'},
   {id:'blindside',label:'Vote is a blindside',points:1,group:'Tribal council',target:'individual',phase:'merge-only'},
-  {id:'survive-tribal',label:'Survive pre-merge Tribal Council',points:1,group:'Tribal council',target:'individual',phase:'pre-merge',recipientStatus:'active'},
+  {id:'survive-tribal',label:'Survive pre-merge Tribal Council',points:1,group:'Tribal council',target:'tribe',phase:'pre-merge',bulkOnly:true},
   {id:'letters',label:'Letters from home',points:10,group:'Bonuses',target:'individual'},
   {id:'orchestrate',label:'Orchestrate a move',points:5,group:'Bonuses',target:'individual'},
 ];

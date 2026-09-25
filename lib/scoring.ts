@@ -5,6 +5,7 @@ export type CustomActionInput={label:string;points:number;target:Category['targe
 export type EpisodeWideAwardInput={episode:number;note:string;expectedActiveCastawayIds:string[]};
 export type CastawayBonusInput={castawayId:string;episode:number;points:number;note:string;batchId:string};
 export type FirstTribalCouncilInput={tribeId:string;episode:number;note:string;expectedCastawayIds:string[]};
+export type TribalCouncilSurvivalInput={tribeId:string;episode:number;note:string;expectedActiveCastawayIds:string[]};
 
 const sameIds=(left:string[],right:string[])=>[...left].sort().join('|')===[...right].sort().join('|');
 
@@ -47,6 +48,26 @@ export function recordScoring(game:GameState,input:ScoringInput):GameState {
 export function stillOnIslandAwardKey(game:GameState,episode:number){return `${game.season.id}:still-on-island:${episode}`;}
 
 export function firstTribalCouncilAwardKey(game:GameState,tribeId:string,episode:number){return `${game.season.id}:first-tribal-council:${episode}:${tribeId}`;}
+
+export function tribalCouncilSurvivalAwardKey(game:GameState,tribeId:string,episode:number){return `${game.season.id}:survive-tribal:${episode}:${tribeId}`;}
+
+export function recordTribalCouncilSurvival(game:GameState,input:TribalCouncilSurvivalInput):GameState {
+  validateEpisode(input.episode);
+  const action=game.categories.find(category=>category.id==='survive-tribal');
+  if(action)validatePhase(game,action,input.episode);
+  const note=input.note.trim();
+  if(note.length>500)throw new Error('Notes must be no more than 500 characters.');
+  const tribe=game.tribes.find(item=>item.id===input.tribeId);
+  if(!tribe)throw new Error('Choose a valid tribe.');
+  const awardKey=tribalCouncilSurvivalAwardKey(game,input.tribeId,input.episode);
+  if(game.scoreEvents.some(event=>event.awardKey===awardKey||event.batchId===awardKey))return game;
+  const selected=game.castaways.filter(castaway=>castaway.tribeId===input.tribeId&&castaway.status==='active');
+  if(!selected.length)throw new Error('This tribe has no active members to receive survival points.');
+  if(!sameIds(selected.map(castaway=>castaway.id),input.expectedActiveCastawayIds))throw new Error('The active tribe roster changed. Review the remaining castaways and try again.');
+  const createdAt=new Date().toISOString();
+  const events=selected.map(castaway=>({id:`${awardKey}:${castaway.id}`,batchId:awardKey,awardKey,castawayId:castaway.id,recipientName:castaway.name,categoryId:'survive-tribal',actionLabel:'Survive pre-merge Tribal Council',points:1,episode:input.episode,note,createdAt,tribeId:tribe.id,tribeName:tribe.name,source:'tribe-wide' as const}));
+  return {...game,season:{...game.season,currentEpisode:Math.max(game.season.currentEpisode,input.episode)},scoreEvents:[...game.scoreEvents,...events]};
+}
 
 export function recordFirstTribalCouncil(game:GameState,input:FirstTribalCouncilInput):GameState {
   validateEpisode(input.episode);

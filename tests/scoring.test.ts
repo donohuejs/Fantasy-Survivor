@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {initialGame,normalizeCategories,tribeForCastaway} from '../lib/game-data.ts';
-import {assignCastaway,recordCastawayBonus,recordFirstTribalCouncil,recordScoring,recordStillOnIsland,saveCustomAction,saveMergeEpisode,saveTribe,recipients} from '../lib/scoring.ts';
+import {assignCastaway,recordCastawayBonus,recordFirstTribalCouncil,recordScoring,recordStillOnIsland,recordTribalCouncilSurvival,saveCustomAction,saveMergeEpisode,saveTribe,recipients} from '../lib/scoring.ts';
 
 function fixture(){
   let game=structuredClone(initialGame);
@@ -42,10 +42,23 @@ test('tribal scoring works with two or three tribes and no placement labels',()=
 });
 test('pre-merge survival and elimination values are enforced',()=>{
   const base=fixture();
-  const game=award(base,'survive-tribal',base.castaways[0].id,'survival');
+  const game=recordTribalCouncilSurvival(base,{tribeId:'savu',episode:1,note:'Savu Tribal Council',expectedActiveCastawayIds:[base.castaways[0].id,base.castaways[1].id]});
   const eliminated=award(game,'voted-premerge',game.castaways[2].id,'elimination');
   assert.equal(eliminated.scoreEvents[0].points,1);
+  assert.equal(eliminated.scoreEvents[1].points,1);
   assert.equal(eliminated.scoreEvents.at(-1)?.points,-1);
+});
+test('pre-merge Tribal Council survival awards every active tribe member once',()=>{
+  let game=fixture();
+  game=assignCastaway(game,game.castaways[4].id,'toka','active');
+  game=assignCastaway(game,game.castaways[5].id,'toka','active');
+  const expected=game.castaways.filter(castaway=>castaway.tribeId==='toka'&&castaway.status==='active').map(castaway=>castaway.id);
+  const input={tribeId:'toka',episode:1,note:'Toka survived Tribal Council',expectedActiveCastawayIds:expected};
+  const next=recordTribalCouncilSurvival(game,input);
+  assert.equal(next.scoreEvents.length,3);
+  assert.ok(next.scoreEvents.every(event=>event.categoryId==='survive-tribal'&&event.points===1&&event.source==='tribe-wide'&&event.tribeName==='Toka'));
+  assert.deepEqual(recordTribalCouncilSurvival(next,input),next);
+  assert.throws(()=>recordTribalCouncilSurvival(game,{...input,expectedActiveCastawayIds:expected.slice(1)}),/active tribe roster changed/);
 });
 test('first Tribal Council attendance awards the episode number to the full tribe once',()=>{
   let game=fixture();
@@ -74,7 +87,7 @@ test('merge-only voting points require a saved merge episode',()=>{
   assert.throws(()=>award(beforeMerge,'majority',beforeMerge.castaways[0].id,'blocked'),/merge episode/);
   const withBoundary=saveMergeEpisode(beforeMerge,3);
   assert.throws(()=>award(withBoundary,'majority',withBoundary.castaways[0].id,'blocked-early',2),/merge episode/);
-  assert.throws(()=>award(withBoundary,'survive-tribal',withBoundary.castaways[0].id,'blocked-late',3),/before the merge/);
+  assert.throws(()=>recordTribalCouncilSurvival(withBoundary,{tribeId:'savu',episode:3,note:'blocked-late',expectedActiveCastawayIds:[withBoundary.castaways[0].id,withBoundary.castaways[1].id]}),/before the merge/);
   const merged=award(withBoundary,'majority',withBoundary.castaways[0].id,'allowed',3);
   assert.equal(merged.scoreEvents[0].points,2);
 });
@@ -111,6 +124,8 @@ test('loaded categories retire placement actions and preserve custom categories'
   assert.equal(normalized.find(c=>c.id==='still-on-island')?.bulkOnly,true);
   assert.equal(normalized.find(c=>c.id==='first-tribal-council')?.bulkOnly,true);
   assert.equal(normalized.find(c=>c.id==='first-tribal-council')?.dynamicPoints,'episode');
+  assert.equal(normalized.find(c=>c.id==='survive-tribal')?.bulkOnly,true);
+  assert.equal(normalized.find(c=>c.id==='survive-tribal')?.target,'tribe');
 });
 test('tribe reassignment, rename, color, and additions flow through live lookup',()=>{
   let game=fixture();

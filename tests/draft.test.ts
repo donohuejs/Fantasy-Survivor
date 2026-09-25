@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {initialGame,type GameState} from '../lib/game-data.ts';
-import {executeDraft,parseDraftCommand,availableCastaways,keepsUntilReveal,shuffle,type DraftCommand,type DraftActor,type PrivateDeal} from '../lib/draft.ts';
+import {executeDraft,parseDraftCommand,availableCastaways,keepsUntilReveal,pickProblem,shuffle,type DraftCommand,type DraftActor,type PrivateDeal} from '../lib/draft.ts';
 import {seasonStandings} from '../lib/league.ts';
 
 const owner:DraftActor={uid:'owner',email:'donohue.js@gmail.com',verified:true};
@@ -89,6 +89,11 @@ test('castaways cannot repeat within a round, but pool resets for round two',()=
   while(state.game.draft.currentPick<6)state=play(state,'select',availableCastaways(state.game)[0].id);
   assert.equal(availableCastaways(state.game).length,8);
   assert.doesNotThrow(()=>play(state,'select',id));
+});
+test('voted-out castaways are never legal draft choices',()=>{
+  const game=structuredClone(initialGame);const id=game.castaways[0].id;game.castaways[0].status='voted-out';
+  assert.match(pickProblem(game,id)??'',/cannot be drafted/);
+  assert.equal(availableCastaways(game).some(castaway=>castaway.id===id),false);
 });
 test('reversed identical pair is rejected, other pairs and own same-card pair are allowed',()=>{
   const state=start(),g=state.game,a=g.players[0],b=g.players[1],c=g.castaways;
