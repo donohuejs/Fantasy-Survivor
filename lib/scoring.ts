@@ -2,6 +2,19 @@ import type {Category,GameState,Tribe,Castaway} from './game-data.ts';
 
 export type ScoringInput={categoryId:string;recipientId:string;episode:number;note:string;expectedRecipientIds:string[];batchId:string};
 export type CustomActionInput={label:string;points:number;target:Category['target']};
+export type EpisodeWideAwardInput={episode:number;note:string;expectedActiveCastawayIds:string[]};
+export type CastawayBonusInput={castawayId:string;episode:number;points:number;note:string;batchId:string};
+
+const sameIds=(left:string[],right:string[])=>[...left].sort().join('|')===[...right].sort().join('|');
+
+function validateEpisode(episode:number){
+  if(!Number.isInteger(episode)||episode<1)throw new Error('Episode must be a positive whole number.');
+}
+
+function validatePhase(game:GameState,action:Category,episode:number){
+  if(action.phase==='pre-merge'&&game.season.mergeEpisode!==undefined&&episode>=game.season.mergeEpisode)throw new Error(`${action.label} is only available before the merge episode.`);
+  if(action.phase==='merge-only'&&(game.season.mergeEpisode===undefined||episode<game.season.mergeEpisode))throw new Error('Set the merge episode before recording merge-only voting points.');
+}
 
 export function recipients(game:GameState,category:Category,recipientId:string):Castaway[] {
   if(category.target==='tribe'){
@@ -14,18 +27,58 @@ export function recipients(game:GameState,category:Category,recipientId:string):
 }
 
 export function recordScoring(game:GameState,input:ScoringInput):GameState {
-  if(!Number.isInteger(input.episode)||input.episode<1)throw new Error('Episode must be a positive whole number.');
+  validateEpisode(input.episode);
   const action=game.categories.find(c=>c.id===input.categoryId);
-  if(!action)throw new Error('Choose a saved scoring action.');
+  if(!action||action.retired||action.bulkOnly)throw new Error('Choose an active single-recipient scoring action.');
   if(!Number.isFinite(action.points))throw new Error('Points must be a finite number.');
+  validatePhase(game,action,input.episode);
   if(game.scoreEvents.some(e=>e.batchId===input.batchId))return game;
   const selected=recipients(game,action,input.recipientId);
   if(!selected.length)throw new Error('This tribe has no active members. Assign members before scoring.');
+  if(action.recipientStatus&&selected.some(castaway=>castaway.status!==action.recipientStatus))throw new Error(`${action.label} requires a ${action.recipientStatus==='active'?'current active':'voted-out'} castaway.`);
   if([...selected.map(c=>c.id)].sort().join('|')!==[...input.expectedRecipientIds].sort().join('|'))throw new Error('Tribe membership changed. Review the updated recipients and try again.');
   const tribe=action.target==='tribe'?game.tribes.find(t=>t.id===input.recipientId):null;
   const createdAt=new Date().toISOString();
   const events=selected.map(c=>({id:`${input.batchId}:${c.id}`,batchId:input.batchId,castawayId:c.id,recipientName:c.name,categoryId:action.id,actionLabel:action.label,points:action.points,episode:input.episode,note:input.note.trim(),createdAt,...(tribe?{tribeId:tribe.id,tribeName:tribe.name}:{})}));
   return {...game,season:{...game.season,currentEpisode:Math.max(game.season.currentEpisode,input.episode)},scoreEvents:[...game.scoreEvents,...events]};
+}
+
+export function stillOnIslandAwardKey(game:GameState,episode:number){return `${game.season.id}:still-on-island:${episode}`;}
+
+export function recordStillOnIsland(game:GameState,input:EpisodeWideAwardInput):GameState {
+  validateEpisode(input.episode);
+  const note=input.note.trim();
+  if(note.length>500)throw new Error('Notes must be no more than 500 characters.');
+  const awardKey=stillOnIslandAwardKey(game,input.episode);
+  const existing=game.scoreEvents.find(event=>(event.awardKey===awardKey||event.batchId===awardKey||((event.categoryId==='still-on-island'||event.categoryId==='alive')&&event.episode===input.episode)));
+  if(existing){
+    if(existing.awardKey===awardKey||existing.batchId===awardKey)return game;
+    throw new Error(`The Still on the island award is already recorded for Episode ${input.episode}.`);
+  }
+  const selected=game.castaways.filter(castaway=>castaway.status==='active');
+  if(!selected.length)throw new Error('There are no active castaways to receive this award.');
+  if(!sameIds(selected.map(castaway=>castaway.id),input.expectedActiveCastawayIds))throw new Error('The active roster changed. Review the roster and try again before changing elimination status.');
+  const createdAt=new Date().toISOString();
+  const events=selected.map(castaway=>({id:`${awardKey}:${castaway.id}`,batchId:awardKey,awardKey,castawayId:castaway.id,recipientName:castaway.name,categoryId:'still-on-island',actionLabel:'Still on the island',points:1,episode:input.episode,note,createdAt,source:'episode-wide' as const}));
+  return {...game,season:{...game.season,currentEpisode:Math.max(game.season.currentEpisode,input.episode)},scoreEvents:[...game.scoreEvents,...events]};
+}
+
+export function recordCastawayBonus(game:GameState,input:CastawayBonusInput):GameState {
+  validateEpisode(input.episode);
+  if(!Number.isFinite(input.points)||input.points===0)throw new Error('Enter a non-zero finite point value.');
+  const note=input.note.trim();
+  if(!note||note.length>500)throw new Error('A reason is required and must be no more than 500 characters.');
+  if(game.scoreEvents.some(event=>event.batchId===input.batchId))return game;
+  const castaway=game.castaways.find(item=>item.id===input.castawayId);
+  if(!castaway)throw new Error('Choose a valid castaway.');
+  const event={id:input.batchId,batchId:input.batchId,castawayId:castaway.id,recipientName:castaway.name,points:input.points,episode:input.episode,note,actionLabel:'One-time castaway bonus',createdAt:new Date().toISOString(),source:'one-time-bonus' as const};
+  return {...game,season:{...game.season,currentEpisode:Math.max(game.season.currentEpisode,input.episode)},scoreEvents:[...game.scoreEvents,event]};
+}
+
+export function saveMergeEpisode(game:GameState,mergeEpisode:number|undefined):GameState {
+  if(mergeEpisode!==undefined&&(!Number.isInteger(mergeEpisode)||mergeEpisode<1))throw new Error('Merge episode must be a positive whole number, or leave it blank.');
+  if(mergeEpisode===undefined){const season={...game.season};delete season.mergeEpisode;return {...game,season};}
+  return {...game,season:{...game.season,mergeEpisode}};
 }
 
 export function saveCustomAction(game:GameState,input:CustomActionInput,id:string):GameState {

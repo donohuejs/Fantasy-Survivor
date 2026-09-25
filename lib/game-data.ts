@@ -2,13 +2,14 @@ export type Player = { id:string; name:string; email:string; uid?:string; entryB
 export type Castaway = { id:string; name:string; shortName:string; age:number; occupation:string; bio:string; imageUrl:string; status:'active'|'voted-out'; tribeId?:string };
 export type Tribe = {id:string;name:string;color:string};
 export type DraftPick = { id:string; playerId:string; castawayId:string; round:number; pickNumber:number; multiplier:number; decision?:'keep'|'swap'; keptAt?:number };
-export type ScoreEvent = { id:string; castawayId?:string; playerId?:string; categoryId?:string; points:number; episode?:number; note?:string; createdAt:string; batchId?:string; actionLabel?:string; recipientName?:string; tribeId?:string; tribeName?:string };
-export type Category = { id:string; label:string; points:number; group:string; details?:string; target:'individual'|'tribe'; custom?:boolean };
+export type ScoreEvent = { id:string; castawayId?:string; playerId?:string; categoryId?:string; points:number; episode?:number; note?:string; createdAt:string; batchId?:string; awardKey?:string; actionLabel?:string; recipientName?:string; tribeId?:string; tribeName?:string; source?:'standard'|'episode-wide'|'one-time-bonus' };
+export type CategoryPhase = 'pre-merge'|'merge-only';
+export type Category = { id:string; label:string; points:number; group:string; details?:string; target:'individual'|'tribe'; custom?:boolean; phase?:CategoryPhase; recipientStatus?:Castaway['status']; bulkOnly?:boolean; retired?:boolean };
 export type DraftTurn = { playerId:string; playerName:string; email:string; uid?:string; round:number; pickNumber:number };
 export type DraftState = { status:'setup'|'live'|'paused'|'complete'; currentPick:number; turns:DraftTurn[]; version?:2; runId?:string; revision?:number; blind?:{discards:string[];keptCount:number} };
 export type SeasonResult={profileId:string;name:string;score:number;finish:number};
 export type SeasonArchive={season:number;finalizedAt:string;results:SeasonResult[]};
-export type GameState = { season:{ id:string; name:string; number:number; currentEpisode:number; entryFee:number; finalized?:boolean }; players:Player[]; castaways:Castaway[]; draftPicks:DraftPick[]; scoreEvents:ScoreEvent[]; draft:DraftState; tribes:Tribe[]; categories:Category[]; history?:SeasonArchive[]; draftOrderVersion?:2 };
+export type GameState = { season:{ id:string; name:string; number:number; currentEpisode:number; entryFee:number; mergeEpisode?:number; finalized?:boolean }; players:Player[]; castaways:Castaway[]; draftPicks:DraftPick[]; scoreEvents:ScoreEvent[]; draft:DraftState; tribes:Tribe[]; categories:Category[]; history?:SeasonArchive[]; draftOrderVersion?:2 };
 
 const photo = (filename:string) => `https://public-assets-pressexpress.s3.amazonaws.com/assets/releases/docimages/ac468eba/${filename}`;
 const cast: Array<[string,string,number,string,string,string]> = [
@@ -36,13 +37,64 @@ const cast: Array<[string,string,number,string,string,string]> = [
 ];
 
 export const categories: Category[] = [
-['tribe-first','First-place tribe',2,'Challenges'],['tribe-second','Second-place tribe',1,'Challenges'],['marooning-win','Win the marooning challenge',2,'Challenges'],['individual-immunity','Win individual immunity',5,'Challenges'],['individual-reward','Win individual reward',3,'Challenges'],['group-reward','Selected for group reward',1,'Challenges'],['sit-out','Sit out a challenge',-1,'Challenges'],['rice','Sit out to earn rice',2,'Challenges'],['alive','Still on the island',1,'Weekly'],['voted-premerge','Voted out before merge',-1,'Milestones'],['find-idol','Find an idol',5,'Advantages'],['find-advantage','Find an advantage',2,'Advantages'],['use-idol','Successfully use an idol',5,'Advantages'],['use-advantage','Successfully use an advantage',2,'Advantages'],['idol-pocket','Go home with an idol',-10,'Advantages'],['advantage-pocket','Go home with an advantage',-4,'Advantages'],['fake-idol-found','Someone finds your fake idol',2,'Advantages'],['fake-idol-used','Someone uses your fake idol',2,'Advantages'],['fake-idol-home','Use a fake idol and go home',-5,'Advantages'],['shot-safe','Successful shot in the dark',5,'Tribal council'],['shot-unsafe','Unsuccessful shot in the dark',-1,'Tribal council'],['journey','Go on a journey',1,'Milestones'],['no-vote','Attend tribal without a vote',-1,'Tribal council'],['merge','Earn the merge buff',1,'Milestones'],['final-five','Make the final five',5,'Milestones'],['final-three','Make the final three',10,'Milestones'],['sole-survivor','Win Survivor',25,'Milestones'],['title-quote','Episode title quote',1,'Weekly'],['majority','Vote with the majority',2,'Tribal council'],['blindside','Vote is a blindside',1,'Tribal council'],['survive-tribal','Survive tribal council',1,'Tribal council'],['letters','Letters from home',10,'Bonuses'],['orchestrate','Orchestrate a move',5,'Bonuses'],
-].map(([id,label,points,group]) => ({id:String(id),label:String(label),points:Number(points),group:String(group),target:id==='tribe-first'||id==='tribe-second'||id==='marooning-win'?'tribe':'individual'}));
+  {id:'tribal-immunity',label:'Win tribal immunity',points:2,group:'Challenges',target:'tribe',phase:'pre-merge'},
+  {id:'marooning-win',label:'Win the marooning challenge',points:2,group:'Challenges',target:'tribe',phase:'pre-merge'},
+  {id:'individual-immunity',label:'Win individual immunity',points:5,group:'Challenges',target:'individual'},
+  {id:'individual-reward',label:'Win individual reward',points:2,group:'Rewards',target:'individual'},
+  {id:'individual-reward-selected',label:'Selected for individual reward',points:1,group:'Rewards',target:'individual'},
+  {id:'group-reward',label:'Selected for group reward',points:1,group:'Rewards',target:'individual'},
+  {id:'tribal-reward-primary',label:'Primary tribal reward',points:2,group:'Rewards',target:'tribe'},
+  {id:'tribal-reward-secondary',label:'Secondary tribal reward',points:1,group:'Rewards',target:'tribe'},
+  {id:'sit-out',label:'Sit out a challenge',points:-1,group:'Challenges',target:'individual'},
+  {id:'rice',label:'Sit out to earn rice',points:2,group:'Challenges',target:'individual'},
+  {id:'still-on-island',label:'Still on the island',points:1,group:'Weekly',target:'individual',bulkOnly:true},
+  {id:'voted-premerge',label:'Voted out before merge',points:-1,group:'Milestones',target:'individual',phase:'pre-merge',recipientStatus:'voted-out'},
+  {id:'find-idol',label:'Find an idol',points:5,group:'Advantages',target:'individual'},
+  {id:'find-advantage',label:'Find an advantage',points:2,group:'Advantages',target:'individual'},
+  {id:'use-idol',label:'Successfully use an idol',points:5,group:'Advantages',target:'individual'},
+  {id:'use-advantage',label:'Successfully use an advantage',points:2,group:'Advantages',target:'individual'},
+  {id:'idol-pocket',label:'Go home with an idol',points:-10,group:'Advantages',target:'individual'},
+  {id:'advantage-pocket',label:'Go home with an advantage',points:-4,group:'Advantages',target:'individual'},
+  {id:'fake-idol-found',label:'Someone finds your fake idol',points:2,group:'Advantages',target:'individual'},
+  {id:'fake-idol-used',label:'Someone uses your fake idol',points:2,group:'Advantages',target:'individual'},
+  {id:'fake-idol-home',label:'Use a fake idol and go home',points:-5,group:'Advantages',target:'individual'},
+  {id:'shot-safe',label:'Successful shot in the dark',points:5,group:'Tribal council',target:'individual'},
+  {id:'shot-unsafe',label:'Unsuccessful shot in the dark',points:-1,group:'Tribal council',target:'individual'},
+  {id:'journey',label:'Go on a journey',points:1,group:'Milestones',target:'individual'},
+  {id:'no-vote',label:'Attend tribal without a vote',points:-1,group:'Tribal council',target:'individual'},
+  {id:'merge',label:'Earn the merge buff',points:1,group:'Milestones',target:'individual'},
+  {id:'final-five',label:'Make the final five',points:5,group:'Milestones',target:'individual'},
+  {id:'final-three',label:'Make the final three',points:10,group:'Milestones',target:'individual'},
+  {id:'sole-survivor',label:'Win Survivor',points:25,group:'Milestones',target:'individual'},
+  {id:'title-quote',label:'Episode title quote',points:1,group:'Weekly',target:'individual'},
+  {id:'majority',label:'Vote with the majority',points:2,group:'Tribal council',target:'individual',phase:'merge-only'},
+  {id:'blindside',label:'Vote is a blindside',points:1,group:'Tribal council',target:'individual',phase:'merge-only'},
+  {id:'survive-tribal',label:'Survive pre-merge Tribal Council',points:1,group:'Tribal council',target:'individual',phase:'pre-merge',recipientStatus:'active'},
+  {id:'letters',label:'Letters from home',points:10,group:'Bonuses',target:'individual'},
+  {id:'orchestrate',label:'Orchestrate a move',points:5,group:'Bonuses',target:'individual'},
+];
+
+const retiredCategoryIds = new Set(['tribe-first','tribe-second','tribe-third','alive']);
+const canonicalCategories = new Map(categories.map(category => [category.id,category]));
+
+export function normalizeCategories(saved:Category[]|undefined):Category[] {
+  const existing=saved??[];
+  const normalized=existing.map(category=>{
+    const canonical=canonicalCategories.get(category.id);
+    if(canonical)return category.custom?{...canonical,custom:true}:canonical;
+    return retiredCategoryIds.has(category.id)?{...category,retired:true}:category;
+  });
+  return [...normalized,...categories.filter(category=>!existing.some(savedCategory=>savedCategory.id===category.id))];
+}
 
 const priorFinish = ['Chad','Jennie','Joey','Ross','Josh','Dunna','Katie','Jackie','Steph','Hilary','Dustin','Zoda','Stanzi'];
 const players = priorFinish.map((name,index) => ({id:`player-${name.toLowerCase()}`,name,email:'',entryBonus:0,priorFinish:index+1,draftSlot:priorFinish.length-index}));
 export const DRAFT_ORDER_VERSION = 2;
 export function activePlayers(roster:Player[]):Player[]{return roster.filter(player=>player.active!==false);}
+export function tribeForCastaway(game:Pick<GameState,'tribes'|'castaways'>,castawayId:string):Tribe|undefined {
+  const castaway=game.castaways.find(item=>item.id===castawayId);
+  return castaway?.tribeId?game.tribes.find(tribe=>tribe.id===castaway.tribeId):undefined;
+}
 export function draftOrder(roster:Player[]):Player[]{
   return [...activePlayers(roster)].sort((a,b)=>a.draftSlot-b.draftSlot||a.priorFinish-b.priorFinish||a.id.localeCompare(b.id));
 }

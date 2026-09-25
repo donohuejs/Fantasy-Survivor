@@ -10,7 +10,7 @@ const pointsText=(points:number)=>`${points>0?'+':''}${points}`;
 
 export function ScoringManager(){
   const {game,loading,addScore,addCustomAction}=useGame();
-  const [actionId,setActionId]=useState('tribe-first');
+  const [actionId,setActionId]=useState('tribal-immunity');
   const [recipientId,setRecipientId]=useState('');
   const [busy,setBusy]=useState(false);
   const [notice,setNotice]=useState('');
@@ -18,7 +18,9 @@ export function ScoringManager(){
   const [customBusy,setCustomBusy]=useState(false);
   const [customError,setCustomError]=useState('');
   const batchId=useRef<string|null>(null);
-  const action=game.categories.find(c=>c.id===actionId);
+  const actions=game.categories.filter(c=>!c.retired&&!c.bulkOnly);
+  const selectedActionId=actions.some(c=>c.id===actionId)?actionId:(actions[0]?.id??'');
+  const action=game.categories.find(c=>c.id===selectedActionId);
   const selected=action&&recipientId?recipients(game,action,recipientId):[];
 
   async function record(event:FormEvent<HTMLFormElement>){
@@ -49,7 +51,7 @@ export function ScoringManager(){
         <form onSubmit={record} onChange={()=>{batchId.current=null;}} className="admin-form">
           <fieldset disabled={busy||loading} className="scoring-fields">
             <label>Episode<input name="episode" type="number" min="1" step="1" defaultValue={game.season.currentEpisode} required/></label>
-            <label className="wide">Action / milestone<select value={actionId} onChange={e=>{setActionId(e.target.value);setRecipientId('');}} required>{game.categories.map(c=><option key={c.id} value={c.id}>{pointsText(c.points)} · {c.label} · {c.target==='tribe'?'Tribe':'Individual'}</option>)}</select></label>
+            <label className="wide">Action / milestone<select value={selectedActionId} onChange={e=>{setActionId(e.target.value);setRecipientId('');}} required>{actions.map(c=><option key={c.id} value={c.id}>{pointsText(c.points)} · {c.label} · {c.target==='tribe'?'Tribe':'Individual'}</option>)}</select></label>
             <label className="wide">{action?.target==='tribe'?'Tribe':'Castaway'}<select value={recipientId} onChange={e=>setRecipientId(e.target.value)} required><option value="">Choose {action?.target==='tribe'?'a tribe':'a castaway'}…</option>{action?.target==='tribe'?game.tribes.map(t=><option value={t.id} key={t.id}>{t.name} ({game.castaways.filter(c=>c.tribeId===t.id&&c.status==='active').length} active)</option>):game.castaways.map(c=><option value={c.id} key={c.id}>{c.name}{c.status==='voted-out'?' · voted out':''}</option>)}</select></label>
             <div className="score-preview wide" aria-live="polite">
               {action?.target==='tribe'&&<p>Tribe points go to current active members only. For a past episode, verify the membership and status before recording.</p>}
@@ -64,7 +66,7 @@ export function ScoringManager(){
       </article>
       <article className="admin-panel">
         <div className="admin-panel-title"><span>+</span><div><p>Expect the unexpected</p><h2>Create a reusable action</h2></div></div>
-        <p>Save a new action once. It stays in the scoring list for this season and appears on the Rules page. Saving alone does not award points.</p>
+        <p>Save a genuinely reusable rule once. Saving alone does not award points. For a one-time castaway bonus, use the direct bonus form below instead.</p>
         <form className="admin-form" onSubmit={custom}><fieldset disabled={customBusy||loading} className="scoring-fields">
           <label className="wide">Action name<input name="label" required maxLength={100} placeholder="Win a surprise fire-making challenge"/></label>
           <label>Points per castaway<input name="points" type="number" step="0.01" required placeholder="5 or -3"/></label>
@@ -74,7 +76,84 @@ export function ScoringManager(){
         {customError&&<p role="alert" className="scoring-error">{customError}</p>}
       </article>
     </div>
+    <div className="admin-grid scoring-specials">
+      <MergeControl/>
+      <EpisodeWideAward/>
+      <CastawayBonus/>
+    </div>
   </section>;
+}
+
+function MergeControl(){
+  const {game,setMergeEpisode}=useGame();
+  const [value,setValue]=useState(game.season.mergeEpisode?String(game.season.mergeEpisode):'');
+  const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
+  async function submit(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();if(busy)return;
+    const raw=String(new FormData(event.currentTarget).get('mergeEpisode')??'').trim();
+    const episode=raw?Number(raw):undefined;setBusy(true);setMessage('');
+    try{await setMergeEpisode(episode);setValue(raw);setMessage(episode?`Merge starts at Episode ${episode}.`:'Merge episode cleared; merge-only voting points stay blocked until it is set.');}
+    catch(error){setMessage(messageOf(error));}finally{setBusy(false);}
+  }
+  return <article className="admin-panel">
+    <div className="admin-panel-title"><span>02</span><div><p>Phase control</p><h2>Set the merge episode</h2></div></div>
+    <p>Majority-vote and blindside points are unavailable until this boundary is saved. Pre-merge immunity, Tribal survival, and elimination rules stop applying at the merge episode.</p>
+    <form className="admin-form" onSubmit={submit}><label>Merge begins at Episode<input name="mergeEpisode" type="number" min="1" step="1" value={value} onChange={event=>setValue(event.target.value)} placeholder="Set before merge-only scoring"/></label><button className="secondary-button" disabled={busy}>{busy?'Saving…':'Save merge boundary'}</button></form>
+    {message&&<p className="admin-feedback" role="status">{message}</p>}
+  </article>;
+}
+
+function EpisodeWideAward(){
+  const {game,loading,addStillOnIsland}=useGame();
+  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
+  const [episode,setEpisode]=useState(String(game.season.currentEpisode));
+  const active=game.castaways.filter(castaway=>castaway.status==='active');
+  const selectedEpisode=Number(episode);
+  const alreadyAwarded=game.scoreEvents.some(event=>(event.categoryId==='still-on-island'||event.categoryId==='alive')&&event.episode===selectedEpisode);
+  async function submit(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();if(busy)return;
+    const form=event.currentTarget,data=new FormData(form);const episode=Number(data.get('episode'));
+    setBusy(true);setMessage('');setError('');
+    try{await addStillOnIsland({episode,note:String(data.get('note')??''),expectedActiveCastawayIds:active.map(castaway=>castaway.id)});setMessage(`Still on the island: +1 saved for ${active.length} active castaways.`);}
+    catch(error){setError(messageOf(error));}finally{setBusy(false);}
+  }
+  return <article className="admin-panel accent-panel episode-wide-award">
+    <div className="admin-panel-title"><span>03</span><div><p>Episode-wide scoring</p><h2>Still on the island · +1</h2></div></div>
+    <p>Issue this once per episode <strong>before changing any eliminated castaway to voted out</strong>. The complete active roster below is the confirmation list.</p>
+    <ul className="active-roster-preview">{active.map(castaway=><li key={castaway.id}>{castaway.name}</li>)}</ul>
+    {!active.length&&<p className="scoring-error">There are no active castaways to award.</p>}
+    <form className="admin-form" onSubmit={submit}>
+      <label>Episode<input name="episode" type="number" min="1" step="1" value={episode} onChange={event=>setEpisode(event.target.value)} required/></label>
+      <label className="wide">Note (optional)<input name="note" maxLength={500} placeholder="Episode-wide survival award"/></label>
+      <button className="primary-button wide" disabled={loading||busy||!active.length||alreadyAwarded}>{alreadyAwarded?'Episode already awarded':busy?'Saving…':'Confirm +1 for the active roster'}</button>
+    </form>
+    {alreadyAwarded&&<p className="admin-feedback" role="status">This episode’s award is already recorded. Duplicate submissions are blocked.</p>}
+    {error&&<p className="scoring-error" role="alert">{error}</p>}{message&&<p className="success-banner" role="status">{message}</p>}
+  </article>;
+}
+
+function CastawayBonus(){
+  const {game,loading,addCastawayBonus}=useGame();
+  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
+  const batchId=useRef<string|null>(null);
+  async function submit(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();if(busy)return;
+    const form=event.currentTarget,data=new FormData(form);setBusy(true);setMessage('');setError('');batchId.current??=crypto.randomUUID();
+    try{await addCastawayBonus({castawayId:String(data.get('castawayId')),episode:Number(data.get('episode')),points:Number(data.get('points')),note:String(data.get('note')??''),batchId:batchId.current});setMessage('One-time castaway bonus saved.');form.reset();batchId.current=null;}
+    catch(error){setError(messageOf(error));}finally{setBusy(false);}
+  }
+  return <article className="admin-panel">
+    <div className="admin-panel-title"><span>04</span><div><p>Direct bonus</p><h2>One-time castaway bonus</h2></div></div>
+    <p>This writes one direct score event and does not create a reusable scoring category. Use the reusable action form above only for rules that will be awarded repeatedly.</p>
+    <form className="admin-form" onSubmit={submit} onChange={()=>{batchId.current=null;}}>
+      <label className="wide">Castaway<select name="castawayId" required><option value="">Choose a castaway…</option>{game.castaways.map(castaway=><option key={castaway.id} value={castaway.id}>{castaway.name}{castaway.status==='voted-out'?' · voted out':''}</option>)}</select></label>
+      <label>Episode<input name="episode" type="number" min="1" step="1" defaultValue={game.season.currentEpisode} required/></label>
+      <label>Points<input name="points" type="number" step=".01" defaultValue="1" required/></label>
+      <label className="wide">Reason / note<input name="note" maxLength={500} required placeholder="Required reason for this one-time bonus"/></label>
+      <button className="secondary-button wide" disabled={loading||busy}>{busy?'Saving…':'Save one-time bonus'}</button>
+    </form>
+    {error&&<p className="scoring-error" role="alert">{error}</p>}{message&&<p className="success-banner" role="status">{message}</p>}
+  </article>;
 }
 
 function TribeEditor({tribe}:{tribe?:Tribe}){
