@@ -9,8 +9,8 @@ function reply(body:object,status=200){return NextResponse.json(body,{status,hea
 async function authenticate(request:NextRequest){
   const header=request.headers.get('authorization');
   if(!header?.startsWith('Bearer '))return {error:reply({error:'Sign in with Google to participate.'},401)} as const;
-  let server:ReturnType<typeof getDraftServer>;
-  try{server=getDraftServer();}catch{return {error:reply({error:'Server setup is incomplete. The game master needs to configure the private Firebase credential in Vercel.'},503)} as const;}
+  let server:Awaited<ReturnType<typeof getDraftServer>>;
+  try{server=await getDraftServer();}catch{return {error:reply({error:'Server setup is incomplete. The game master needs to configure the private Firebase credential in Vercel.'},503)} as const;}
   try{
     const token=await server.auth.verifyIdToken(header.slice(7),true);
     if(!token.email_verified)return {error:reply({error:'Use a verified Google account.'},403)} as const;

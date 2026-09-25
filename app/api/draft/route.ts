@@ -10,8 +10,8 @@ export async function POST(request:NextRequest){
   // No cookies or user-supplied account IDs are accepted as authentication.
   const authorization=request.headers.get('authorization');
   if(!authorization?.startsWith('Bearer '))return reply({error:'Sign in with Google before drafting.'},401);
-  let server:ReturnType<typeof getDraftServer>;
-  try{server=getDraftServer();}catch{return reply({error:'The private draft server needs setup. Ask the game master to add FIREBASE_SERVICE_ACCOUNT_JSON in Vercel and redeploy.'},503);}
+  let server:Awaited<ReturnType<typeof getDraftServer>>;
+  try{server=await getDraftServer();}catch{return reply({error:'The private draft server needs setup. Ask the game master to add FIREBASE_SERVICE_ACCOUNT_JSON in Vercel and redeploy.'},503);}
   let actor;
   try{const token=await server.auth.verifyIdToken(authorization.slice(7),true);actor={uid:token.uid,email:token.email??'',verified:token.email_verified===true};}catch{return reply({error:'Your sign-in expired or is invalid. Sign out and sign in again.'},401);}
   if(!actor.verified)return reply({error:'Use a verified Google account to draft.'},403);

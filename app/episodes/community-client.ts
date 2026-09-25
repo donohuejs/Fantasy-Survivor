@@ -37,7 +37,9 @@ export async function communityRequest(input:Record<string,unknown>,pollId?:stri
   if(!user)throw new Error('Sign in with Google first.');
   const token=await user.getIdToken();
   const response=await fetch('/api/community'+(pollId?'?pollId='+encodeURIComponent(pollId):''),{method:pollId?'GET':'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},...(pollId?{}:{body:JSON.stringify(input)}),cache:'no-store'});
-  const result=await response.json().catch(()=>({error:'Unexpected server response. Reload before trying again.'}));
+  const body=await response.text();
+  let result:{error?:string;ok?:boolean;updatedAt?:string;choice?:number|null};
+  try{result=JSON.parse(body) as typeof result;}catch{throw new Error(`The server returned an unexpected response (HTTP ${response.status}). Reload before trying again.`);}
   if(!response.ok)throw new Error(result.error??'Unable to complete the request.');
   return result;
 }
