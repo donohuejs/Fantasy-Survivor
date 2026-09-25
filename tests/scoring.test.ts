@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {initialGame,normalizeCategories,tribeForCastaway} from '../lib/game-data.ts';
-import {assignCastaway,recordCastawayBonus,recordScoring,recordStillOnIsland,saveCustomAction,saveMergeEpisode,saveTribe,recipients} from '../lib/scoring.ts';
+import {assignCastaway,recordCastawayBonus,recordFirstTribalCouncil,recordScoring,recordStillOnIsland,saveCustomAction,saveMergeEpisode,saveTribe,recipients} from '../lib/scoring.ts';
 
 function fixture(){
   let game=structuredClone(initialGame);
@@ -46,6 +46,22 @@ test('pre-merge survival and elimination values are enforced',()=>{
   const eliminated=award(game,'voted-premerge',game.castaways[2].id,'elimination');
   assert.equal(eliminated.scoreEvents[0].points,1);
   assert.equal(eliminated.scoreEvents.at(-1)?.points,-1);
+});
+test('first Tribal Council attendance awards the episode number to the full tribe once',()=>{
+  let game=fixture();
+  game=assignCastaway(game,game.castaways[3].id,'toka','voted-out');
+  game=assignCastaway(game,game.castaways[4].id,'toka','active');
+  const expected=game.castaways.filter(castaway=>castaway.tribeId==='toka').map(castaway=>castaway.id);
+  const input={tribeId:'toka',episode:3,note:'First Toka Tribal Council',expectedCastawayIds:expected};
+  const next=recordFirstTribalCouncil(game,input);
+  assert.equal(next.scoreEvents.length,2);
+  assert.ok(next.scoreEvents.every(event=>event.categoryId==='first-tribal-council'&&event.points===3&&event.source==='first-tribal-council'&&event.tribeName==='Toka'));
+  assert.deepEqual(recordFirstTribalCouncil(next,input),next);
+  assert.deepEqual(recordFirstTribalCouncil(next,{...input,episode:4}).scoreEvents,next.scoreEvents);
+});
+test('first Tribal Council attendance rejects a stale tribe roster',()=>{
+  const game=fixture();
+  assert.throws(()=>recordFirstTribalCouncil(game,{tribeId:'savu',episode:1,note:'',expectedCastawayIds:[game.castaways[0].id]}),/roster changed/);
 });
 test('individual reward winner keeps +2 and selected participants receive +1',()=>{
   let game=fixture();
@@ -93,6 +109,8 @@ test('loaded categories retire placement actions and preserve custom categories'
   assert.equal(normalized.find(c=>c.id==='tribe-first')?.retired,true);
   assert.deepEqual(normalized.find(c=>c.id==='custom-action'),custom);
   assert.equal(normalized.find(c=>c.id==='still-on-island')?.bulkOnly,true);
+  assert.equal(normalized.find(c=>c.id==='first-tribal-council')?.bulkOnly,true);
+  assert.equal(normalized.find(c=>c.id==='first-tribal-council')?.dynamicPoints,'episode');
 });
 test('tribe reassignment, rename, color, and additions flow through live lookup',()=>{
   let game=fixture();

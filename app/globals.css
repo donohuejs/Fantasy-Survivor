@@ -34,7 +34,7 @@ nav a:hover,nav a.active { color:var(--forest); }
 .admin-link { border:1px solid #b9c2ba; border-radius:999px; padding:10px 16px; }
 .hero { min-height:430px; padding:78px clamp(24px,7vw,104px) 94px; display:grid; grid-template-columns:minmax(0,1.45fr) minmax(290px,.55fr); gap:68px; align-items:center; color:#fff8e8; background:radial-gradient(circle at 76% 52%,rgba(242,107,56,.22),transparent 22%),radial-gradient(circle at 17% 8%,rgba(122,162,115,.23),transparent 28%),linear-gradient(125deg,var(--forest-deep),#164f3c 58%,#0d3328); position:relative; overflow:hidden; }
 .hero-intro { min-width:0; }
-.hero-logo { display:block; width:clamp(180px,32vw,290px); height:auto; margin:0 auto 24px; object-fit:contain; }
+.hero-logo { display:block; width:clamp(220px,36vw,420px); height:auto; margin:0 auto 24px; object-fit:contain; }
 .hero::after { content:""; position:absolute; inset:auto -7% -130px 35%; height:230px; border:1px solid rgba(248,225,181,.13); border-radius:50%; transform:rotate(-7deg); box-shadow:0 0 0 34px rgba(248,225,181,.035),0 0 0 78px rgba(248,225,181,.025); }
 .eyebrow { margin:0 0 16px; color:#e8c878; font-size:var(--text-caption); font-weight:700; letter-spacing:.16em; text-transform:uppercase; }
 .eyebrow span { display:inline-block; width:28px; height:2px; margin:0 9px 3px 0; background:var(--flame); }
@@ -354,13 +354,13 @@ input:not([type=checkbox]):not([type=radio]),select,textarea,
 .player-name{display:inline-flex;align-items:baseline;gap:6px;min-width:0;max-width:100%;vertical-align:baseline;overflow-wrap:anywhere}.player-honor-trophy,.player-honor-stars{display:inline-block;flex:0 0 auto;line-height:1}.player-honor-trophy{font-size:var(--text-small)}.player-honor-stars{color:#bd7b1e;letter-spacing:1px;font-size:var(--text-caption);white-space:nowrap}.honor-legend{margin:0 0 14px;color:#68766d;font-size:var(--text-caption);line-height:1.5}.honor-legend span{font-size:var(--text-body)}
 
 /* Midnight + Flame palette */
-:root { --ink:#17262d; --forest:#17262d; --forest-deep:#0c171c; --flame:#f0783f; --sand:#f6f0e5; --paper:#fffdf8; --line:#d7e0dc; --teal:#449e96; --mist:#bfd0cd; --gold:#e8b35a; --night-soft:#243941; }
+:root { --ink:#14323a; --forest:#287785; --forest-deep:#174b58; --flame:#f0783f; --sand:#eef3f0; --paper:#fffdf8; --line:#d0dfdc; --teal:#287785; --teal-deep:#1e6070; --mist:#c7dddc; --gold:#e8b35a; --night-soft:#2d6470; }
 body { background:var(--sand); color:var(--ink); }
 .site-header,.admin-header { background:rgba(255,253,248,.96); border-color:rgba(23,38,45,.14); }
 .brand small,nav a { color:#5f6f73; }
 .nav a:hover,.nav a.active,nav a:hover,nav a.active { color:var(--forest); }
 .admin-link { border-color:#aabbb8; }
-.hero { color:var(--paper); background:radial-gradient(circle at 76% 52%,rgba(240,120,63,.25),transparent 22%),radial-gradient(circle at 17% 8%,rgba(68,158,150,.2),transparent 28%),linear-gradient(125deg,var(--forest-deep),#253e45 58%,#182d35); }
+.hero { color:var(--paper); background:radial-gradient(circle at 76% 52%,rgba(240,120,63,.25),transparent 22%),radial-gradient(circle at 17% 8%,rgba(40,119,133,.3),transparent 28%),linear-gradient(125deg,var(--forest-deep),#2b7580 58%,#1b4f5b); }
 .hero::after { border-color:rgba(246,240,229,.14); box-shadow:0 0 0 34px rgba(246,240,229,.035),0 0 0 78px rgba(246,240,229,.025); }
 .eyebrow,.torch-kicker,.draft-round>header span { color:#f1b668; }
 .hero h1 em { color:#f4a066; }
@@ -380,8 +380,8 @@ body { background:var(--sand); color:var(--ink); }
 .leader-name small,.episode-card>p:not(.eyebrow),.castaway-card .castaway-bio,.castaway-score,.team-grid p,.draft-pick small,.event-list small { color:#70807e; }
 .change { color:#83908f; }.change.up,.event-list b { color:var(--teal); }.change.down,.negative { color:#c85f4a; }
 .rule-callout { color:var(--paper); background:var(--forest); }.rule-number,.rule-summary span { color:var(--gold); }.rule-callout p,.rule-summary p { color:var(--mist); }
-footer { color:var(--mist); background:#111f25; } footer span { color:var(--gold); }
-.inner-hero,.admin-intro { color:var(--paper); background:radial-gradient(circle at 82% 20%,rgba(240,120,63,.23),transparent 24%),linear-gradient(120deg,var(--forest-deep),#253e45); }
+footer { color:var(--mist); background:var(--forest-deep); } footer span { color:var(--gold); }
+.inner-hero,.admin-intro { color:var(--paper); background:radial-gradient(circle at 82% 20%,rgba(240,120,63,.23),transparent 24%),linear-gradient(120deg,var(--forest-deep),#2b7580); }
 .inner-hero>p:last-child,.admin-intro>div>p:last-child { color:var(--mist); }
 .castaway-card,.draft-round,.draft-live-panel,.draft-slot-grid article,.team-grid article,.rules-groups article,.admin-panel,.mini-form,.season-admin,.episode-recap,.episode-comments,.recap-empty,.league-poll,.discard-section,.discard-card,.castaway-pool-card { background:var(--paper); border-color:var(--line); }
 .castaway-card>img,.castaway-pool-card-heading img { background:#dbe8e5; }
@@ -397,7 +397,7 @@ footer { color:var(--mist); background:#111f25; } footer span { color:var(--gold
 .admin-form label,.admin-panel-title p { color:#53656a; }.admin-form label span { color:#8b999b; }
 .admin-form input,.admin-form select,.mini-form input,.mini-form select,.live-pick-form select,.history-toolbar select,.final-result-list select,.community-heading select,.community-form input:not([type=radio]),.community-form select,.community-form textarea,.recap-editor-picker input { color:var(--ink); background:#fffdf8; border-color:#cbd8d5; }
 .primary-button,.header-sign-in,.draft-auth button,.live-pick-form button,.secondary-button,.mini-form button,.draft-admin-actions button,.admin-danger button,.season-admin button,.episode-picker button[aria-pressed=true],.community-shell button,.recap-manager button { background:var(--forest); color:var(--paper); }
-.header-sign-in:hover { background:#253e45; }.header-sign-out { border-color:#aabbb8; background:var(--paper); color:var(--forest); }
+.header-sign-in:hover { background:#2b7580; }.header-sign-out { border-color:#aabbb8; background:var(--paper); color:var(--forest); }
 .admin-tabs-bar { background:var(--paper); border-color:var(--line); box-shadow:0 5px 18px rgba(23,38,45,.08); }.admin-tabs-bar button { color:#53656a; }.admin-tabs-bar button:hover { background:#e7efed; }.admin-tabs-bar button[aria-selected="true"] { background:var(--forest); color:var(--paper); }
 .success-banner,.admin-feedback,.draft-message { color:#216d68; background:#dcece9; border-color:#bfdad5; }.setup-notice { color:#62451f; background:#fff1d6; border-color:#dca657; }
 .admin-danger { background:#fff0e9; border-color:#ddb7a7; }.score-preview { background:#edf3f1; border-color:#cadbd7; }.scoring-error { color:#9b3f35; background:#fff0ed; }

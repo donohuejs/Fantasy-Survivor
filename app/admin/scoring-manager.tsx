@@ -79,6 +79,7 @@ export function ScoringManager(){
     <div className="admin-grid scoring-specials">
       <MergeControl/>
       <EpisodeWideAward/>
+      <FirstTribalCouncilAward/>
       <CastawayBonus/>
     </div>
   </section>;
@@ -143,7 +144,7 @@ function CastawayBonus(){
     catch(error){setError(messageOf(error));}finally{setBusy(false);}
   }
   return <article className="admin-panel">
-    <div className="admin-panel-title"><span>04</span><div><p>Direct bonus</p><h2>One-time castaway bonus</h2></div></div>
+    <div className="admin-panel-title"><span>05</span><div><p>Direct bonus</p><h2>One-time castaway bonus</h2></div></div>
     <p>This writes one direct score event and does not create a reusable scoring category. Use the reusable action form above only for rules that will be awarded repeatedly.</p>
     <form className="admin-form" onSubmit={submit} onChange={()=>{batchId.current=null;}}>
       <label className="wide">Castaway<select name="castawayId" required><option value="">Choose a castaway…</option>{game.castaways.map(castaway=><option key={castaway.id} value={castaway.id}>{castaway.name}{castaway.status==='voted-out'?' · voted out':''}</option>)}</select></label>
@@ -152,6 +153,39 @@ function CastawayBonus(){
       <label className="wide">Reason / note<input name="note" maxLength={500} required placeholder="Required reason for this one-time bonus"/></label>
       <button className="secondary-button wide" disabled={loading||busy}>{busy?'Saving…':'Save one-time bonus'}</button>
     </form>
+    {error&&<p className="scoring-error" role="alert">{error}</p>}{message&&<p className="success-banner" role="status">{message}</p>}
+  </article>;
+}
+
+function FirstTribalCouncilAward(){
+  const {game,loading,addFirstTribalCouncil}=useGame();
+  const [tribeId,setTribeId]=useState('');
+  const [episode,setEpisode]=useState(String(game.season.currentEpisode));
+  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
+  const tribe=game.tribes.find(item=>item.id===tribeId);
+  const roster=game.castaways.filter(castaway=>castaway.tribeId===tribeId);
+  const selectedEpisode=Number(episode);
+  const recordedIds=new Set(game.scoreEvents.filter(event=>event.categoryId==='first-tribal-council').map(event=>event.castawayId));
+  const pending=roster.filter(castaway=>!recordedIds.has(castaway.id));
+  async function submit(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();if(busy||!tribe)return;
+    const data=new FormData(event.currentTarget);setBusy(true);setMessage('');setError('');
+    try{await addFirstTribalCouncil({tribeId:tribe.id,episode:Number(data.get('episode')),note:String(data.get('note')??''),expectedCastawayIds:roster.map(castaway=>castaway.id)});setMessage(`First Tribal Council attendance: +${selectedEpisode} saved for ${roster.length} castaways.`);}
+    catch(error){setError(messageOf(error));}finally{setBusy(false);}
+  }
+  return <article className="admin-panel accent-panel episode-wide-award">
+    <div className="admin-panel-title"><span>04</span><div><p>Tribal Council milestone</p><h2>First Tribal Council attendance</h2></div></div>
+    <p>Use this once for the first Tribal Council attended by a tribe. Every assigned member receives points equal to the episode number, including anyone eliminated at that Tribal Council. Review the complete roster before confirming.</p>
+    <form className="admin-form" onSubmit={submit}>
+      <label>Episode<input name="episode" type="number" min="1" step="1" value={episode} onChange={event=>setEpisode(event.target.value)} required/></label>
+      <label>Tribe<select value={tribeId} onChange={event=>setTribeId(event.target.value)} required><option value="">Choose a tribe…</option>{game.tribes.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+      <div className="score-preview wide" aria-live="polite">
+        {tribe&&roster.length>0?<><strong>+{Number.isInteger(selectedEpisode)&&selectedEpisode>0?selectedEpisode:'episode number'} each · {roster.length} castaway{roster.length===1?'':'s'}</strong><ul className="active-roster-preview">{roster.map(castaway=><li key={castaway.id}>{castaway.name}{castaway.status==='voted-out'?' · voted out':''}{recordedIds.has(castaway.id)?' · already recorded':''}</li>)}</ul></>:<p>Choose a tribe to preview every assigned castaway.</p>}
+      </div>
+      <label className="wide">Note (optional)<input name="note" maxLength={500} placeholder="Episode 1 Toka Tribal Council"/></label>
+      <button className="primary-button wide" disabled={loading||busy||!tribe||!roster.length||!pending.length}>{!pending.length&&roster.length?'Attendance already recorded':busy?'Saving…':'Confirm first Tribal attendance'}</button>
+    </form>
+    {!roster.length&&tribe&&<p className="scoring-error" role="alert">This tribe has no assigned castaways.</p>}
     {error&&<p className="scoring-error" role="alert">{error}</p>}{message&&<p className="success-banner" role="status">{message}</p>}
   </article>;
 }

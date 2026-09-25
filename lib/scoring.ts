@@ -4,6 +4,7 @@ export type ScoringInput={categoryId:string;recipientId:string;episode:number;no
 export type CustomActionInput={label:string;points:number;target:Category['target']};
 export type EpisodeWideAwardInput={episode:number;note:string;expectedActiveCastawayIds:string[]};
 export type CastawayBonusInput={castawayId:string;episode:number;points:number;note:string;batchId:string};
+export type FirstTribalCouncilInput={tribeId:string;episode:number;note:string;expectedCastawayIds:string[]};
 
 const sameIds=(left:string[],right:string[])=>[...left].sort().join('|')===[...right].sort().join('|');
 
@@ -44,6 +45,36 @@ export function recordScoring(game:GameState,input:ScoringInput):GameState {
 }
 
 export function stillOnIslandAwardKey(game:GameState,episode:number){return `${game.season.id}:still-on-island:${episode}`;}
+
+export function firstTribalCouncilAwardKey(game:GameState,tribeId:string,episode:number){return `${game.season.id}:first-tribal-council:${episode}:${tribeId}`;}
+
+export function recordFirstTribalCouncil(game:GameState,input:FirstTribalCouncilInput):GameState {
+  validateEpisode(input.episode);
+  const note=input.note.trim();
+  if(note.length>500)throw new Error('Notes must be no more than 500 characters.');
+  if(!game.tribes.some(tribe=>tribe.id===input.tribeId))throw new Error('Choose a valid tribe.');
+  const selected=game.castaways.filter(castaway=>castaway.tribeId===input.tribeId);
+  if(!selected.length)throw new Error('This tribe has no assigned castaways. Assign members before recording attendance.');
+  if(!sameIds(selected.map(castaway=>castaway.id),input.expectedCastawayIds))throw new Error('Tribe roster changed. Review the full roster and try again.');
+  const awardKey=firstTribalCouncilAwardKey(game,input.tribeId,input.episode);
+  const recordedForAward=game.scoreEvents.filter(event=>(event.awardKey===awardKey||event.batchId===awardKey)&&event.castawayId);
+  if(recordedForAward.length){
+    if(!sameIds(recordedForAward.map(event=>event.castawayId as string),selected.map(castaway=>castaway.id)))throw new Error('This tribe’s first Tribal Council roster changed. Review the saved attendance award before retrying.');
+    return game;
+  }
+  const previousTribeAward=game.scoreEvents.filter(event=>event.categoryId==='first-tribal-council'&&event.tribeId===input.tribeId&&event.castawayId);
+  if(previousTribeAward.length){
+    if(!sameIds(previousTribeAward.map(event=>event.castawayId as string),selected.map(castaway=>castaway.id)))throw new Error('This tribe’s first Tribal Council roster changed. Review the saved attendance award before retrying.');
+    return game;
+  }
+  const alreadyRecorded=new Set(game.scoreEvents.filter(event=>event.categoryId==='first-tribal-council'&&event.castawayId).map(event=>event.castawayId as string));
+  const pending=selected.filter(castaway=>!alreadyRecorded.has(castaway.id));
+  if(!pending.length)return game;
+  const tribe=game.tribes.find(item=>item.id===input.tribeId)!;
+  const createdAt=new Date().toISOString();
+  const events=pending.map(castaway=>({id:`${awardKey}:${castaway.id}`,batchId:awardKey,awardKey,castawayId:castaway.id,recipientName:castaway.name,categoryId:'first-tribal-council',actionLabel:'First Tribal Council attendance',points:input.episode,episode:input.episode,note,createdAt,tribeId:tribe.id,tribeName:tribe.name,source:'first-tribal-council' as const}));
+  return {...game,season:{...game.season,currentEpisode:Math.max(game.season.currentEpisode,input.episode)},scoreEvents:[...game.scoreEvents,...events]};
+}
 
 export function recordStillOnIsland(game:GameState,input:EpisodeWideAwardInput):GameState {
   validateEpisode(input.episode);
