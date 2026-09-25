@@ -31,10 +31,12 @@ const administratorEmails = new Set([
 ].filter((email):email is string => Boolean(email)));
 
 function withOfficialCastawayProfiles(saved:GameState):GameState {
+  const savedCategories=saved.categories??[];
+  const categories=[...savedCategories,...initialGame.categories.filter(category=>!savedCategories.some(savedCategory=>savedCategory.id===category.id))];
   const normalized={
     ...saved,
     tribes:saved.tribes??(saved.season.number===51?initialGame.tribes:[]),
-    categories:saved.categories??initialGame.categories,
+    categories,
     history:saved.history??[],
     season:{...saved.season,entryFee:saved.season.entryFee??initialGame.season.entryFee},
     draft:saved.draft??initialGame.draft,

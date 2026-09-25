@@ -1,6 +1,5 @@
 'use client';
 import Link from 'next/link';
-import Image from 'next/image';
 import {useState,type FormEvent} from 'react';
 import {useGame} from '../game-provider';
 import {AuthControls} from '../auth-controls';
@@ -66,7 +65,7 @@ export default function Admin(){
   </div></article></section>;
 
   return <main className="admin-shell">
-    <header className="admin-header"><Link className="brand" href="/"><Image className="brand-logo" src="/branding/survivor-51-main.jpg" width={48} height={48} alt="Survivor 51"/><span><strong>Game Master</strong><small>Fantasy Survivor</small></span></Link><div className="admin-header-actions"><Link href="/" className="back-to-game">View game</Link><AuthControls compact/></div></header>
+    <header className="admin-header"><Link className="brand" href="/"><span><strong>Fantasy Survivor 51</strong><small>Game Master</small></span></Link><div className="admin-header-actions"><Link href="/" className="back-to-game">View game</Link><AuthControls compact/></div></header>
     <section className="admin-overview"><div><p className="eyebrow dark">Season {game.season.number} control room</p><h1>Run your league.</h1><p>Choose a section below. Your unfinished entries stay in place when you switch tabs.</p></div><div className="admin-overview-stats"><span><strong>{standings.length}</strong> players</span><span><strong>{activePlayers(game.players).filter(p=>p.paid).length}</strong> paid</span><span><strong>{game.draftPicks.length}</strong> picks</span></div></section>
     {!cloud&&<p className="setup-notice">Local setup mode: connect Firebase before publishing so everyone sees the same data.</p>}
     {saved&&<p className="admin-feedback" role="status">{saved}</p>}

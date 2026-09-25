@@ -19,6 +19,15 @@ test('seed includes known colors with no guessed memberships',()=>{
   assert.deepEqual(initialGame.tribes.map(t=>t.name),['Savu','Toka']);
   assert.ok(initialGame.castaways.every(c=>!c.tribeId));
 });
+test('seed includes the Episode 1 marooning challenge action',()=>{
+  const action=initialGame.categories.find(c=>c.id==='marooning-win');
+  assert.deepEqual(action,{id:'marooning-win',label:'Win the marooning challenge',points:2,group:'Challenges',target:'tribe'});
+});
+test('marooning challenge awards two points to every active member of the winning tribe',()=>{
+  const game=award(fixture(),'marooning-win','savu','marooning');
+  assert.equal(game.scoreEvents.length,2);
+  assert.ok(game.scoreEvents.every(event=>event.points===2&&event.actionLabel==='Win the marooning challenge'&&event.episode===1));
+});
 test('tribe award includes active members only, once each',()=>{
   const game=award();assert.equal(game.scoreEvents.length,2);
   assert.ok(game.scoreEvents.every(e=>e.points===2&&e.tribeName==='Savu'));
