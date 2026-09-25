@@ -1,6 +1,9 @@
 import 'server-only';
+import {cert,getApps,initializeApp} from 'firebase-admin/app';
+import {getAuth} from 'firebase-admin/auth';
+import {getFirestore} from 'firebase-admin/firestore';
 
-export type DraftServerSetupCode='missing-project-id'|'missing-credential'|'invalid-json'|'project-mismatch'|'missing-fields'|'sdk-load-failed'|'sdk-init-failed';
+export type DraftServerSetupCode='missing-project-id'|'missing-credential'|'invalid-json'|'project-mismatch'|'missing-fields'|'sdk-init-failed';
 type FirebaseServiceAccountJson={project_id:string;client_email:string;private_key:string};
 export class DraftServerSetupError extends Error{
   constructor(public readonly code:DraftServerSetupCode){super(code);this.name='DraftServerSetupError';}
@@ -16,7 +19,6 @@ export function draftServerSetupMessage(error:unknown){
     case 'invalid-json':return 'FIREBASE_SERVICE_ACCOUNT_JSON is present but is not valid JSON. Paste the complete downloaded service-account file, including its opening and closing braces.';
     case 'project-mismatch':return 'The service-account project_id does not match NEXT_PUBLIC_FIREBASE_PROJECT_ID.';
     case 'missing-fields':return 'The service-account JSON is missing project_id, client_email, or private_key.';
-    case 'sdk-load-failed':return 'The Firebase Admin SDK could not load in the Vercel server function. Check the deployment function logs.';
     case 'sdk-init-failed':return 'The Firebase Admin SDK found the credential but could not initialize. Re-enter the complete service-account JSON and confirm its private key is intact.';
   }
 }
@@ -38,23 +40,9 @@ export async function getDraftServer(){
   // The downloaded credential uses snake_case JSON keys, while the Admin
   // SDK's cert() object form expects camelCase properties.
   const validService={projectId:service.project_id,clientEmail:service.client_email,privateKey:service.private_key};
-  // Keep the Admin SDK out of the route module's startup path so load and
-  // configuration failures can be returned as controlled JSON responses.
-  let modules:{cert:typeof import('firebase-admin/app')['cert'];getApps:typeof import('firebase-admin/app')['getApps'];initializeApp:typeof import('firebase-admin/app')['initializeApp'];getAuth:typeof import('firebase-admin/auth')['getAuth'];getFirestore:typeof import('firebase-admin/firestore')['getFirestore']};
   try{
-    const [{cert,getApps,initializeApp},{getAuth},{getFirestore}]=await Promise.all([
-      import('firebase-admin/app'),
-      import('firebase-admin/auth'),
-      import('firebase-admin/firestore'),
-    ]);
-    modules={cert,getApps,initializeApp,getAuth,getFirestore};
-  }catch(error){
-    console.error('Firebase Admin SDK load failed',{code:errorCode(error)});
-    throw new DraftServerSetupError('sdk-load-failed');
-  }
-  try{
-    const app=modules.getApps().find(a=>a.name==='draft-server')??modules.initializeApp({credential:modules.cert(validService),projectId},'draft-server');
-    return {auth:modules.getAuth(app),db:modules.getFirestore(app)};
+    const app=getApps().find(a=>a.name==='draft-server')??initializeApp({credential:cert(validService),projectId},'draft-server');
+    return {auth:getAuth(app),db:getFirestore(app)};
   }catch(error){
     console.error('Firebase Admin SDK initialization failed',{code:errorCode(error)});
     throw new DraftServerSetupError('sdk-init-failed');
