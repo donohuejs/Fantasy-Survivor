@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {buildDraftTurns,initialGame} from '../lib/game-data.ts';
-import {castawayBoard} from '../lib/draft-board.ts';
+import {castawayBoard,draftHistoryEntries,draftOverallPickNumber,draftRounds,draftRosterSize} from '../lib/draft-board.ts';
 
 const copy=()=>structuredClone(initialGame);
 
@@ -45,4 +45,25 @@ test('round three swaps are shown as drafted while remaining discards stay avail
   const board=castawayBoard(game);
   assert.equal(board.items.find(item=>item.castawayId===game.castaways[0].id)?.status,'drafted');
   assert.equal(board.items.find(item=>item.castawayId===game.castaways[1].id)?.status,'available');
+});
+
+test('draft history uses the authoritative randomized turn sequence for overall pick numbers',()=>{
+  const game=copy();
+  game.draft.turns=buildDraftTurns(game.players,[...game.players].reverse());
+  const roundThree=game.draft.turns.filter(turn=>turn.round===3);
+  const firstRandomTurn=roundThree[0];
+  const firstPick={id:'round-three-pick',playerId:firstRandomTurn.playerId,castawayId:game.castaways[0].id,round:3,pickNumber:firstRandomTurn.pickNumber,multiplier:1};
+  game.draftPicks=[firstPick];
+  const history=draftHistoryEntries(game);
+  const entry=history.find(item=>item.pick?.id===firstPick.id)!;
+  assert.equal(entry.playerId,firstRandomTurn.playerId);
+  assert.equal(entry.overallPickNumber,game.players.length*2+1);
+  assert.equal(draftOverallPickNumber(game,firstPick),game.players.length*2+1);
+  assert.deepEqual(history.filter(item=>item.round===3).map(item=>item.playerId),roundThree.map(turn=>turn.playerId));
+});
+
+test('current draft configuration exposes all three rounds and a three-pick roster before picks exist',()=>{
+  const game=copy();
+  assert.deepEqual(draftRounds(game),[1,2,3]);
+  assert.equal(draftRosterSize(game,game.players[0].id),3);
 });
