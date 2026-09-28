@@ -211,6 +211,20 @@ footer span { color:#f3d08c; font-family:var(--font-heading); font-size:var(--te
 .scoring-error { padding:12px; color:#8b2222; background:#fff0ed; border-radius:8px; }
 .scoring-manager button:disabled { opacity:.55; cursor:wait; }
 .scoring-specials { margin-top:18px; }
+.episode-control { width:min(1140px,calc(100% - 40px)); margin:0 auto 18px; }
+.episode-status-line { color:#53645b; font-size:var(--text-small); }
+.episode-status-line strong { color:var(--forest); }
+.episode-control .score-preview strong,.episode-control .score-preview span { display:block; }
+.episode-control .score-preview span { margin-top:8px; color:#65736a; font-size:var(--text-small); line-height:1.5; }
+.scoring-buckets { align-items:start; margin-top:18px; }
+.scoring-tribal-column { display:grid; gap:18px; min-width:0; }
+.scoring-not-started { width:min(1140px,calc(100% - 40px)); margin:0 auto 24px; }
+.scoring-support { margin-top:18px; align-items:start; }
+.scoring-support details summary,.correction-panel summary { cursor:pointer; font-weight:700; }
+.episode-activity { margin-top:26px; }
+.episode-activity .event-list>div { align-items:flex-start; }
+.episode-activity .event-list small { display:block; }
+.tribal-resolution h3 { margin:16px 0 4px; font-size:var(--text-small); }
 .active-roster-preview { max-height:190px; overflow:auto; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px 18px; margin:16px 0; padding:14px 16px 14px 32px; border:1px solid #d4dcd5; border-radius:12px; background:#f5f6ef; color:#44574c; font-size:var(--text-small); }
 .active-roster-preview li { overflow-wrap:anywhere; }
 .castaway-pool-tribe { display:inline-flex; align-items:center; gap:7px; color:#52645c; font-size:var(--text-caption); font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
