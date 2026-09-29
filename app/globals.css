@@ -549,7 +549,7 @@ footer { color:var(--mist); background:var(--forest-deep); } footer span { color
 .leader-roster-empty { margin:14px 0 17px; color:var(--mist); font-size:var(--text-caption); }
 .leader-card-footer { display:flex; justify-content:flex-start; padding-top:13px; border-top:1px solid rgba(255,255,255,.15); color:var(--mist); font-size:var(--text-caption); }
 .champion-setup-note { margin:18px 0 0; padding-top:17px; border-top:1px solid rgba(255,255,255,.13); color:var(--mist); font-size:var(--text-caption); line-height:1.6; }
-.site-header nav a.nav-link { display:inline-flex; align-items:center; gap:6px; min-width:0; }
+.site-header nav a.nav-link { display:inline-flex; align-items:center; flex:0 0 auto; gap:6px; min-width:0; white-space:nowrap; }
 .nav-live-dot { width:7px; height:7px; flex:0 0 7px; border-radius:50%; background:var(--flame); box-shadow:0 0 0 2px rgba(240,120,63,.16); }
 .nav-status-live { color:var(--flame); font-size:var(--text-caption); letter-spacing:.07em; }
 .nav-poll-count { min-width:17px; height:17px; display:inline-grid; place-items:center; padding:0 4px; border-radius:999px; color:var(--paper); background:var(--flame); font-size:var(--text-caption); line-height:1; }
