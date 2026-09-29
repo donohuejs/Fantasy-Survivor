@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {initialGame,normalizeCategories,tribeForCastaway} from '../lib/game-data.ts';
-import {assignCastaway,recordCastawayBonus,recordFirstTribalCouncil,recordScoring,recordStillOnIsland,recordTribalCouncilSurvival,saveCustomAction,saveMergeEpisode,saveTribe,recipients} from '../lib/scoring.ts';
+import {assignCastaway,recordCastawayBonus,recordFirstTribalCouncil,recordScoring,recordStillOnIsland,recordTribalCouncilResolution,recordTribalCouncilSurvival,saveCustomAction,saveMergeEpisode,startEpisode,saveTribe,recipients} from '../lib/scoring.ts';
 
 function fixture(){
   let game=structuredClone(initialGame);
+  game.season.episodeStarted=true;
   game=assignCastaway(game,game.castaways[0].id,'savu','active');
   game=assignCastaway(game,game.castaways[1].id,'savu','active');
   game=assignCastaway(game,game.castaways[2].id,'savu','voted-out');
@@ -13,11 +14,36 @@ function fixture(){
 }
 function award(game=fixture(),categoryId='tribal-immunity',recipientId='savu',batchId='test',episode=1,note='Immunity'){
   const action=game.categories.find(c=>c.id===categoryId)!;
-  return recordScoring(game,{categoryId,recipientId,episode,note,expectedRecipientIds:recipients(game,action,recipientId).map(c=>c.id),batchId});
+  return recordScoring(game,{categoryId,recipientId,episode,note,expectedRecipientIds:recipients(game,action,recipientId).map(c=>c.id),batchId,historical:episode!==game.season.currentEpisode});
 }
 test('seed includes known colors with no guessed memberships',()=>{
   assert.deepEqual(initialGame.tribes.map(t=>t.name),['Savu','Toka']);
   assert.ok(initialGame.castaways.every(c=>!c.tribeId));
+  assert.equal(initialGame.season.currentEpisode,1);
+  assert.equal(initialGame.season.episodeStarted,false);
+});
+test('Episode 1 starts without jumping to Episode 2 and awards active castaways once',()=>{
+  const game=structuredClone(initialGame);
+  game.castaways[0].status='voted-out';
+  const expected=game.castaways.filter(castaway=>castaway.status==='active').map(castaway=>castaway.id);
+  const input={episode:1,expectedActiveCastawayIds:expected};
+  const next=startEpisode(game,input);
+  assert.equal(next.season.currentEpisode,1);
+  assert.equal(next.season.episodeStarted,true);
+  assert.equal(next.scoreEvents.length,expected.length);
+  assert.ok(next.scoreEvents.every(event=>event.categoryId==='still-on-island'&&event.points===1&&event.episode===1));
+  assert.deepEqual(startEpisode(next,input),next);
+});
+test('starting the next episode advances exactly once and ordinary scoring does not advance it',()=>{
+  const game=fixture();
+  game.scoreEvents=[];
+  const next=startEpisode({...game,season:{...game.season,episodeStarted:false,currentEpisode:1}},{episode:1,expectedActiveCastawayIds:game.castaways.filter(c=>c.status==='active').map(c=>c.id)});
+  const episodeTwo=startEpisode(next,{episode:2,expectedActiveCastawayIds:next.castaways.filter(c=>c.status==='active').map(c=>c.id)});
+  assert.equal(episodeTwo.season.currentEpisode,2);
+  const action=episodeTwo.categories.find(category=>category.id==='find-idol')!;
+  const scored=recordScoring(episodeTwo,{categoryId:action.id,recipientId:episodeTwo.castaways[0].id,episode:2,note:'',expectedRecipientIds:[episodeTwo.castaways[0].id],batchId:'episode-two-idol'});
+  assert.equal(scored.season.currentEpisode,2);
+  assert.equal(scored.scoreEvents.at(-1)?.episode,2);
 });
 test('canonical scoring actions replace placement labels',()=>{
   assert.deepEqual(initialGame.categories.find(c=>c.id==='tribal-immunity'),{id:'tribal-immunity',label:'Win tribal immunity',points:2,group:'Challenges',target:'tribe',phase:'pre-merge'});
@@ -65,7 +91,7 @@ test('first Tribal Council attendance awards the episode number to the full trib
   game=assignCastaway(game,game.castaways[3].id,'toka','voted-out');
   game=assignCastaway(game,game.castaways[4].id,'toka','active');
   const expected=game.castaways.filter(castaway=>castaway.tribeId==='toka').map(castaway=>castaway.id);
-  const input={tribeId:'toka',episode:3,note:'First Toka Tribal Council',expectedCastawayIds:expected};
+  const input={tribeId:'toka',episode:3,note:'First Toka Tribal Council',expectedCastawayIds:expected,historical:true};
   const next=recordFirstTribalCouncil(game,input);
   assert.equal(next.scoreEvents.length,2);
   assert.ok(next.scoreEvents.every(event=>event.categoryId==='first-tribal-council'&&event.points===3&&event.source==='first-tribal-council'&&event.tribeName==='Toka'));
@@ -75,6 +101,51 @@ test('first Tribal Council attendance awards the episode number to the full trib
 test('first Tribal Council attendance rejects a stale tribe roster',()=>{
   const game=fixture();
   assert.throws(()=>recordFirstTribalCouncil(game,{tribeId:'savu',episode:1,note:'',expectedCastawayIds:[game.castaways[0].id]}),/roster changed/);
+});
+test('Tribal Council resolution awards first attendance, elimination, status, and survival together',()=>{
+  const game=fixture();
+  const attendees=game.castaways.filter(castaway=>castaway.tribeId==='savu'&&castaway.status==='active');
+  const input={tribeId:'savu',eliminatedCastawayId:attendees[1].id,episode:1,note:'Savu Tribal Council',expectedAttendeeIds:attendees.map(castaway=>castaway.id)};
+  const next=recordTribalCouncilResolution(game,input);
+  assert.equal(next.castaways.find(castaway=>castaway.id===attendees[1].id)?.status,'voted-out');
+  assert.deepEqual(next.scoreEvents.map(event=>event.categoryId),['first-tribal-council','first-tribal-council','voted-premerge','survive-tribal']);
+  assert.equal(next.scoreEvents.find(event=>event.categoryId==='voted-premerge')?.points,-1);
+  assert.equal(next.scoreEvents.filter(event=>event.categoryId==='survive-tribal').length,1);
+  assert.deepEqual(recordTribalCouncilResolution(next,input),next);
+});
+test('Tribal Council first attendance is castaway-specific across tribe swaps',()=>{
+  let game=fixture();
+  const firstAttendees=game.castaways.filter(castaway=>castaway.tribeId==='savu');
+  game=recordFirstTribalCouncil(game,{tribeId:'savu',episode:1,note:'First Savu council',expectedCastawayIds:firstAttendees.map(castaway=>castaway.id)});
+  game=assignCastaway(game,firstAttendees[1].id,'toka','active');
+  game=assignCastaway(game,game.castaways[3].id,'savu','active');
+  const attendees=game.castaways.filter(castaway=>castaway.tribeId==='savu'&&castaway.status==='active');
+  const next=recordTribalCouncilResolution(game,{tribeId:'savu',eliminatedCastawayId:attendees[1].id,episode:1,note:'Changed roster',expectedAttendeeIds:attendees.map(castaway=>castaway.id)});
+  const firstEvents=next.scoreEvents.filter(event=>event.categoryId==='first-tribal-council');
+  assert.deepEqual(new Set(firstEvents.map(event=>event.castawayId)),new Set([...firstAttendees.map(castaway=>castaway.id),game.castaways[3].id]));
+  assert.equal(firstEvents.filter(event=>event.castawayId===game.castaways[3].id).length,1);
+});
+test('Tribal Council resolution rejects a stale preview and preserves saved tribe names',()=>{
+  let game=fixture();
+  const attendees=game.castaways.filter(castaway=>castaway.tribeId==='savu'&&castaway.status==='active');
+  const input={tribeId:'savu',eliminatedCastawayId:attendees[0].id,episode:1,note:'',expectedAttendeeIds:attendees.map(castaway=>castaway.id)};
+  game=assignCastaway(game,game.castaways[3].id,'savu','active');
+  assert.throws(()=>recordTribalCouncilResolution(game,input),/roster changed/);
+  const current=game.castaways.filter(castaway=>castaway.tribeId==='savu'&&castaway.status==='active');
+  const next=recordTribalCouncilResolution(game,{...input,expectedAttendeeIds:current.map(castaway=>castaway.id)});
+  assert.ok(next.scoreEvents.every(event=>event.tribeName==='Savu'));
+  const renamed=saveTribe(next,{id:'savu',name:'Renamed Savu',color:'#000000'});
+  assert.ok(renamed.scoreEvents.every(event=>event.tribeName==='Savu'));
+});
+test('merged Tribal Council resolution keeps first attendance but omits pre-merge consequences',()=>{
+  let game=fixture();
+  game.season.currentEpisode=3;game.season.mergeEpisode=3;
+  game=assignCastaway(game,game.castaways[4].id,'toka','active');
+  const attendees=game.castaways.filter(castaway=>castaway.tribeId==='toka'&&castaway.status==='active');
+  const next=recordTribalCouncilResolution(game,{tribeId:'toka',eliminatedCastawayId:attendees[0].id,episode:3,note:'Merged council',expectedAttendeeIds:attendees.map(castaway=>castaway.id)});
+  assert.equal(next.castaways.find(castaway=>castaway.id===attendees[0].id)?.status,'voted-out');
+  assert.equal(next.scoreEvents.some(event=>event.categoryId==='voted-premerge'||event.categoryId==='survive-tribal'),false);
+  assert.ok(next.scoreEvents.every(event=>event.categoryId==='first-tribal-council'));
 });
 test('individual reward winner keeps +2 and selected participants receive +1',()=>{
   let game=fixture();
@@ -87,7 +158,7 @@ test('merge-only voting points require a saved merge episode',()=>{
   assert.throws(()=>award(beforeMerge,'majority',beforeMerge.castaways[0].id,'blocked'),/merge episode/);
   const withBoundary=saveMergeEpisode(beforeMerge,3);
   assert.throws(()=>award(withBoundary,'majority',withBoundary.castaways[0].id,'blocked-early',2),/merge episode/);
-  assert.throws(()=>recordTribalCouncilSurvival(withBoundary,{tribeId:'savu',episode:3,note:'blocked-late',expectedActiveCastawayIds:[withBoundary.castaways[0].id,withBoundary.castaways[1].id]}),/before the merge/);
+  assert.throws(()=>recordTribalCouncilSurvival(withBoundary,{tribeId:'savu',episode:3,note:'blocked-late',expectedActiveCastawayIds:[withBoundary.castaways[0].id,withBoundary.castaways[1].id],historical:true}),/before the merge/);
   const merged=award(withBoundary,'majority',withBoundary.castaways[0].id,'allowed',3);
   assert.equal(merged.scoreEvents[0].points,2);
 });
@@ -164,7 +235,8 @@ test('retries use batch id to avoid duplicate points',()=>{
   const game=award();assert.deepEqual(award(game),game);
 });
 test('empty tribe and invalid episode are rejected',()=>{
-  assert.throws(()=>award(initialGame),/no active members/);
+  const started=structuredClone(initialGame);started.season.episodeStarted=true;
+  assert.throws(()=>award(started),/no active members/);
   assert.throws(()=>recordScoring(fixture(),{categoryId:'tribal-immunity',recipientId:'savu',episode:0,note:'',expectedRecipientIds:[],batchId:'bad'}),/Episode/);
 });
 test('membership changes after preview require another review',()=>{

@@ -2,14 +2,14 @@ export type Player = { id:string; name:string; email:string; uid?:string; entryB
 export type Castaway = { id:string; name:string; shortName:string; age:number; occupation:string; bio:string; imageUrl:string; status:'active'|'voted-out'; tribeId?:string };
 export type Tribe = {id:string;name:string;color:string};
 export type DraftPick = { id:string; playerId:string; castawayId:string; round:number; pickNumber:number; multiplier:number; decision?:'keep'|'swap'; keptAt?:number };
-export type ScoreEvent = { id:string; castawayId?:string; playerId?:string; categoryId?:string; points:number; episode?:number; note?:string; createdAt:string; batchId?:string; awardKey?:string; actionLabel?:string; recipientName?:string; tribeId?:string; tribeName?:string; source?:'standard'|'episode-wide'|'one-time-bonus'|'first-tribal-council'|'tribe-wide' };
+export type ScoreEvent = { id:string; castawayId?:string; playerId?:string; categoryId?:string; points:number; episode?:number; note?:string; createdAt:string; batchId?:string; awardKey?:string; actionLabel?:string; recipientName?:string; tribeId?:string; tribeName?:string; source?:'standard'|'episode-wide'|'one-time-bonus'|'first-tribal-council'|'tribe-wide'|'tribal-council' };
 export type CategoryPhase = 'pre-merge'|'merge-only';
 export type Category = { id:string; label:string; points:number; group:string; details?:string; target:'individual'|'tribe'; custom?:boolean; phase?:CategoryPhase; recipientStatus?:Castaway['status']; bulkOnly?:boolean; retired?:boolean; dynamicPoints?:'episode' };
 export type DraftTurn = { playerId:string; playerName:string; email:string; uid?:string; round:number; pickNumber:number };
 export type DraftState = { status:'setup'|'live'|'paused'|'complete'; currentPick:number; turns:DraftTurn[]; version?:2; runId?:string; revision?:number; blind?:{discards:string[];keptCount:number} };
 export type SeasonResult={profileId:string;name:string;score:number;finish:number};
 export type SeasonArchive={season:number;finalizedAt:string;results:SeasonResult[]};
-export type GameState = { season:{ id:string; name:string; number:number; currentEpisode:number; entryFee:number; mergeEpisode?:number; finalized?:boolean }; players:Player[]; castaways:Castaway[]; draftPicks:DraftPick[]; scoreEvents:ScoreEvent[]; draft:DraftState; tribes:Tribe[]; categories:Category[]; history?:SeasonArchive[]; draftOrderVersion?:2 };
+export type GameState = { season:{ id:string; name:string; number:number; currentEpisode:number; episodeStarted?:boolean; entryFee:number; mergeEpisode?:number; finalized?:boolean }; players:Player[]; castaways:Castaway[]; draftPicks:DraftPick[]; scoreEvents:ScoreEvent[]; draft:DraftState; tribes:Tribe[]; categories:Category[]; history?:SeasonArchive[]; draftOrderVersion?:2 };
 
 const photo = (filename:string) => `https://public-assets-pressexpress.s3.amazonaws.com/assets/releases/docimages/ac468eba/${filename}`;
 const cast: Array<[string,string,number,string,string,string]> = [
@@ -128,7 +128,7 @@ export function buildDraftTurns(roster:Player[],thirdRound:Player[]=[]):DraftTur
 export const initialGame: GameState = {
   tribes:[{id:'savu',name:'Savu',color:'#7030A0'},{id:'toka',name:'Toka',color:'#F2CC24'}],
   categories,
-  season:{id:'season-51',name:'Survivor 51',number:51,currentEpisode:1,entryFee:10},
+  season:{id:'season-51',name:'Survivor 51',number:51,currentEpisode:1,episodeStarted:false,entryFee:10},
   players,
   castaways:cast.map(([name,shortName,age,occupation,bio,imageSlug]) => ({id:`cast-${shortName.toLowerCase().replace(/\s/g,'-')}`,name,shortName,age,occupation,bio,imageUrl:photo(imageSlug),status:'active'})),
   draftPicks:[], scoreEvents:[], draft:{status:'setup',currentPick:0,turns:buildDraftTurns(players)}, draftOrderVersion:DRAFT_ORDER_VERSION,

@@ -5,7 +5,7 @@ import { firebaseConfigured, getFirebase, authenticationError, type FirebaseUser
 import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc, runTransaction } from 'firebase/firestore';
 import { activePlayers,buildDraftTurns,initialGame,insertPlayerAtDraftFront,migrateLegacyDraftOrder,normalizeCategories,type GameState, type Tribe, type Castaway } from '@/lib/game-data';
-import { recordScoring,recordStillOnIsland,recordCastawayBonus,recordFirstTribalCouncil,recordTribalCouncilSurvival,saveCustomAction,saveMergeEpisode,saveTribe,assignCastaway,type ScoringInput,type EpisodeWideAwardInput,type CastawayBonusInput,type FirstTribalCouncilInput,type TribalCouncilSurvivalInput,type CustomActionInput } from '@/lib/scoring';
+import { recordScoring,recordStillOnIsland,recordCastawayBonus,recordFirstTribalCouncil,recordTribalCouncilSurvival,startEpisode,recordTribalCouncilResolution,saveCustomAction,saveMergeEpisode,saveTribe,assignCastaway,type ScoringInput,type EpisodeWideAwardInput,type EpisodeStartInput,type CastawayBonusInput,type FirstTribalCouncilInput,type TribalCouncilSurvivalInput,type TribalCouncilResolutionInput,type CustomActionInput } from '@/lib/scoring';
 import {bindProfile,lockSeason,prepareNextSeason,seasonStandings,type PlayerSignup} from '@/lib/league';
 import {combinedHistory} from '@/lib/history-data';
 import {automaticRegistration,registrationForAccount,registrationErrorMessage,type RegistrationState} from '@/lib/registration';
@@ -15,7 +15,7 @@ export type {PlayerSignup} from '@/lib/league';
 type GameContextValue = {
   game:GameState; loading:boolean; user:FirebaseUser|null; isAdmin:boolean; cloud:boolean; authLoading:boolean; authBusy:boolean;
   castawayScores:Record<string,number>; standings:Array<{id:string;name:string;score:number;picks:string;rank:number}>;
-  login:()=>Promise<void>; logout:()=>Promise<void>; addScore:(data:ScoringInput)=>Promise<void>; addStillOnIsland:(data:EpisodeWideAwardInput)=>Promise<void>; addFirstTribalCouncil:(data:FirstTribalCouncilInput)=>Promise<void>; addTribalCouncilSurvival:(data:TribalCouncilSurvivalInput)=>Promise<void>; addCastawayBonus:(data:CastawayBonusInput)=>Promise<void>; setMergeEpisode:(episode:number|undefined)=>Promise<void>;
+  login:()=>Promise<void>; logout:()=>Promise<void>; startEpisode:(data:EpisodeStartInput)=>Promise<void>; addScore:(data:ScoringInput)=>Promise<void>; addStillOnIsland:(data:EpisodeWideAwardInput)=>Promise<void>; addFirstTribalCouncil:(data:FirstTribalCouncilInput)=>Promise<void>; addTribalCouncilSurvival:(data:TribalCouncilSurvivalInput)=>Promise<void>; resolveTribalCouncil:(data:TribalCouncilResolutionInput)=>Promise<void>; addCastawayBonus:(data:CastawayBonusInput)=>Promise<void>; setMergeEpisode:(episode:number|undefined)=>Promise<void>;
   addCustomAction:(input:CustomActionInput)=>Promise<string>; updateTribe:(tribe:Tribe)=>Promise<void>; updateCastaway:(id:string,tribeId:string,status:Castaway['status'])=>Promise<void>;
   addAdjustment:(playerId:string,points:number,note:string,episode?:number)=>Promise<void>;
   addPlayer:(name:string,email:string)=>Promise<void>; setPlayerEmail:(playerId:string,email:string)=>Promise<void>; setPlayerActive:(playerId:string,active:boolean)=>Promise<void>; startDraft:()=>Promise<void>; toggleDraft:()=>Promise<void>; undoDraftPick:()=>Promise<void>; submitPlayerPick:(castawayId:string,decision?:'select'|'keep'|'swap',onBehalf?:boolean)=>Promise<void>; resetSeason:()=>Promise<void>;
@@ -36,7 +36,7 @@ function withOfficialCastawayProfiles(saved:GameState):GameState {
     tribes:saved.tribes??(saved.season.number===51?initialGame.tribes:[]),
     categories:normalizeCategories(saved.categories),
     history:saved.history??[],
-    season:{...saved.season,entryFee:saved.season.entryFee??initialGame.season.entryFee},
+    season:{...saved.season,entryFee:saved.season.entryFee??initialGame.season.entryFee,episodeStarted:saved.season.episodeStarted??saved.scoreEvents?.some(event=>event.episode===saved.season.currentEpisode)??false},
     draft:saved.draft??initialGame.draft,
     draftPicks:saved.draftPicks??[],
     scoreEvents:saved.scoreEvents??[],
@@ -50,7 +50,7 @@ function withOfficialCastawayProfiles(saved:GameState):GameState {
 }
 
 function needsGameMigration(saved:GameState,normalized:GameState){
-  return saved.draftOrderVersion!==normalized.draftOrderVersion||JSON.stringify(saved.categories??[])!==JSON.stringify(normalized.categories);
+  return saved.draftOrderVersion!==normalized.draftOrderVersion||JSON.stringify(saved.categories??[])!==JSON.stringify(normalized.categories)||saved.season.episodeStarted!==normalized.season.episodeStarted;
 }
 
 export function GameProvider({children}:{children:React.ReactNode}) {
@@ -200,10 +200,12 @@ export function GameProvider({children}:{children:React.ReactNode}) {
       transaction.set(ref,apply(current));
     });
   }
+  async function startEpisodeAction(input:EpisodeStartInput) {await adminMutation(current=>startEpisode(current,input));}
   async function addScore(input:ScoringInput) {await adminMutation(current=>recordScoring(current,input));}
   async function addStillOnIsland(input:EpisodeWideAwardInput) {await adminMutation(current=>recordStillOnIsland(current,input));}
   async function addFirstTribalCouncil(input:FirstTribalCouncilInput) {await adminMutation(current=>recordFirstTribalCouncil(current,input));}
   async function addTribalCouncilSurvival(input:TribalCouncilSurvivalInput) {await adminMutation(current=>recordTribalCouncilSurvival(current,input));}
+  async function resolveTribalCouncil(input:TribalCouncilResolutionInput) {await adminMutation(current=>recordTribalCouncilResolution(current,input));}
   async function addCastawayBonus(input:CastawayBonusInput) {await adminMutation(current=>recordCastawayBonus(current,input));}
   async function setMergeEpisode(episode:number|undefined) {await adminMutation(current=>saveMergeEpisode(current,episode));}
   async function addCustomAction(input:CustomActionInput) {const id=crypto.randomUUID();await adminMutation(current=>saveCustomAction(current,input,id));return id;}
@@ -213,7 +215,7 @@ export function GameProvider({children}:{children:React.ReactNode}) {
     await adminMutation(current=>{
       if(!current.players.some(p=>p.id===playerId&&p.active!==false)||!Number.isFinite(points))throw new Error('Choose an active player and valid points.');
       if(episode!==undefined&&(!Number.isInteger(episode)||episode<1))throw new Error('Episode must be a positive whole number, or leave it blank.');
-      return {...current,season:{...current.season,currentEpisode:Math.max(current.season.currentEpisode,episode??0)},scoreEvents:[...current.scoreEvents,{id:crypto.randomUUID(),playerId,points,note,...(episode!==undefined?{episode}:{}),createdAt:new Date().toISOString()}]};
+      return {...current,scoreEvents:[...current.scoreEvents,{id:crypto.randomUUID(),playerId,points,note,...(episode!==undefined?{episode}:{}),createdAt:new Date().toISOString()}]};
     });
   }
   async function draftRequest(action:DraftCommand['action'],castawayId='',decision:DraftCommand['decision']='select',onBehalf=false) {
@@ -257,7 +259,7 @@ export function GameProvider({children}:{children:React.ReactNode}) {
     });
   }
   async function setPlayerPaid(playerId:string,paid:boolean){await adminMutation(current=>({...current,players:current.players.map(player=>player.id===playerId?{...player,paid}:player)}),true);}
-  async function resetSeason() {await adminMutation(current=>({...current,scoreEvents:[],draftPicks:[],players:current.players.map(p=>({...p,entryBonus:0})),draft:{status:'setup',currentPick:0,turns:buildDraftTurns(current.players)}}));}
+  async function resetSeason() {await adminMutation(current=>({...current,season:{...current.season,currentEpisode:1,episodeStarted:false},scoreEvents:[],draftPicks:[],players:current.players.map(p=>({...p,entryBonus:0})),draft:{status:'setup',currentPick:0,turns:buildDraftTurns(current.players)}}));}
   async function finalizeSeason(order:string[]){await adminMutation(current=>{if(JSON.stringify(seasonStandings(current))!==JSON.stringify(seasonStandings(game)))throw new Error('Scores changed during your review. Review the updated standings before locking.');return lockSeason(current,order,new Date().toISOString());},true);}
   async function beginNextSeason(){
     if(!isAdmin)throw new Error('Only the game master can open a season.');
@@ -271,7 +273,7 @@ export function GameProvider({children}:{children:React.ReactNode}) {
   }
   async function addCastaway(input:Omit<Castaway,'id'|'status'>){await adminMutation(current=>{if(current.draft.status!=='setup')throw new Error('Add castaways before the draft.');if(!input.name.trim()||!Number.isInteger(input.age)||input.age<18)throw new Error('Enter a name and an adult age.');if(input.imageUrl&&!/^https:\/\//i.test(input.imageUrl))throw new Error('Use an HTTPS photo URL.');return {...current,castaways:[...current.castaways,{...input,id:crypto.randomUUID(),status:'active'}]};});}
   const assignedAccount=Boolean(user&&game.players.some(p=>p.uid?p.uid===user.uid:Boolean(p.email)&&p.email.toLowerCase()===user.email?.toLowerCase()));
-  return <GameContext.Provider value={{game,loading,user,isAdmin,cloud:firebaseConfigured,authLoading,authBusy,castawayScores,standings,login,logout,addScore,addStillOnIsland,addFirstTribalCouncil,addTribalCouncilSurvival,addCastawayBonus,setMergeEpisode,addCustomAction,updateTribe,updateCastaway,addAdjustment,addPlayer,setPlayerEmail,setPlayerActive,startDraft,toggleDraft,undoDraftPick,submitPlayerPick,resetSeason,signups,registrationStatus,retryRegistration,assignSignup,setPlayerPaid,signupError,signupLoading,finalizeSeason,beginNextSeason,addCastaway}}>{authError&&<div role="alert" className="setup-notice">{authError}</div>}{user&&registration.status==='registering'&&<div className="registration-banner" role="status">Signed in. Completing your league registration…</div>}{user&&registration.status==='error'&&<div className="registration-banner registration-failed" role="alert"><span><strong>You’re signed in, but league registration has not been confirmed.</strong> {registration.error}</span><button type="button" onClick={retryRegistration}>Retry registration</button></div>}{user&&!isAdmin&&!loading&&!assignedAccount&&registration.status==='registered'&&<div className="registration-banner" role="status">You’re registered as <strong>{registration.signup?.name}</strong>. The game master will assign your league profile and draft slot—nothing else to submit.</div>}{children}</GameContext.Provider>;
+  return <GameContext.Provider value={{game,loading,user,isAdmin,cloud:firebaseConfigured,authLoading,authBusy,castawayScores,standings,login,logout,startEpisode:startEpisodeAction,addScore,addStillOnIsland,addFirstTribalCouncil,addTribalCouncilSurvival,resolveTribalCouncil,addCastawayBonus,setMergeEpisode,addCustomAction,updateTribe,updateCastaway,addAdjustment,addPlayer,setPlayerEmail,setPlayerActive,startDraft,toggleDraft,undoDraftPick,submitPlayerPick,resetSeason,signups,registrationStatus,retryRegistration,assignSignup,setPlayerPaid,signupError,signupLoading,finalizeSeason,beginNextSeason,addCastaway}}>{authError&&<div role="alert" className="setup-notice">{authError}</div>}{user&&registration.status==='registering'&&<div className="registration-banner" role="status">Signed in. Completing your league registration…</div>}{user&&registration.status==='error'&&<div className="registration-banner registration-failed" role="alert"><span><strong>You’re signed in, but league registration has not been confirmed.</strong> {registration.error}</span><button type="button" onClick={retryRegistration}>Retry registration</button></div>}{user&&!isAdmin&&!loading&&!assignedAccount&&registration.status==='registered'&&<div className="registration-banner" role="status">You’re registered as <strong>{registration.signup?.name}</strong>. The game master will assign your league profile and draft slot—nothing else to submit.</div>}{children}</GameContext.Provider>;
 }
 
 export function useGame() { const value=useContext(GameContext); if (!value) throw new Error('GameProvider missing'); return value; }
