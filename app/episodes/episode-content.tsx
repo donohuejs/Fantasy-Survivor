@@ -54,7 +54,7 @@ export function PollCard({poll,manage=false}:{poll:LeaguePoll;manage?:boolean}){
     catch(error){setMessage(error instanceof Error?error.message:'Unable to save vote.');}finally{setBusy(false);}
   }
   async function close(){if(!confirm('Close this poll? Voting will stop and the results will remain visible.'))return;setBusy(true);try{await communityRequest({action:'close-poll',pollId:poll.id});setMessage('Poll closed.');}catch(error){setMessage(error instanceof Error?error.message:'Unable to close poll.');}finally{setBusy(false);}}
-  return <article className="league-poll"><div className="poll-heading"><span>{open?'Voting open':'Voting closed'}</span><small>{poll.episode?'Episode '+poll.episode:'League-wide'} · {total} vote{total===1?'':'s'}</small></div><h3>{poll.question}</h3>
+  return <article id={`poll-${poll.id}`} tabIndex={-1} className="league-poll"><div className="poll-heading"><span>{open?'Voting open':'Voting closed'}</span><small>{poll.episode?'Episode '+poll.episode:'League-wide'} · {total} vote{total===1?'':'s'}</small></div><h3>{poll.question}</h3>
     <form onSubmit={vote}><fieldset disabled={!open||!player||busy}><legend className="visually-hidden">Choose one answer</legend>{poll.options.map((option,index)=><label className="poll-option" key={index}><input type="radio" name={'poll-'+poll.id} value={index} checked={choice===index} onChange={()=>setSelected(index)}/><span>{option}<progress max={Math.max(total,1)} value={poll.counts[index]} aria-label={option+' votes'}/></span><b>{poll.counts[index]} · {total?Math.round(poll.counts[index]/total*100):0}%</b></label>)}</fieldset>
       {open&&player&&<button disabled={busy||choice===null}>{mine.key===key&&mine.choice!==null?'Update my vote':'Submit vote'}</button>}
     </form>

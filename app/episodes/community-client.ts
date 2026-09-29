@@ -4,6 +4,7 @@ import {collection,onSnapshot,query,where,orderBy,limit} from 'firebase/firestor
 import {getFirebase} from '@/lib/firebase';
 import type {EpisodeRecap,LeaguePoll,EpisodeComment} from '@/lib/community';
 import {useGame} from '../game-provider';
+export {usePolls} from '../community-polls';
 
 type Result<T>={key:string;rows:T[];error:string;loaded:boolean};
 function useList<T extends EpisodeRecap|LeaguePoll>(name:'episodes'|'polls',drafts=false){
@@ -20,7 +21,6 @@ function useList<T extends EpisodeRecap|LeaguePoll>(name:'episodes'|'polls',draf
   return {rows:state.key===scope?state.rows:[],loading:cloud&&(state.key!==scope||!state.loaded),error:!cloud?'Connect Firebase to use recaps, comments, and polls.':state.key===scope?state.error:''};
 }
 export function useRecaps(drafts=false){return useList<EpisodeRecap>('episodes',drafts);}
-export function usePolls(){return useList<LeaguePoll>('polls');}
 export function useComments(episodeId:string,count:number){
   const {cloud,user,isAdmin}=useGame();
   const scope=episodeId+':'+count+':'+(isAdmin?user?.uid??'local':'public');

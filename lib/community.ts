@@ -7,6 +7,14 @@ export type LeaguePoll={id:string;season:number;episode:number;question:string;o
 export type CommunityActor={uid:string;email:string;verified:boolean};
 export class CommunityError extends Error {}
 export const communityOwner='donohue.js@gmail.com';
+export function pollVoteTotal(poll:LeaguePoll){return poll.counts.reduce((sum,count)=>sum+count,0);}
+export function currentSeasonOpenPolls(polls:LeaguePoll[],season:number){return polls.filter(poll=>poll.status==='open'&&poll.season===season).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));}
+export function pollDeepLinkTarget(polls:LeaguePoll[],recaps:EpisodeRecap[],pollId:string|null){
+  const poll=pollId?polls.find(candidate=>candidate.id===pollId):undefined;
+  if(!poll)return null;
+  const recap=poll.episode?recaps.find(candidate=>candidate.season===poll.season&&candidate.episode===poll.episode):undefined;
+  return {poll,recapId:recap?.id};
+}
 export function isCommunityOwner(actor:CommunityActor){return actor.verified&&actor.email.toLowerCase()===communityOwner;}
 export function linkedAuthor(game:GameState,actor:CommunityActor,allowOwner=false){
   if(!actor.verified||!actor.uid)throw new CommunityError('Sign in with a verified Google account.');
