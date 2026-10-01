@@ -9,6 +9,13 @@ export class CommunityError extends Error {}
 export const communityOwner='donohue.js@gmail.com';
 export function pollVoteTotal(poll:LeaguePoll){return poll.counts.reduce((sum,count)=>sum+count,0);}
 export function currentSeasonOpenPolls(polls:LeaguePoll[],season:number){return polls.filter(poll=>poll.status==='open'&&poll.season===season).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));}
+export function episodePolls(polls:LeaguePoll[],season:number,episode:number){
+  const scoped=polls.filter(poll=>poll.season===season&&(poll.episode===episode||poll.episode===0));
+  return {
+    open:scoped.filter(poll=>poll.status==='open').sort((a,b)=>b.createdAt.localeCompare(a.createdAt)),
+    closed:scoped.filter(poll=>poll.status==='closed').sort((a,b)=>b.createdAt.localeCompare(a.createdAt)),
+  };
+}
 export function pollDeepLinkTarget(polls:LeaguePoll[],recaps:EpisodeRecap[],pollId:string|null){
   const poll=pollId?polls.find(candidate=>candidate.id===pollId):undefined;
   if(!poll)return null;

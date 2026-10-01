@@ -1,4 +1,4 @@
-import type {Category,GameState,Tribe,Castaway,EpisodeStatus} from './game-data.ts';
+import type {Category,GameState,Tribe,Castaway,EpisodeStatus,Possession,PossessionCategory,PossessionStatus} from './game-data.ts';
 
 export type ScoringInput={categoryId:string;recipientId:string;episode:number;note:string;expectedRecipientIds:string[];batchId:string;historical?:boolean};
 export type CustomActionInput={label:string;points:number;target:Category['target']};
@@ -8,8 +8,15 @@ export type EpisodeFinishInput={episode:number};
 export type CastawayBonusInput={castawayId:string;episode:number;points:number;note:string;batchId:string;historical?:boolean};
 export type FirstTribalCouncilInput={tribeId:string;episode:number;note:string;expectedCastawayIds:string[];historical?:boolean};
 export type TribalCouncilSurvivalInput={tribeId:string;episode:number;note:string;expectedActiveCastawayIds:string[];historical?:boolean};
-export type TribalCouncilResolutionInput={tribeId:string;eliminatedCastawayId:string;episode:number;note:string;expectedAttendeeIds:string[];expectedFirstTimeAttendeeIds?:string[];expectedPreMerge?:boolean;expectedTribeName?:string};
-export type TribalCouncilPreview={resolutionKey:string;tribe:Tribe;episode:number;attendees:Castaway[];firstTimeAttendees:Castaway[];eliminated:Castaway;survivingAttendees:Castaway[];preMerge:boolean};
+export type PossessionInput={id?:string;castawayId:string;itemName:string;category:PossessionCategory;acquiredEpisode?:number;notes?:string};
+export type PossessionStatusInput={possessionId:string;status:PossessionStatus;episode:number;notes:string};
+export type PossessionTransferInput={possessionId:string;targetCastawayId:string;episode:number;notes:string;newPossessionId:string};
+export type TribalCouncilItemPlayInput={possessionId:string;playedByCastawayId:string;playedForCastawayId?:string;successful:boolean};
+export type ShotInTheDarkInput={castawayId:string;result:'safe'|'unsafe'};
+export type TribalCouncilResolutionInput={tribeId:string;eliminatedCastawayId:string;episode:number;note:string;expectedAttendeeIds:string[];expectedFirstTimeAttendeeIds?:string[];expectedPreMerge?:boolean;expectedTribeName?:string;itemPlays?:TribalCouncilItemPlayInput[];shotsInTheDark?:ShotInTheDarkInput[]};
+export type TribalCouncilPlayedItem={input:TribalCouncilItemPlayInput;possession:Possession;playedBy:Castaway;playedFor?:Castaway};
+export type TribalCouncilShot={input:ShotInTheDarkInput;castaway:Castaway};
+export type TribalCouncilPreview={resolutionKey:string;tribe:Tribe;episode:number;attendees:Castaway[];firstTimeAttendees:Castaway[];eliminated:Castaway;survivingAttendees:Castaway[];preMerge:boolean;playedItems:TribalCouncilPlayedItem[];shots:TribalCouncilShot[];pocketPossessions:Possession[]};
 
 const sameIds=(left:string[],right:string[])=>[...left].sort().join('|')===[...right].sort().join('|');
 
@@ -46,6 +53,80 @@ export function recipients(game:GameState,category:Category,recipientId:string):
   const castaway=game.castaways.find(c=>c.id===recipientId);
   if(!castaway)throw new Error('Choose a valid castaway.');
   return [castaway];
+}
+
+export function activePossessions(game:GameState):Possession[]{
+  return (game.possessions??[]).filter(possession=>possession.status==='active');
+}
+
+function possessionCastaway(game:GameState,castawayId:string){
+  const castaway=game.castaways.find(item=>item.id===castawayId);
+  if(!castaway)throw new Error('Choose a valid castaway.');
+  return castaway;
+}
+
+function validatePossessionInput(game:GameState,input:PossessionInput){
+  const itemName=input.itemName.trim();
+  if(!itemName||itemName.length>120)throw new Error('Enter an item name between 1 and 120 characters.');
+  if(input.category!=='idol'&&input.category!=='advantage')throw new Error('Choose Idol or Advantage.');
+  possessionCastaway(game,input.castawayId);
+  if(input.acquiredEpisode!==undefined&&(!Number.isInteger(input.acquiredEpisode)||input.acquiredEpisode<1))throw new Error('Acquired episode must be a positive whole number.');
+  const notes=(input.notes??'').trim();
+  if(notes.length>500)throw new Error('Possession notes must be no more than 500 characters.');
+  return {itemName,notes};
+}
+
+export function createPossessionRecord(game:GameState,input:PossessionInput):GameState{
+  const {itemName,notes}=validatePossessionInput(game,input);
+  const castaway=possessionCastaway(game,input.castawayId);
+  const id=input.id?.trim();
+  if(!id)throw new Error('A possession id is required.');
+  if((game.possessions??[]).some(possession=>possession.id===id))return game;
+  const now=new Date().toISOString();
+  const possession:Possession={id,seasonId:game.season.id,lineageId:id,castawayId:castaway.id,originalCastawayId:castaway.id,itemName,category:input.category,status:'active',...(input.acquiredEpisode!==undefined?{acquiredEpisode:input.acquiredEpisode}:{}),acquiredAt:now,notes,updatedAt:now,history:[{action:'acquired',at:now,episode:input.acquiredEpisode,notes}]};
+  return {...game,possessions:[...(game.possessions??[]),possession]};
+}
+
+export function updatePossessionRecord(game:GameState,input:PossessionInput&{id:string}):GameState{
+  const existing=(game.possessions??[]).find(possession=>possession.id===input.id);
+  if(!existing)throw new Error('That possession no longer exists. Reload before editing it.');
+  if(input.castawayId!==existing.castawayId)throw new Error('Use Transfer possession to change the current owner so the history remains intact.');
+  const {itemName,notes}=validatePossessionInput(game,input);
+  const changed=itemName!==existing.itemName||input.category!==existing.category||input.acquiredEpisode!==existing.acquiredEpisode||notes!==existing.notes||input.castawayId!==existing.castawayId;
+  if(!changed)return game;
+  const now=new Date().toISOString();
+  return {...game,possessions:(game.possessions??[]).map(possession=>possession.id===existing.id?{...possession,itemName,category:input.category,castawayId:input.castawayId,acquiredEpisode:input.acquiredEpisode,notes,updatedAt:now,history:[...possession.history,{action:'updated',at:now,episode:input.acquiredEpisode,notes}]}:possession)};
+}
+
+export function transferPossessionRecord(game:GameState,input:PossessionTransferInput):GameState{
+  if((game.possessions??[]).some(possession=>possession.id===input.newPossessionId))return game;
+  validateEpisode(input.episode);
+  const possessions=game.possessions??[];
+  const current=possessions.find(possession=>possession.id===input.possessionId);
+  if(!current)throw new Error('That possession no longer exists. Reload before transferring it.');
+  if(current.status!=='active')throw new Error('Only an active possession can be transferred.');
+  const target=possessionCastaway(game,input.targetCastawayId);
+  if(target.status!=='active')throw new Error('Transfer the item to an active castaway.');
+  if(target.id===current.castawayId)throw new Error('Choose a different castaway for the transfer.');
+  const notes=input.notes.trim();
+  if(notes.length>500)throw new Error('Possession notes must be no more than 500 characters.');
+  const now=new Date().toISOString();
+  const transferred:Possession={...current,id:input.newPossessionId,castawayId:target.id,status:'active',transferredFromPossessionId:current.id,transferredToPossessionId:undefined,updatedAt:now,history:[{action:'transferred-in',at:now,episode:input.episode,fromCastawayId:current.castawayId,toCastawayId:target.id,notes}]};
+  const previous={...current,status:'transferred' as const,transferredToPossessionId:transferred.id,updatedAt:now,history:[...current.history,{action:'transferred' as const,at:now,episode:input.episode,fromCastawayId:current.castawayId,toCastawayId:target.id,notes}]};
+  return {...game,possessions:possessions.map(possession=>possession.id===current.id?previous:possession).concat(transferred)};
+}
+
+export function changePossessionStatus(game:GameState,input:PossessionStatusInput):GameState{
+  validateEpisode(input.episode);
+  if(input.status==='transferred')throw new Error('Use Transfer possession to record a transfer.');
+  const existing=(game.possessions??[]).find(possession=>possession.id===input.possessionId);
+  if(!existing)throw new Error('That possession no longer exists. Reload before changing it.');
+  const notes=input.notes.trim();
+  if(notes.length>500)throw new Error('Possession notes must be no more than 500 characters.');
+  if(existing.status===input.status)return game;
+  const now=new Date().toISOString();
+  const action=input.status==='active'?'updated':input.status;
+  return {...game,possessions:(game.possessions??[]).map(possession=>possession.id===existing.id?{...possession,status:input.status,updatedAt:now,history:[...possession.history,{action,at:now,episode:input.episode,notes}]}:possession)};
 }
 
 export function episodeStartAwardKey(game:GameState,episode:number){return `${game.season.id}:episode-start:${episode}`;}
@@ -187,20 +268,69 @@ export function previewTribalCouncil(game:GameState,input:TribalCouncilResolutio
   if(input.expectedFirstTimeAttendeeIds&&!sameIds(firstTimeAttendees.map(castaway=>castaway.id),input.expectedFirstTimeAttendeeIds))throw new Error('Tribal Council scoring changed while you were reviewing it. Refresh the preview and try again.');
   if(input.expectedPreMerge!==undefined&&input.expectedPreMerge!==preMerge)throw new Error('The scoring phase changed while you were reviewing Tribal Council. Refresh the preview and try again.');
   if(input.expectedTribeName!==undefined&&input.expectedTribeName!==tribe.name)throw new Error('The tribe name changed while you were reviewing Tribal Council. Refresh the preview and try again.');
-  return {resolutionKey:tribalCouncilResolutionKey(game,input.tribeId,input.episode),tribe,episode:input.episode,attendees,firstTimeAttendees,eliminated,survivingAttendees:attendees.filter(castaway=>castaway.id!==eliminated.id),preMerge};
+  const attendeeIds=new Set(attendees.map(castaway=>castaway.id));
+  const plays=input.itemPlays??[];
+  if(new Set(plays.map(play=>play.possessionId)).size!==plays.length)throw new Error('An idol or advantage can only be selected once for this Tribal Council.');
+  const playedItems=plays.map(play=>{
+    if(typeof play.successful!=='boolean')throw new Error('Mark every selected idol or advantage successful or unsuccessful.');
+    const possession=activePossessions(game).find(item=>item.id===play.possessionId);
+    if(!possession)throw new Error('Every selected idol or advantage must still be active. Refresh the Tribal Council preview.');
+    if(!attendeeIds.has(possession.castawayId))throw new Error('Only active possessions held by attending castaways can be played.');
+    const playedBy=attendees.find(castaway=>castaway.id===play.playedByCastawayId);
+    if(!playedBy)throw new Error('The castaway who played an item must be attending Tribal Council.');
+    const playedFor=play.playedForCastawayId?attendees.find(castaway=>castaway.id===play.playedForCastawayId):undefined;
+    if(play.playedForCastawayId&&!playedFor)throw new Error('An item can only be played for an attending castaway.');
+    return {input:play,possession,playedBy,playedFor};
+  });
+  const shotsInput=input.shotsInTheDark??[];
+  if(new Set(shotsInput.map(shot=>shot.castawayId)).size!==shotsInput.length)throw new Error('Each attending castaway can record only one Shot in the Dark result at this Tribal Council.');
+  const shots=shotsInput.map(shot=>{
+    if(shot.result!=='safe'&&shot.result!=='unsafe')throw new Error('Choose Safe or Unsafe for every Shot in the Dark result.');
+    const castaway=attendees.find(item=>item.id===shot.castawayId);
+    if(!castaway)throw new Error('Only attending castaways can use Shot in the Dark.');
+    return {input:shot,castaway};
+  });
+  const playedIds=new Set(playedItems.map(item=>item.possession.id));
+  const pocketPossessions=activePossessions(game).filter(possession=>possession.castawayId===eliminated.id&&!playedIds.has(possession.id));
+  return {resolutionKey:tribalCouncilResolutionKey(game,input.tribeId,input.episode),tribe,episode:input.episode,attendees,firstTimeAttendees,eliminated,survivingAttendees:attendees.filter(castaway=>castaway.id!==eliminated.id),preMerge,playedItems,shots,pocketPossessions};
 }
 
 export function recordTribalCouncilResolution(game:GameState,input:TribalCouncilResolutionInput):GameState {
   const resolutionKey=tribalCouncilResolutionKey(game,input.tribeId,input.episode);
-  if(game.scoreEvents.some(event=>event.awardKey===resolutionKey||event.batchId===resolutionKey))return game;
+  if((game.tribalCouncilResolutions??[]).some(record=>record.resolutionKey===resolutionKey)||game.scoreEvents.some(event=>event.awardKey===resolutionKey||event.batchId===resolutionKey))return game;
   const preview=previewTribalCouncil(game,input);
   const note=input.note.trim();
   if(note.length>500)throw new Error('Notes must be no more than 500 characters.');
   const createdAt=new Date().toISOString();
+  const itemEvents=preview.playedItems.map(item=>{
+    const points=item.input.successful?(item.possession.category==='idol'?5:2):0;
+    const label=item.input.successful?`Successfully used ${item.possession.itemName}`:`Played ${item.possession.itemName} unsuccessfully`;
+    const playedFor=item.playedFor?`Played for ${item.playedFor.name}. `:'';
+    return {id:`${resolutionKey}:item:${item.possession.id}`,batchId:resolutionKey,awardKey:resolutionKey,castawayId:item.playedBy.id,recipientName:item.playedBy.name,categoryId:item.possession.category==='idol'?'use-idol':'use-advantage',actionLabel:label,points,episode:preview.episode,note:`${playedFor}${note}`.trim(),createdAt,tribeId:preview.tribe.id,tribeName:preview.tribe.name,source:'tribal-council' as const};
+  });
+  const shotEvents=preview.shots.map(shot=>{
+    const safe=shot.input.result==='safe';
+    return {id:`${resolutionKey}:shot:${shot.castaway.id}`,batchId:resolutionKey,awardKey:resolutionKey,castawayId:shot.castaway.id,recipientName:shot.castaway.name,categoryId:safe?'shot-safe':'shot-unsafe',actionLabel:`Shot in the Dark: ${safe?'SAFE':'UNSAFE'}`,points:safe?5:-1,episode:preview.episode,note,createdAt,tribeId:preview.tribe.id,tribeName:preview.tribe.name,source:'tribal-council' as const};
+  });
+  const pocketEvents=preview.pocketPossessions.map(possession=>{
+    const idol=possession.category==='idol';
+    return {id:`${resolutionKey}:pocket:${possession.id}`,batchId:resolutionKey,awardKey:resolutionKey,castawayId:preview.eliminated.id,recipientName:preview.eliminated.name,categoryId:idol?'idol-pocket':'advantage-pocket',actionLabel:`Eliminated holding ${possession.itemName}`,points:idol?-10:-4,episode:preview.episode,note,createdAt,tribeId:preview.tribe.id,tribeName:preview.tribe.name,source:'tribal-council' as const};
+  });
   const firstEvents=preview.firstTimeAttendees.map(castaway=>({id:`${resolutionKey}:first:${castaway.id}`,batchId:resolutionKey,awardKey:resolutionKey,castawayId:castaway.id,recipientName:castaway.name,categoryId:'first-tribal-council',actionLabel:'First Tribal Council attendance',points:preview.episode,episode:preview.episode,note,createdAt,tribeId:preview.tribe.id,tribeName:preview.tribe.name,source:'first-tribal-council' as const}));
   const eliminationEvents=preview.preMerge?[{id:`${resolutionKey}:elimination:${preview.eliminated.id}`,batchId:resolutionKey,awardKey:resolutionKey,castawayId:preview.eliminated.id,recipientName:preview.eliminated.name,categoryId:'voted-premerge',actionLabel:'Voted out before merge',points:-1,episode:preview.episode,note,createdAt,tribeId:preview.tribe.id,tribeName:preview.tribe.name,source:'tribal-council' as const}]:[];
   const survivalEvents=preview.preMerge?preview.survivingAttendees.map(castaway=>({id:`${resolutionKey}:survival:${castaway.id}`,batchId:resolutionKey,awardKey:resolutionKey,castawayId:castaway.id,recipientName:castaway.name,categoryId:'survive-tribal',actionLabel:'Survive pre-merge Tribal Council',points:1,episode:preview.episode,note,createdAt,tribeId:preview.tribe.id,tribeName:preview.tribe.name,source:'tribe-wide' as const})):[];
-  return {...game,castaways:game.castaways.map(castaway=>castaway.id===preview.eliminated.id?{...castaway,status:'voted-out' as const}:castaway),scoreEvents:[...game.scoreEvents,...firstEvents,...eliminationEvents,...survivalEvents]};
+  const playedIds=new Set(preview.playedItems.map(item=>item.possession.id));
+  const pocketIds=new Set(preview.pocketPossessions.map(possession=>possession.id));
+  const possessions=(game.possessions??[]).map(possession=>{
+    if(playedIds.has(possession.id)){
+      const played=preview.playedItems.find(item=>item.possession.id===possession.id)!;
+      return {...possession,status:'played' as const,playedEpisode:preview.episode,playedAt:createdAt,playedByCastawayId:played.playedBy.id,playedForCastawayId:played.playedFor?.id,successful:played.input.successful,updatedAt:createdAt,history:[...possession.history,{action:'played' as const,at:createdAt,episode:preview.episode,toCastawayId:played.playedFor?.id,notes:note}]};
+    }
+    if(pocketIds.has(possession.id))return {...possession,status:'lost' as const,updatedAt:createdAt,history:[...possession.history,{action:'lost' as const,at:createdAt,episode:preview.episode,notes:`Lost when ${preview.eliminated.name} was eliminated.${note?' '+note:''}`}]};
+    return possession;
+  });
+  const resolutionRecord={resolutionKey,tribeId:preview.tribe.id,episode:preview.episode,eliminatedCastawayId:preview.eliminated.id,resolvedAt:createdAt};
+  return {...game,castaways:game.castaways.map(castaway=>castaway.id===preview.eliminated.id?{...castaway,status:'voted-out' as const}:castaway),possessions,tribalCouncilResolutions:[...(game.tribalCouncilResolutions??[]),resolutionRecord],scoreEvents:[...game.scoreEvents,...itemEvents,...shotEvents,...pocketEvents,...firstEvents,...eliminationEvents,...survivalEvents]};
 }
 
 export function saveMergeEpisode(game:GameState,mergeEpisode:number|undefined):GameState {

@@ -41,5 +41,5 @@ export function nextSeasonRoster(game:GameState):Player[]{
 }
 export function prepareNextSeason(game:GameState):GameState{
   const players=nextSeasonRoster(game),number=game.season.number+1;
-  return {...game,season:{id:`season-${number}`,name:`Survivor ${number}`,number,currentEpisode:1,episodeStarted:false,episodeStatus:'not-started',entryFee:game.season.entryFee,finalized:false},players,castaways:[],tribes:[],draftPicks:[],scoreEvents:[],draft:{status:'setup',currentPick:0,turns:[]},draftOrderVersion:DRAFT_ORDER_VERSION};
+  return {...game,season:{id:`season-${number}`,name:`Survivor ${number}`,number,currentEpisode:1,episodeStarted:false,episodeStatus:'not-started',entryFee:game.season.entryFee,finalized:false},players,castaways:[],tribes:[],draftPicks:[],scoreEvents:[],possessions:[],tribalCouncilResolutions:[],draft:{status:'setup',currentPick:0,turns:[]},draftOrderVersion:DRAFT_ORDER_VERSION};
 }

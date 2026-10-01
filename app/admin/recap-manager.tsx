@@ -2,7 +2,8 @@
 import {useRef,useState,type FormEvent} from 'react';
 import {useGame} from '../game-provider';
 import {usePolls,useRecaps,communityRequest} from '../episodes/community-client';
-import {PollCard,ScoringSummary} from '../episodes/episode-content';
+import {PollCard,ScoringSummary,WhoHasWhat} from '../episodes/episode-content';
+import {PossessionManager} from './possession-manager';
 import {episodeActions,type EpisodeRecap} from '@/lib/community';
 import Link from 'next/link';
 
@@ -19,8 +20,8 @@ function RecapEditor({episode,existing,onDirty}:{episode:number;existing?:Episod
     try{const result=await communityRequest({action:'save-recap',season:game.season.number,episode,title,body,status:target,expectedUpdatedAt:version});setVersion(result.updatedAt!);setStatus(target);onDirty(false);setMessage(target==='published'?'Recap published with a refreshed scoring snapshot.':'Draft saved privately.');}
     catch(error){setMessage(error instanceof Error?error.message:'Unable to save recap.');}finally{setBusy(false);}
   }
-  return <article className="admin-panel recap-editor"><h3>Episode {episode} · {status==='published'?'Published':'Private draft'}</h3>
-    <form onSubmit={save} className="community-form"><fieldset disabled={busy||!cloud}><label>Recap title<input value={title} onChange={e=>{setTitle(e.target.value);onDirty(true);}} required maxLength={150}/></label><label>Your color commentary<textarea value={body} onChange={e=>{setBody(e.target.value);onDirty(true);}} rows={7} maxLength={12000} placeholder="The big moments, questionable decisions, and your take on this week…"/></label><p className="community-note">Plain text with paragraph breaks. Saving captures the current episode’s scoring actions below. Drafts are visible only to you.</p><div className="community-actions"><button name="status" value="published">{status==='published'?'Update recap & scoring':'Publish recap'}</button><button name="status" value="draft">{status==='published'?'Unpublish & save draft':'Save private draft'}</button></div></fieldset></form>
+  return <article className="admin-panel recap-editor" lang="en"><h3>Episode {episode} · {status==='published'?'Published':'Private draft'}</h3>
+    <form onSubmit={save} className="community-form" lang="en"><fieldset disabled={busy||!cloud}><label>Recap title<input value={title} onChange={e=>{setTitle(e.target.value);onDirty(true);}} required maxLength={150} spellCheck autoCorrect="on" autoCapitalize="sentences" lang="en"/></label><label>Your color commentary<textarea value={body} onChange={e=>{setBody(e.target.value);onDirty(true);}} rows={7} maxLength={12000} placeholder="The big moments, questionable decisions, and your take on this week…" spellCheck autoCorrect="on" autoCapitalize="sentences" lang="en"/></label><p className="community-note">Plain text with paragraph breaks. Saving captures the current episode’s scoring actions below. Drafts are visible only to you.</p><div className="community-actions"><button name="status" value="published">{status==='published'?'Update recap & scoring':'Publish recap'}</button><button name="status" value="draft">{status==='published'?'Unpublish & save draft':'Save private draft'}</button></div></fieldset></form>
     {message&&<p role="status">{message}</p>}
     <details><summary>Preview scoring summary · {preview.actions.length} actions</summary><ScoringSummary recap={preview}/></details>
     <p className="community-note">Only actions tagged Episode {episode} appear here. General player adjustments without an episode number are not included. Publishing does not award points again.</p>
@@ -49,13 +50,14 @@ export function RecapManager(){
     catch(error){setMessage(error instanceof Error?error.message:'Unable to open poll.');}finally{setBusy(false);}
   }
   return <section className="recap-manager"><h2>Episode recaps & league polls</h2><p>Publish an episode’s scoring story, invite comments, and put decisions to a vote. <Link href="/episodes">View the public Episodes page →</Link></p>
+    <WhoHasWhat/><PossessionManager/>
     {recaps.error&&<p role="alert" className="setup-notice">{recaps.error}</p>}{polls.error&&<p role="alert" className="setup-notice">{polls.error}</p>}
     <form className="recap-editor-picker" onSubmit={e=>{e.preventDefault();chooseEpisode(Number(episodeInput));}}><label>Episode<input type="number" min={1} max={9999} step={1} value={followCurrent?String(game.season.currentEpisode):episodeInput} onChange={e=>setEpisodeInput(e.target.value)} required/></label><button>Load episode</button><button type="button" onClick={()=>{if(confirm('Reload the saved recap and discard any unfinished edits?'))setReload(reload+1);}}>Reload saved version</button></form>
     {current.length>0&&<nav className="episode-picker" aria-label="Saved recaps">{current.map(r=><button aria-pressed={r.episode===visibleEpisode} key={r.id} onClick={()=>chooseEpisode(r.episode)}>Episode {r.episode} · {r.status}</button>)}</nav>}
     {editorDirty&&!followCurrent&&visibleEpisode!==game.season.currentEpisode&&<p className="setup-notice" role="status">Episode {game.season.currentEpisode} is now active. Your unsaved Episode {visibleEpisode} recap is still open; save it or reload before switching.</p>}
     {recaps.loading?<p role="status">Loading saved recaps…</p>:!recaps.error&&<RecapEditor key={game.season.number+'-'+visibleEpisode+'-'+reload} episode={visibleEpisode} existing={current.find(r=>r.episode===visibleEpisode)} onDirty={setEditorDirty}/>}
     <article className="admin-panel poll-creator"><h3>Open a league poll</h3><p>Players may change their one vote until you close voting. Choices are locked once opened. Apply any resulting scoring changes separately in Scoring.</p>
-      <form className="community-form" onSubmit={poll}><fieldset disabled={busy||!cloud}><label>Attach to<select name="episode"><option value="0">League-wide vote</option>{current.filter(r=>r.status==='published').map(r=><option value={r.episode} key={r.id}>Episode {r.episode}: {r.title}</option>)}</select></label><label>Question<input name="question" required maxLength={300}/></label><label>Choices · one per line, 2–6 choices<textarea name="options" rows={4} required maxLength={606} placeholder={'Yes\nNo'}/></label><button>Open voting</button></fieldset></form>
+      <form className="community-form" onSubmit={poll} lang="en"><fieldset disabled={busy||!cloud}><label>Attach to<select name="episode"><option value="0">League-wide vote</option>{current.filter(r=>r.status==='published').map(r=><option value={r.episode} key={r.id}>Episode {r.episode}: {r.title}</option>)}</select></label><label>Question<input name="question" required maxLength={300} spellCheck autoCorrect="on" autoCapitalize="sentences" lang="en"/></label><label>Choices · one per line, 2–6 choices<textarea name="options" rows={4} required maxLength={606} placeholder={'Yes\nNo'} spellCheck autoCorrect="on" autoCapitalize="sentences" lang="en"/></label><button>Open voting</button></fieldset></form>
       {message&&<p role="status">{message}</p>}
     </article>
     <h3>Manage polls</h3>{polls.loading&&<p role="status">Loading polls…</p>}<div className="community-polls">{polls.rows.filter(p=>p.season===game.season.number).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).map(p=><PollCard poll={p} manage key={p.id+':'+user?.uid}/>)}</div>

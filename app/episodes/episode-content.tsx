@@ -1,9 +1,25 @@
 'use client';
 import {useEffect,useRef,useState,type FormEvent} from 'react';
 import type {EpisodeRecap,LeaguePoll} from '@/lib/community';
+import {activePossessions} from '@/lib/scoring';
 import {useGame} from '../game-provider';
 import {communityRequest,useComments} from './community-client';
 import {PlayerName} from '../player-name';
+
+export function WhoHasWhat(){
+  const {game}=useGame();
+  const owners=game.castaways.map(castaway=>({castaway,items:activePossessions(game).filter(possession=>possession.castawayId===castaway.id)})).filter(entry=>entry.items.length>0);
+  return <section className="who-has-what" aria-labelledby="who-has-what-title"><div className="who-has-what-heading"><div><p className="eyebrow dark">Live game state</p><h2 id="who-has-what-title">Who Has What</h2></div><span>{owners.reduce((count,entry)=>count+entry.items.length,0)} active item{owners.reduce((count,entry)=>count+entry.items.length,0)===1?'':'s'}</span></div>{owners.length?<div className="who-has-what-grid">{owners.map(({castaway,items})=><article className="who-has-what-card" key={castaway.id}><h3>{castaway.name}</h3><ul>{items.map(item=><li key={item.id}><strong>{item.itemName}</strong><small>{item.category==='idol'?'Idol':'Advantage'}</small></li>)}</ul></article>)}</div>:<p className="who-has-what-empty">No active idols or advantages.</p>}</section>;
+}
+
+export function PreviousPolls({polls}:{polls:LeaguePoll[]}){
+  const [expanded,setExpanded]=useState(false);
+  if(!polls.length)return null;
+  return <section className="poll-history" aria-labelledby="previous-polls-title">
+    <h3 id="previous-polls-title" className="visually-hidden">Previous polls</h3><button type="button" className="poll-history-toggle" aria-expanded={expanded} aria-controls="previous-polls-list" onClick={()=>setExpanded(value=>!value)}>{expanded?'Hide previous polls':'Show previous polls'}</button>
+    <div id="previous-polls-list" className="community-polls" hidden={!expanded}>{expanded&&polls.map(poll=><PollCard poll={poll} key={poll.id}/>)}</div>
+  </section>;
+}
 
 export function ScoringSummary({recap}:{recap:EpisodeRecap}){
   return <section className="episode-scoring"><h3>Scoring actions</h3><p className="community-note">Scoring snapshot saved with this recap. These points are already included in the leaderboard—not awarded again here.</p>
@@ -30,7 +46,7 @@ export function CommentThread({recap}:{recap:EpisodeRecap}){
     {comments.rows.length===count&&<button type="button" onClick={()=>setCount(count+50)}>Load older comments</button>}
     {comments.rows.map(comment=>{const author=game.players.find(item=>item.id===comment.authorId);return <article className="episode-comment" key={comment.id}><header><strong>{author?<PlayerName id={author.id} name={author.name} history={game.history}/>:comment.authorName}</strong><time dateTime={comment.createdAt}>{new Date(comment.createdAt).toLocaleString()}</time></header><p className="community-prose">{comment.text}</p>{(isAdmin||player?.id===comment.authorId)&&<button disabled={busy} className="comment-remove" onClick={()=>remove(comment.id)}>Remove comment</button>}</article>;})}
     {!comments.loading&&!comments.error&&!comments.rows.length&&<p>No comments yet. Start the conversation.</p>}
-    {user&&(player||isAdmin)?<form onSubmit={post} className="community-form"><label>Your comment<textarea value={text} onChange={e=>setText(e.target.value)} maxLength={2000} rows={3} required disabled={busy}/></label><button disabled={busy||!text.trim()}>{busy?'Saving…':'Post comment'}</button></form>:user?<p>Your account must be linked to a league profile before commenting. Signing in registers you automatically; ask the game master to link your account in Player check-in.</p>:<button onClick={login}>Sign in with Google to comment</button>}
+    {user&&(player||isAdmin)?<form onSubmit={post} className="community-form" lang="en"><label>Your comment<textarea value={text} onChange={e=>setText(e.target.value)} maxLength={2000} rows={3} required disabled={busy} spellCheck autoCorrect="on" autoCapitalize="sentences" lang="en"/></label><button disabled={busy||!text.trim()}>{busy?'Saving…':'Post comment'}</button></form>:user?<p>Your account must be linked to a league profile before commenting. Signing in registers you automatically; ask the game master to link your account in Player check-in.</p>:<button onClick={login}>Sign in with Google to comment</button>}
     {message&&<p role="status">{message}</p>}
   </section>;
 }

@@ -1,16 +1,21 @@
 export type Player = { id:string; name:string; email:string; uid?:string; entryBonus:number; priorFinish:number; draftSlot:number; paid?:boolean; active?:boolean };
 export type Castaway = { id:string; name:string; shortName:string; age:number; occupation:string; bio:string; imageUrl:string; status:'active'|'voted-out'; tribeId?:string };
 export type Tribe = {id:string;name:string;color:string};
+export type PossessionCategory = 'idol'|'advantage';
+export type PossessionStatus = 'active'|'played'|'expired'|'lost'|'transferred';
+export type PossessionHistoryEntry = {action:'acquired'|'updated'|'played'|'expired'|'lost'|'transferred'|'transferred-in';at:string;episode?:number;fromCastawayId?:string;toCastawayId?:string;notes?:string};
+export type Possession = {id:string;seasonId:string;lineageId:string;castawayId:string;originalCastawayId:string;itemName:string;category:PossessionCategory;status:PossessionStatus;acquiredEpisode?:number;acquiredAt?:string;playedEpisode?:number;playedAt?:string;playedByCastawayId?:string;playedForCastawayId?:string;successful?:boolean;transferredFromPossessionId?:string;transferredToPossessionId?:string;notes?:string;updatedAt?:string;history:PossessionHistoryEntry[]};
 export type DraftPick = { id:string; playerId:string; castawayId:string; round:number; pickNumber:number; multiplier:number; decision?:'keep'|'swap'; keptAt?:number };
 export type ScoreEvent = { id:string; castawayId?:string; playerId?:string; categoryId?:string; points:number; episode?:number; note?:string; createdAt:string; batchId?:string; awardKey?:string; actionLabel?:string; recipientName?:string; tribeId?:string; tribeName?:string; source?:'standard'|'episode-wide'|'one-time-bonus'|'first-tribal-council'|'tribe-wide'|'tribal-council' };
 export type CategoryPhase = 'pre-merge'|'merge-only';
-export type Category = { id:string; label:string; points:number; group:string; details?:string; target:'individual'|'tribe'; custom?:boolean; phase?:CategoryPhase; recipientStatus?:Castaway['status']; bulkOnly?:boolean; retired?:boolean; dynamicPoints?:'episode' };
+export type Category = { id:string; label:string; points:number; group:string; details?:string; target:'individual'|'tribe'; custom?:boolean; phase?:CategoryPhase; recipientStatus?:Castaway['status']; bulkOnly?:boolean; retired?:boolean; dynamicPoints?:'episode'; systemManaged?:boolean };
 export type DraftTurn = { playerId:string; playerName:string; email:string; uid?:string; round:number; pickNumber:number };
 export type DraftState = { status:'setup'|'live'|'paused'|'complete'; currentPick:number; turns:DraftTurn[]; version?:2; runId?:string; revision?:number; blind?:{discards:string[];keptCount:number} };
 export type SeasonResult={profileId:string;name:string;score:number;finish:number};
 export type SeasonArchive={season:number;finalizedAt:string;results:SeasonResult[]};
 export type EpisodeStatus='not-started'|'in-progress'|'complete';
-export type GameState = { season:{ id:string; name:string; number:number; currentEpisode:number; episodeStarted?:boolean; episodeStatus?:EpisodeStatus; entryFee:number; mergeEpisode?:number; finalized?:boolean }; players:Player[]; castaways:Castaway[]; draftPicks:DraftPick[]; scoreEvents:ScoreEvent[]; draft:DraftState; tribes:Tribe[]; categories:Category[]; history?:SeasonArchive[]; draftOrderVersion?:2 };
+export type TribalCouncilResolutionRecord = {resolutionKey:string;tribeId:string;episode:number;eliminatedCastawayId:string;resolvedAt:string};
+export type GameState = { season:{ id:string; name:string; number:number; currentEpisode:number; episodeStarted?:boolean; episodeStatus?:EpisodeStatus; entryFee:number; mergeEpisode?:number; finalized?:boolean }; players:Player[]; castaways:Castaway[]; draftPicks:DraftPick[]; scoreEvents:ScoreEvent[]; draft:DraftState; tribes:Tribe[]; categories:Category[]; possessions?:Possession[]; tribalCouncilResolutions?:TribalCouncilResolutionRecord[]; history?:SeasonArchive[]; draftOrderVersion?:2 };
 
 const photo = (filename:string) => `https://public-assets-pressexpress.s3.amazonaws.com/assets/releases/docimages/ac468eba/${filename}`;
 const cast: Array<[string,string,number,string,string,string]> = [
@@ -53,15 +58,15 @@ export const categories: Category[] = [
   {id:'voted-premerge',label:'Voted out before merge',points:-1,group:'Milestones',target:'individual',phase:'pre-merge',recipientStatus:'voted-out'},
   {id:'find-idol',label:'Find an idol',points:5,group:'Advantages',target:'individual'},
   {id:'find-advantage',label:'Find an advantage',points:2,group:'Advantages',target:'individual'},
-  {id:'use-idol',label:'Successfully use an idol',points:5,group:'Advantages',target:'individual'},
-  {id:'use-advantage',label:'Successfully use an advantage',points:2,group:'Advantages',target:'individual'},
-  {id:'idol-pocket',label:'Go home with an idol',points:-10,group:'Advantages',target:'individual'},
-  {id:'advantage-pocket',label:'Go home with an advantage',points:-4,group:'Advantages',target:'individual'},
+  {id:'use-idol',label:'Successfully use an idol',points:5,group:'Advantages',target:'individual',systemManaged:true},
+  {id:'use-advantage',label:'Successfully use an advantage',points:2,group:'Advantages',target:'individual',systemManaged:true},
+  {id:'idol-pocket',label:'Go home with an idol',points:-10,group:'Advantages',target:'individual',systemManaged:true},
+  {id:'advantage-pocket',label:'Go home with an advantage',points:-4,group:'Advantages',target:'individual',systemManaged:true},
   {id:'fake-idol-found',label:'Someone finds your fake idol',points:2,group:'Advantages',target:'individual'},
   {id:'fake-idol-used',label:'Someone uses your fake idol',points:2,group:'Advantages',target:'individual'},
   {id:'fake-idol-home',label:'Use a fake idol and go home',points:-5,group:'Advantages',target:'individual'},
-  {id:'shot-safe',label:'Successful shot in the dark',points:5,group:'Tribal council',target:'individual'},
-  {id:'shot-unsafe',label:'Unsuccessful shot in the dark',points:-1,group:'Tribal council',target:'individual'},
+  {id:'shot-safe',label:'Successful shot in the dark',points:5,group:'Tribal council',target:'individual',systemManaged:true},
+  {id:'shot-unsafe',label:'Unsuccessful shot in the dark',points:-1,group:'Tribal council',target:'individual',systemManaged:true},
   {id:'journey',label:'Go on a journey',points:1,group:'Milestones',target:'individual'},
   {id:'no-vote',label:'Attend tribal without a vote',points:-1,group:'Tribal council',target:'individual'},
   {id:'merge',label:'Earn the merge buff',points:1,group:'Milestones',target:'individual'},
@@ -113,6 +118,14 @@ export function movePlayerToDraftFront(roster:Player[],playerId:string):Player[]
 export function insertPlayerAtDraftFront(roster:Player[],player:Player):Player[]{
   return movePlayerToDraftFront([...roster.filter(item=>item.id!==player.id),player],player.id);
 }
+const currentSeasonPossessions:Possession[] = [
+  {id:'possession-final-five-idol-rob',seasonId:'season-51',lineageId:'possession-final-five-idol-rob',castawayId:'cast-rob',originalCastawayId:'cast-rob',itemName:'Final 5 Immunity Idol',category:'idol',status:'active',history:[{action:'acquired',at:''}]},
+  {id:'possession-final-five-idol-jelly',seasonId:'season-51',lineageId:'possession-final-five-idol-jelly',castawayId:'cast-jelly',originalCastawayId:'cast-jelly',itemName:'Final 5 Immunity Idol',category:'idol',status:'active',history:[{action:'acquired',at:''}]},
+];
+export function seedCurrentSeasonPossessions(seasonId:string,seasonNumber:number,existing:Possession[]|undefined):Possession[]{
+  if(existing?.length||seasonNumber!==51)return existing??[];
+  return currentSeasonPossessions.map(possession=>({...possession,seasonId}));
+}
 export function migrateLegacyDraftOrder(game:GameState):GameState{
   if(game.draftOrderVersion===DRAFT_ORDER_VERSION)return game;
   const canReorder=game.draft.status==='setup'&&game.draftPicks.length===0;
@@ -132,5 +145,5 @@ export const initialGame: GameState = {
   season:{id:'season-51',name:'Survivor 51',number:51,currentEpisode:1,episodeStarted:false,episodeStatus:'not-started',entryFee:10},
   players,
   castaways:cast.map(([name,shortName,age,occupation,bio,imageSlug]) => ({id:`cast-${shortName.toLowerCase().replace(/\s/g,'-')}`,name,shortName,age,occupation,bio,imageUrl:photo(imageSlug),status:'active'})),
-  draftPicks:[], scoreEvents:[], draft:{status:'setup',currentPick:0,turns:buildDraftTurns(players)}, draftOrderVersion:DRAFT_ORDER_VERSION,
+  draftPicks:[], scoreEvents:[], possessions:currentSeasonPossessions, tribalCouncilResolutions:[], draft:{status:'setup',currentPick:0,turns:buildDraftTurns(players)}, draftOrderVersion:DRAFT_ORDER_VERSION,
 };

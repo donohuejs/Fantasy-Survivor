@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {initialGame} from '../lib/game-data.ts';
-import {episodeActions,makeRecap,makePoll,changeVote,linkedAuthor,isCommunityOwner,requiredText,resourceId,wholeNumber} from '../lib/community.ts';
+import {episodeActions,episodePolls,makeRecap,makePoll,changeVote,linkedAuthor,isCommunityOwner,requiredText,resourceId,wholeNumber} from '../lib/community.ts';
 
 function game(){const g=structuredClone(initialGame);g.players[0].uid='account-one';g.players[0].email='';return g;}
 const actor={uid:'account-one',email:'player@example.com',verified:true};
@@ -73,6 +73,22 @@ test('closed and past-season polls reject voting; invalid or corrupt choices can
   assert.throws(()=>changeVote(poll(),null,0,52,now),/closed/);
   for(const choice of [-1,2,0.5,'0',null])assert.throws(()=>changeVote(poll(),null,choice,51,now),/options/);
   assert.throws(()=>changeVote(poll(),0,1,51,now),/review/);
+});
+test('episode poll grouping keeps open polls active and closed history newest first',()=>{
+  const open=makePoll(game(),{id:'open',season:51,episode:2,question:'Open?',options:['A','B']},'2026-09-04T12:00:00.000Z');
+  const older={...open,id:'older',status:'closed' as const,createdAt:'2026-09-02T12:00:00.000Z'};
+  const newer={...open,id:'newer',status:'closed' as const,createdAt:'2026-09-03T12:00:00.000Z'};
+  const league={...open,id:'league',episode:0,question:'League?',createdAt:'2026-09-01T12:00:00.000Z'};
+  const split=episodePolls([older,league,open,newer],51,2);
+  assert.deepEqual(split.open.map(poll=>poll.id),['open','league']);
+  assert.deepEqual(split.closed.map(poll=>poll.id),['newer','older']);
+});
+test('reopening a closed poll moves it back into the active group',()=>{
+  const closed=makePoll(game(),{id:'reopened',season:51,episode:2,question:'Reopen?',options:['A','B']},now);
+  const active=episodePolls([{...closed,status:'closed' as const}],51,2);
+  assert.deepEqual(active.open,[]);assert.deepEqual(active.closed.map(poll=>poll.id),['reopened']);
+  const reopened=episodePolls([{...closed,status:'open' as const,updatedAt:'later'}],51,2);
+  assert.deepEqual(reopened.open.map(poll=>poll.id),['reopened']);assert.deepEqual(reopened.closed,[]);
 });
 test('IDs and comment text reject path traversal, blanks and overlong content',()=>{
   for(const id of ['../secret','poll/other','', 'x'.repeat(101)])assert.throws(()=>resourceId(id));
