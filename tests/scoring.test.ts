@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {assertGameMaster} from '../lib/admin-auth.ts';
 import {initialGame,normalizeCategories,tribeForCastaway} from '../lib/game-data.ts';
-import {assignCastaway,recordCastawayBonus,recordFirstTribalCouncil,recordScoring,recordStillOnIsland,recordTribalCouncilResolution,recordTribalCouncilSurvival,saveCustomAction,saveMergeEpisode,startEpisode,saveTribe,recipients} from '../lib/scoring.ts';
+import {episodeActions} from '../lib/community.ts';
+import {assignCastaway,currentEpisodeStatus,finishEpisode,recordCastawayBonus,recordFirstTribalCouncil,recordScoring,recordStillOnIsland,recordTribalCouncilResolution,recordTribalCouncilSurvival,saveCustomAction,saveMergeEpisode,startEpisode,saveTribe,recipients} from '../lib/scoring.ts';
 
 function fixture(){
   let game=structuredClone(initialGame);
-  game.season.episodeStarted=true;
+  game.season.episodeStarted=true;game.season.episodeStatus='in-progress';
   game=assignCastaway(game,game.castaways[0].id,'savu','active');
   game=assignCastaway(game,game.castaways[1].id,'savu','active');
   game=assignCastaway(game,game.castaways[2].id,'savu','voted-out');
@@ -37,13 +39,79 @@ test('Episode 1 starts without jumping to Episode 2 and awards active castaways 
 test('starting the next episode advances exactly once and ordinary scoring does not advance it',()=>{
   const game=fixture();
   game.scoreEvents=[];
-  const next=startEpisode({...game,season:{...game.season,episodeStarted:false,currentEpisode:1}},{episode:1,expectedActiveCastawayIds:game.castaways.filter(c=>c.status==='active').map(c=>c.id)});
-  const episodeTwo=startEpisode(next,{episode:2,expectedActiveCastawayIds:next.castaways.filter(c=>c.status==='active').map(c=>c.id)});
+  const next=startEpisode({...game,season:{...game.season,episodeStarted:false,episodeStatus:'not-started',currentEpisode:1}},{episode:1,expectedActiveCastawayIds:game.castaways.filter(c=>c.status==='active').map(c=>c.id)});
+  const episodeTwo=startEpisode(finishEpisode(next,{episode:1}),{episode:2,expectedActiveCastawayIds:next.castaways.filter(c=>c.status==='active').map(c=>c.id)});
   assert.equal(episodeTwo.season.currentEpisode,2);
   const action=episodeTwo.categories.find(category=>category.id==='find-idol')!;
   const scored=recordScoring(episodeTwo,{categoryId:action.id,recipientId:episodeTwo.castaways[0].id,episode:2,note:'',expectedRecipientIds:[episodeTwo.castaways[0].id],batchId:'episode-two-idol'});
   assert.equal(scored.season.currentEpisode,2);
   assert.equal(scored.scoreEvents.at(-1)?.episode,2);
+});
+test('finishing an episode is explicit and does not start the next episode',()=>{
+  const game=fixture();
+  assert.throws(()=>startEpisode(game,{episode:2,expectedActiveCastawayIds:game.castaways.filter(castaway=>castaway.status==='active').map(castaway=>castaway.id)}),/Finish Episode 1/);
+  const finished=finishEpisode(game,{episode:1});
+  assert.equal(finished.season.currentEpisode,1);
+  assert.equal(finished.season.episodeStatus,'complete');
+  assert.equal(finished.season.episodeStarted,false);
+  assert.deepEqual(finishEpisode(finished,{episode:1}),finished);
+  assert.throws(()=>recordScoring(finished,{categoryId:'find-idol',recipientId:finished.castaways[0].id,episode:1,note:'too late',expectedRecipientIds:[finished.castaways[0].id],batchId:'closed-episode'}),/Start Episode 2/);
+});
+test('episode lifecycle mutations keep the existing game-master authorization guard',()=>{
+  assert.throws(()=>assertGameMaster(false),/Only the game master/);
+  assert.doesNotThrow(()=>assertGameMaster(true));
+});
+test('starting a completed episode creates the next sole active episode and awards every current active castaway once',()=>{
+  let game=structuredClone(initialGame);
+  const firstActive=game.castaways.filter(castaway=>castaway.status==='active').map(castaway=>castaway.id);
+  game=startEpisode(game,{episode:1,expectedActiveCastawayIds:firstActive});
+  game=finishEpisode(game,{episode:1});
+  const secondActive=game.castaways.filter(castaway=>castaway.status==='active').map(castaway=>castaway.id);
+  const episodeTwo=startEpisode(game,{episode:2,expectedActiveCastawayIds:secondActive});
+  assert.equal(currentEpisodeStatus(episodeTwo),'in-progress');
+  assert.equal(episodeTwo.season.currentEpisode,2);
+  assert.equal(episodeTwo.scoreEvents.filter(event=>event.episode===2&&event.categoryId==='still-on-island').length,secondActive.length);
+  assert.equal(episodeTwo.scoreEvents.filter(event=>event.episode===2&&event.categoryId==='still-on-island').map(event=>event.castawayId).filter((id,index,ids)=>ids.indexOf(id)===index).length,secondActive.length);
+  assert.equal(episodeTwo.scoreEvents.filter(event=>event.episode===1&&event.categoryId==='still-on-island').length,firstActive.length);
+});
+test('an elimination after Episode 1 starts preserves Episode 1 appearance but excludes that castaway from Episode 2',()=>{
+  let game=structuredClone(initialGame);
+  const episodeOneActive=game.castaways.filter(castaway=>castaway.status==='active').map(castaway=>castaway.id);
+  const eliminatedId=episodeOneActive[0];
+  game=startEpisode(game,{episode:1,expectedActiveCastawayIds:episodeOneActive});
+  game=assignCastaway(game,eliminatedId,'savu','voted-out');
+  game=finishEpisode(game,{episode:1});
+  const episodeTwoActive=game.castaways.filter(castaway=>castaway.status==='active').map(castaway=>castaway.id);
+  const next=startEpisode(game,{episode:2,expectedActiveCastawayIds:episodeTwoActive});
+  assert.ok(next.scoreEvents.some(event=>event.episode===1&&event.castawayId===eliminatedId&&event.categoryId==='still-on-island'));
+  assert.equal(next.scoreEvents.some(event=>event.episode===2&&event.castawayId===eliminatedId&&event.categoryId==='still-on-island'),false);
+});
+test('repeated Episode 2 starts are idempotent and cannot duplicate the automatic awards',()=>{
+  let game=structuredClone(initialGame);
+  const active=game.castaways.map(castaway=>castaway.id);
+  game=startEpisode(game,{episode:1,expectedActiveCastawayIds:active});
+  game=finishEpisode(game,{episode:1});
+  const input={episode:2,expectedActiveCastawayIds:active};
+  const started=startEpisode(game,input);
+  const retried=startEpisode(started,input);
+  assert.deepEqual(retried,started);
+  assert.equal(retried.scoreEvents.filter(event=>event.episode===2&&event.awardKey===`${retried.season.id}:episode-start:2`).length,active.length);
+  assert.equal(retried.season.currentEpisode,2);
+  assert.equal(currentEpisodeStatus(retried),'in-progress');
+});
+test('Episode 2 scoring and activity attach to Episode 2 while Episode 1 history remains intact',()=>{
+  let game=structuredClone(initialGame);
+  const active=game.castaways.map(castaway=>castaway.id);
+  game=startEpisode(game,{episode:1,expectedActiveCastawayIds:active});
+  const episodeOneActivity=episodeActions(game,1);
+  game=finishEpisode(game,{episode:1});
+  game=startEpisode(game,{episode:2,expectedActiveCastawayIds:active});
+  const action=game.categories.find(category=>category.id==='find-idol')!;
+  const next=recordScoring(game,{categoryId:action.id,recipientId:active[0],episode:2,note:'Episode 2 idol',expectedRecipientIds:[active[0]],batchId:'episode-2-action'});
+  assert.equal(next.scoreEvents.at(-1)?.episode,2);
+  assert.equal(episodeActions(next,1).length,episodeOneActivity.length);
+  assert.ok(episodeActions(next,2).some(activity=>activity.label==='Still on the island'));
+  assert.ok(episodeActions(next,2).some(activity=>activity.label==='Find an idol'));
 });
 test('canonical scoring actions replace placement labels',()=>{
   assert.deepEqual(initialGame.categories.find(c=>c.id==='tribal-immunity'),{id:'tribal-immunity',label:'Win tribal immunity',points:2,group:'Challenges',target:'tribe',phase:'pre-merge'});
@@ -235,7 +303,7 @@ test('retries use batch id to avoid duplicate points',()=>{
   const game=award();assert.deepEqual(award(game),game);
 });
 test('empty tribe and invalid episode are rejected',()=>{
-  const started=structuredClone(initialGame);started.season.episodeStarted=true;
+  const started=structuredClone(initialGame);started.season.episodeStarted=true;started.season.episodeStatus='in-progress';
   assert.throws(()=>award(started),/no active members/);
   assert.throws(()=>recordScoring(fixture(),{categoryId:'tribal-immunity',recipientId:'savu',episode:0,note:'',expectedRecipientIds:[],batchId:'bad'}),/Episode/);
 });

@@ -1,9 +1,10 @@
-import type {Category,GameState,Tribe,Castaway} from './game-data.ts';
+import type {Category,GameState,Tribe,Castaway,EpisodeStatus} from './game-data.ts';
 
 export type ScoringInput={categoryId:string;recipientId:string;episode:number;note:string;expectedRecipientIds:string[];batchId:string;historical?:boolean};
 export type CustomActionInput={label:string;points:number;target:Category['target']};
 export type EpisodeWideAwardInput={episode:number;note:string;expectedActiveCastawayIds:string[];historical?:boolean};
 export type EpisodeStartInput={episode:number;note?:string;expectedActiveCastawayIds:string[]};
+export type EpisodeFinishInput={episode:number};
 export type CastawayBonusInput={castawayId:string;episode:number;points:number;note:string;batchId:string;historical?:boolean};
 export type FirstTribalCouncilInput={tribeId:string;episode:number;note:string;expectedCastawayIds:string[];historical?:boolean};
 export type TribalCouncilSurvivalInput={tribeId:string;episode:number;note:string;expectedActiveCastawayIds:string[];historical?:boolean};
@@ -16,10 +17,19 @@ function validateEpisode(episode:number){
   if(!Number.isInteger(episode)||episode<1)throw new Error('Episode must be a positive whole number.');
 }
 
+export function currentEpisodeStatus(game:Pick<GameState,'season'>):EpisodeStatus {
+  if(game.season.episodeStatus==='in-progress'||game.season.episodeStatus==='complete'||game.season.episodeStatus==='not-started')return game.season.episodeStatus;
+  return game.season.episodeStarted?'in-progress':'not-started';
+}
+
+export function episodeToStart(game:Pick<GameState,'season'>){
+  return currentEpisodeStatus(game)==='complete'?game.season.currentEpisode+1:game.season.currentEpisode;
+}
+
 function validateCurrentEpisode(game:GameState,episode:number,historical=false){
   validateEpisode(episode);
   if(historical)return;
-  if(!game.season.episodeStarted)throw new Error(`Start Episode ${game.season.currentEpisode} before recording scoring actions.`);
+  if(currentEpisodeStatus(game)!=='in-progress')throw new Error(`Start Episode ${episodeToStart(game)} before recording scoring actions.`);
   if(episode!==game.season.currentEpisode)throw new Error(`Scoring must use the active Episode ${game.season.currentEpisode}.`);
 }
 
@@ -42,15 +52,17 @@ export function episodeStartAwardKey(game:GameState,episode:number){return `${ga
 
 export function startEpisode(game:GameState,input:EpisodeStartInput):GameState {
   validateEpisode(input.episode);
+  const status=currentEpisodeStatus(game);
   const awardKey=episodeStartAwardKey(game,input.episode);
   const active=game.castaways.filter(castaway=>castaway.status==='active');
   const existing=game.scoreEvents.filter(event=>event.awardKey===awardKey||event.batchId===awardKey);
   if(existing.length){
-    if(game.season.currentEpisode!==input.episode)throw new Error('The active episode changed. Reload before starting this episode.');
+    if(status!=='in-progress'||game.season.currentEpisode!==input.episode)throw new Error('That episode is no longer available to start. Reload before continuing.');
     if(!sameIds(active.map(castaway=>castaway.id),input.expectedActiveCastawayIds))throw new Error('The active roster changed. Review the episode-start preview and try again.');
-    return {...game,season:{...game.season,currentEpisode:input.episode,episodeStarted:true}};
+    return game;
   }
-  const expected=game.season.episodeStarted?game.season.currentEpisode+1:game.season.currentEpisode;
+  if(status==='in-progress')throw new Error(`Finish Episode ${game.season.currentEpisode} before starting the next episode.`);
+  const expected=episodeToStart(game);
   if(input.episode!==expected)throw new Error(`The next episode to start is Episode ${expected}. Reload before trying again.`);
   const legacy=game.scoreEvents.filter(event=>(event.categoryId==='still-on-island'||event.categoryId==='alive')&&event.episode===input.episode&&event.castawayId);
   const legacyIds=new Set(legacy.map(event=>event.castawayId as string));
@@ -60,7 +72,16 @@ export function startEpisode(game:GameState,input:EpisodeStartInput):GameState {
   if(note.length>500)throw new Error('Notes must be no more than 500 characters.');
   const createdAt=new Date().toISOString();
   const events=missing.map(castaway=>({id:`${awardKey}:${castaway.id}`,batchId:awardKey,awardKey,castawayId:castaway.id,recipientName:castaway.name,categoryId:'still-on-island',actionLabel:'Still on the island',points:1,episode:input.episode,note,createdAt,source:'episode-wide' as const}));
-  return {...game,season:{...game.season,currentEpisode:input.episode,episodeStarted:true},scoreEvents:[...game.scoreEvents,...events]};
+  return {...game,season:{...game.season,currentEpisode:input.episode,episodeStarted:true,episodeStatus:'in-progress'},scoreEvents:[...game.scoreEvents,...events]};
+}
+
+export function finishEpisode(game:GameState,input:EpisodeFinishInput):GameState {
+  validateEpisode(input.episode);
+  if(input.episode!==game.season.currentEpisode)throw new Error(`Episode ${input.episode} is not the current episode.`);
+  const status=currentEpisodeStatus(game);
+  if(status==='complete')return game;
+  if(status!=='in-progress')throw new Error(`Start Episode ${input.episode} before finishing it.`);
+  return {...game,season:{...game.season,episodeStarted:false,episodeStatus:'complete'}};
 }
 
 export function recordScoring(game:GameState,input:ScoringInput):GameState {

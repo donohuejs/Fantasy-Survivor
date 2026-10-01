@@ -9,7 +9,8 @@ export type DraftTurn = { playerId:string; playerName:string; email:string; uid?
 export type DraftState = { status:'setup'|'live'|'paused'|'complete'; currentPick:number; turns:DraftTurn[]; version?:2; runId?:string; revision?:number; blind?:{discards:string[];keptCount:number} };
 export type SeasonResult={profileId:string;name:string;score:number;finish:number};
 export type SeasonArchive={season:number;finalizedAt:string;results:SeasonResult[]};
-export type GameState = { season:{ id:string; name:string; number:number; currentEpisode:number; episodeStarted?:boolean; entryFee:number; mergeEpisode?:number; finalized?:boolean }; players:Player[]; castaways:Castaway[]; draftPicks:DraftPick[]; scoreEvents:ScoreEvent[]; draft:DraftState; tribes:Tribe[]; categories:Category[]; history?:SeasonArchive[]; draftOrderVersion?:2 };
+export type EpisodeStatus='not-started'|'in-progress'|'complete';
+export type GameState = { season:{ id:string; name:string; number:number; currentEpisode:number; episodeStarted?:boolean; episodeStatus?:EpisodeStatus; entryFee:number; mergeEpisode?:number; finalized?:boolean }; players:Player[]; castaways:Castaway[]; draftPicks:DraftPick[]; scoreEvents:ScoreEvent[]; draft:DraftState; tribes:Tribe[]; categories:Category[]; history?:SeasonArchive[]; draftOrderVersion?:2 };
 
 const photo = (filename:string) => `https://public-assets-pressexpress.s3.amazonaws.com/assets/releases/docimages/ac468eba/${filename}`;
 const cast: Array<[string,string,number,string,string,string]> = [
@@ -128,7 +129,7 @@ export function buildDraftTurns(roster:Player[],thirdRound:Player[]=[]):DraftTur
 export const initialGame: GameState = {
   tribes:[{id:'savu',name:'Savu',color:'#7030A0'},{id:'toka',name:'Toka',color:'#F2CC24'}],
   categories,
-  season:{id:'season-51',name:'Survivor 51',number:51,currentEpisode:1,episodeStarted:false,entryFee:10},
+  season:{id:'season-51',name:'Survivor 51',number:51,currentEpisode:1,episodeStarted:false,episodeStatus:'not-started',entryFee:10},
   players,
   castaways:cast.map(([name,shortName,age,occupation,bio,imageSlug]) => ({id:`cast-${shortName.toLowerCase().replace(/\s/g,'-')}`,name,shortName,age,occupation,bio,imageUrl:photo(imageSlug),status:'active'})),
   draftPicks:[], scoreEvents:[], draft:{status:'setup',currentPick:0,turns:buildDraftTurns(players)}, draftOrderVersion:DRAFT_ORDER_VERSION,

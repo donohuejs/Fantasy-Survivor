@@ -3,7 +3,7 @@
 import {useRef,useState,type FormEvent} from 'react';
 import type {Castaway,Category,Tribe} from '@/lib/game-data';
 import {episodeActions} from '@/lib/community';
-import {previewTribalCouncil,recipients,tribalCouncilResolutionKey} from '@/lib/scoring';
+import {currentEpisodeStatus,episodeToStart,previewTribalCouncil,recipients,tribalCouncilResolutionKey} from '@/lib/scoring';
 import {useGame} from '../game-provider';
 
 const messageOf=(error:unknown)=>error instanceof Error?error.message:'Unable to save. Please try again.';
@@ -21,17 +21,28 @@ function availableAction(game:ReturnType<typeof useGame>['game'],category:Catego
 }
 
 export function ScoringManager(){
-  const {game,loading,startEpisode,addScore,resolveTribalCouncil,addCastawayBonus,addCustomAction}=useGame();
-  const [startBusy,setStartBusy]=useState(false),[startMessage,setStartMessage]=useState(''),[startError,setStartError]=useState('');
+  const {game,loading,startEpisode,finishEpisode,addScore,resolveTribalCouncil,addCastawayBonus,addCustomAction}=useGame();
+  const [workflowBusy,setWorkflowBusy]=useState(false),[workflowMessage,setWorkflowMessage]=useState(''),[workflowError,setWorkflowError]=useState('');
+  const [pendingWorkflow,setPendingWorkflow]=useState<'finish'|'start'|null>(null);
   const [customBusy,setCustomBusy]=useState(false),[customError,setCustomError]=useState(''),[customMessage,setCustomMessage]=useState('');
   const active=game.castaways.filter(castaway=>castaway.status==='active');
-  const nextEpisode=game.season.episodeStarted?game.season.currentEpisode+1:game.season.currentEpisode;
+  const status=currentEpisodeStatus(game);
+  const episodeInProgress=status==='in-progress';
+  const nextEpisode=episodeToStart(game);
   const actions=game.categories.filter(category=>availableAction(game,category));
-  async function beginEpisode(){
-    if(startBusy||!active.length)return;
-    setStartBusy(true);setStartMessage('');setStartError('');
-    try{await startEpisode({episode:nextEpisode,expectedActiveCastawayIds:active.map(castaway=>castaway.id)});setStartMessage(`Episode ${nextEpisode} is in progress. ${active.length} active castaways received +1.`);}
-    catch(error){setStartError(messageOf(error));}finally{setStartBusy(false);}
+  function requestWorkflow(action:'finish'|'start'){
+    setWorkflowMessage('');setWorkflowError('');setPendingWorkflow(action);
+  }
+  async function confirmWorkflow(){
+    if(!pendingWorkflow||workflowBusy)return;
+    const action=pendingWorkflow,episode=action==='finish'?game.season.currentEpisode:nextEpisode,activeIds=active.map(castaway=>castaway.id),activeCount=active.length;
+    if(action==='start'&&!activeCount)return;
+    setWorkflowBusy(true);setWorkflowMessage('');setWorkflowError('');
+    try{
+      if(action==='finish'){await finishEpisode({episode});setWorkflowMessage(`Episode ${episode} is complete. Start Episode ${episode+1} when you are ready.`);}
+      else {await startEpisode({episode,expectedActiveCastawayIds:activeIds});setWorkflowMessage(`Episode ${episode} is in progress. ${activeCount} active castaways received +1.`);}
+      setPendingWorkflow(null);
+    }catch(error){setWorkflowError(messageOf(error));}finally{setWorkflowBusy(false);}
   }
   async function custom(event:FormEvent<HTMLFormElement>){
     event.preventDefault();if(customBusy)return;
@@ -41,18 +52,24 @@ export function ScoringManager(){
   }
   return <section className="scoring-manager">
     <article className="admin-panel accent-panel episode-control">
-      <div className="admin-panel-title"><span>{game.season.episodeStarted?'▶':'01'}</span><div><p>Episode workflow</p><h2>{game.season.episodeStarted?`Episode ${game.season.currentEpisode} · In Progress`:`Episode ${nextEpisode} has not started`}</h2></div></div>
-      {game.season.episodeStarted?<p className="episode-status-line"><strong>{phaseLabel(game)}</strong>{game.season.mergeEpisode!==undefined&&<> · Merge begins at Episode {game.season.mergeEpisode}</>} · {active.length} active castaway{active.length===1?'':'s'}</p>:<><p>Start the episode once. Every active castaway will receive <strong>Still on the island · +1</strong> atomically, and ordinary scoring will use Episode {nextEpisode} automatically.</p><p className="score-preview"><strong>{active.length} active castaways will receive +1 for appearing.</strong>{active.length>0&&<span>{active.map(castaway=>castaway.name).join(', ')}</span>}</p><button type="button" className="primary-button" disabled={loading||startBusy||!active.length} onClick={beginEpisode}>{startBusy?'Starting…':`Start Episode ${nextEpisode}`}</button></>}
+      <div className="admin-panel-title"><span>{episodeInProgress?'▶':status==='complete'?'✓':'01'}</span><div><p>Episode workflow</p><h2>{episodeInProgress?`Episode ${game.season.currentEpisode} · In Progress`:status==='complete'?`Episode ${game.season.currentEpisode} · Complete`:`Episode ${nextEpisode} has not started`}</h2></div></div>
+      {episodeInProgress?<><p className="episode-status-line"><strong>{phaseLabel(game)}</strong>{game.season.mergeEpisode!==undefined&&<> · Merge begins at Episode {game.season.mergeEpisode}</>} · {active.length} active castaway{active.length===1?'':'s'}</p><button type="button" className="secondary-button episode-finish-button" disabled={loading||workflowBusy} onClick={()=>requestWorkflow('finish')}>{`Finish Episode ${game.season.currentEpisode}`}</button></>:<><p className="episode-status-line"><strong>{phaseLabel(game)}</strong>{game.season.mergeEpisode!==undefined&&<> · Merge begins at Episode {game.season.mergeEpisode}</>} · {active.length} active castaway{active.length===1?'':'s'} {status==='complete'?'remain':'available'}</p><p>{status==='complete'?`Episode ${game.season.currentEpisode} is closed for normal scoring. Start the next episode when you are ready.`:`Start the episode once. Every active castaway will receive `}<strong>{status==='complete'?'':status==='not-started'?'Still on the island · +1':''}</strong>{status==='not-started'&&<> atomically, and ordinary scoring will use Episode {nextEpisode} automatically.</>}</p><p className="score-preview"><strong>{active.length} active castaways will receive +1 when Episode {nextEpisode} starts.</strong></p><button type="button" className="primary-button" disabled={loading||workflowBusy||!active.length} onClick={()=>requestWorkflow('start')}>{workflowBusy?'Starting…':`Start Episode ${nextEpisode}`}</button></>}
       {!active.length&&<p className="scoring-error">There are no active castaways available to start an episode.</p>}
-      {startError&&<p role="alert" className="scoring-error">{startError}</p>}{startMessage&&<p role="status" className="success-banner">{startMessage}</p>}
+      {workflowError&&<p role="alert" className="scoring-error">{workflowError}</p>}{workflowMessage&&<p role="status" className="success-banner">{workflowMessage}</p>}
     </article>
-    {game.season.episodeStarted?<div className="admin-grid scoring-buckets">
+    {episodeInProgress?<div className="admin-grid scoring-buckets">
       <ActionBucket title="Individual Actions" description="Choose what happened to one castaway, preview the points, and confirm." target="individual" actions={actions} onScore={addScore} game={game} loading={loading}/>
       <div className="scoring-tribal-column"><ActionBucket title="Tribal Actions" description="Award tribe-wide challenge and reward outcomes from current live membership." target="tribe" actions={actions} onScore={addScore} game={game} loading={loading}/><ResolveTribalCouncil game={game} loading={loading} onResolve={resolveTribalCouncil}/></div>
-    </div>:<div className="admin-panel scoring-not-started"><h2>Scoring opens when the episode starts</h2><p>Start Episode {nextEpisode} to unlock Individual Actions, Tribal Actions, and the Tribal Council resolver.</p></div>}
-    {game.season.episodeStarted&&<div className="admin-grid scoring-support"><CastawayBonus game={game} loading={loading} onSave={addCastawayBonus}/><details className="admin-panel"><summary>Manage scoring rules</summary><p>Create a reusable custom category for an event that may happen more than once. This does not award points until you use it from an action bucket.</p><form className="admin-form" onSubmit={custom}><label className="wide">Action name<input name="label" required maxLength={100} placeholder="Win a surprise fire-making challenge"/></label><label>Points per castaway<input name="points" type="number" step="0.01" required placeholder="5 or -3"/></label><label>Applies to<select name="target"><option value="individual">Individual castaway</option><option value="tribe">Whole active tribe</option></select></label><button className="secondary-button wide" disabled={customBusy}>{customBusy?'Saving…':'Save reusable action'}</button></form>{customError&&<p role="alert" className="scoring-error">{customError}</p>}{customMessage&&<p role="status" className="success-banner">{customMessage}</p>}</details></div>}
+    </div>:<div className="admin-panel scoring-not-started"><h2>Scoring opens when the episode starts</h2><p>{status==='complete'?`Episode ${game.season.currentEpisode} is complete. Start Episode ${nextEpisode} to unlock Individual Actions, Tribal Actions, and the Tribal Council resolver.`:`Start Episode ${nextEpisode} to unlock Individual Actions, Tribal Actions, and the Tribal Council resolver.`}</p></div>}
+    {episodeInProgress&&<div className="admin-grid scoring-support"><CastawayBonus game={game} loading={loading} onSave={addCastawayBonus}/><details className="admin-panel"><summary>Manage scoring rules</summary><p>Create a reusable custom category for an event that may happen more than once. This does not award points until you use it from an action bucket.</p><form className="admin-form" onSubmit={custom}><label className="wide">Action name<input name="label" required maxLength={100} placeholder="Win a surprise fire-making challenge"/></label><label>Points per castaway<input name="points" type="number" step="0.01" required placeholder="5 or -3"/></label><label>Applies to<select name="target"><option value="individual">Individual castaway</option><option value="tribe">Whole active tribe</option></select></label><button className="secondary-button wide" disabled={customBusy}>{customBusy?'Saving…':'Save reusable action'}</button></form>{customError&&<p role="alert" className="scoring-error">{customError}</p>}{customMessage&&<p role="status" className="success-banner">{customMessage}</p>}</details></div>}
     <EpisodeActivity game={game}/>
+    {pendingWorkflow&&<EpisodeConfirmation action={pendingWorkflow} episode={pendingWorkflow==='finish'?game.season.currentEpisode:nextEpisode} activeCount={active.length} busy={workflowBusy} error={workflowError} onCancel={()=>{if(!workflowBusy)setPendingWorkflow(null);}} onConfirm={confirmWorkflow}/>}
   </section>;
+}
+
+function EpisodeConfirmation({action,episode,activeCount,busy,error,onCancel,onConfirm}:{action:'finish'|'start';episode:number;activeCount:number;busy:boolean;error:string;onCancel:()=>void;onConfirm:()=>void}){
+  const starting=action==='start';
+  return <div className="episode-confirmation-backdrop"><section className="episode-confirmation" role="dialog" aria-modal="true" aria-labelledby="episode-confirmation-title"><p className="eyebrow dark">Episode workflow</p><h2 id="episode-confirmation-title">{starting?`Start Episode ${episode}?`:`Finish Episode ${episode}?`}</h2><p>{starting?`Starting the episode will award +1 “Still on the island” point to all ${activeCount} castaways currently marked active.`:`This will close Episode ${episode} for normal episode scoring. Make sure you have entered all scoring for this episode before continuing.`}</p>{error&&<p className="scoring-error" role="alert">{error}</p>}<div className="episode-confirmation-actions"><button type="button" className="secondary-button" disabled={busy} onClick={onCancel}>Cancel</button><button type="button" className={starting?'primary-button':'secondary-button'} disabled={busy||starting&&activeCount===0} onClick={onConfirm}>{busy?(starting?'Starting…':'Finishing…'):(starting?`Start Episode ${episode}`:`Finish Episode ${episode}`)}</button></div></section></div>;
 }
 
 function ActionBucket({title,description,target,actions,onScore,game,loading}:{title:string;description:string;target:Category['target'];actions:Category[];onScore:(input:Parameters<ReturnType<typeof useGame>['addScore']>[0])=>Promise<void>;game:ReturnType<typeof useGame>['game'];loading:boolean}){
@@ -96,8 +113,8 @@ function CastawayBonus({game,loading,onSave}:{game:ReturnType<typeof useGame>['g
 }
 
 function EpisodeActivity({game}:{game:ReturnType<typeof useGame>['game']}){
-  const actions=game.season.episodeStarted?episodeActions(game,game.season.currentEpisode):[];
-  return <section className="setup-section episode-activity"><p className="eyebrow dark">Current episode</p><h2>Episode Activity</h2><p>Only scoring recorded for Episode {game.season.currentEpisode} appears here. The complete Activity Log remains available in its own tab.</p><article className="admin-panel"><div className="event-list">{actions.map(action=><div key={action.id}><span><strong>{action.tribeName?`${action.tribeName} · `:''}{action.label}</strong><small>{pointsText(action.points)} · {action.recipients.length} castaway{action.recipients.length===1?'':'s'}{action.note?' · '+action.note:''}</small><small>{action.recipients.join(', ')}</small></span><b className={action.points<0?'negative':''}>{pointsText(action.points)}</b></div>)}{!actions.length&&<p className="admin-empty">No scoring activity has been recorded for this episode yet.</p>}</div></article></section>;
+  const actions=episodeActions(game,game.season.currentEpisode),status=currentEpisodeStatus(game);
+  return <section className="setup-section episode-activity"><p className="eyebrow dark">{status==='complete'?'Completed episode':status==='in-progress'?'Current episode':'Next episode to start'}</p><h2>Episode Activity</h2><p>{status==='complete'?`Episode ${game.season.currentEpisode} is complete. Showing scoring recorded for that episode.`:`Only scoring recorded for Episode ${game.season.currentEpisode} appears here. The complete Activity Log remains available in its own tab.`}</p><article className="admin-panel"><div className="event-list">{actions.map(action=><div key={action.id}><span><strong>{action.tribeName?`${action.tribeName} · `:''}{action.label}</strong><small>{pointsText(action.points)} · {action.recipients.length} castaway{action.recipients.length===1?'':'s'}{action.note?' · '+action.note:''}</small><small>{action.recipients.join(', ')}</small></span><b className={action.points<0?'negative':''}>{pointsText(action.points)}</b></div>)}{!actions.length&&<p className="admin-empty">No scoring activity has been recorded for this episode yet.</p>}</div></article></section>;
 }
 
 function TribeEditor({tribe}:{tribe?:Tribe}){
