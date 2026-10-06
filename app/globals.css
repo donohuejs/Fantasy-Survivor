@@ -629,7 +629,7 @@ footer { color:var(--mist); background:var(--forest-deep); } footer span { color
 .leader-roster-name { display:flex; align-items:center; gap:9px; min-width:0; color:var(--paper); font-size:var(--text-small); }
 .leader-roster-name>span { min-width:0; overflow-wrap:anywhere; }
 .leader-roster-name i { width:8px; height:8px; flex:0 0 8px; display:inline-block; border-radius:50%; background:#91a09d; box-shadow:0 0 0 2px rgba(255,255,255,.12); }
-.leader-roster-eliminated .leader-roster-name { color:#83908f; text-decoration:line-through; }
+.leader-roster-eliminated .leader-roster-name,.leader-name small .leader-pick-eliminated { color:#83908f; text-decoration:line-through; }
 .leader-roster-eliminated .leader-roster-name i { background:#7d8987; box-shadow:none; }
 .leader-roster-empty { margin:14px 0 17px; color:var(--mist); font-size:var(--text-caption); }
 .leader-card-footer { display:flex; justify-content:flex-start; padding-top:13px; border-top:1px solid rgba(255,255,255,.15); color:var(--mist); font-size:var(--text-caption); }

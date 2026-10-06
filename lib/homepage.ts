@@ -1,6 +1,7 @@
 import {tribeForCastaway,type Castaway,type DraftPick,type GameState,type Tribe} from './game-data.ts';
 
 export type LeaderRosterEntry={pick:DraftPick;castaway:Castaway;tribe?:Tribe};
+export type LeaderPickEntry={pick:DraftPick;castaway?:Castaway};
 export type PointsLead={kind:'lead';points:number}|{kind:'tied'};
 
 export function liveDraftTurn(game:GameState){
@@ -8,12 +9,14 @@ export function liveDraftTurn(game:GameState){
 }
 
 export function leaderRoster(game:GameState,playerId:string):LeaderRosterEntry[]{
+  return leaderPicks(game,playerId)
+    .flatMap(({pick,castaway})=>castaway?[{pick,castaway,tribe:tribeForCastaway(game,castaway.id)}]:[]);
+}
+
+export function leaderPicks(game:GameState,playerId:string):LeaderPickEntry[]{
   return game.draftPicks
-    .filter(pick=>pick.playerId===playerId&&Boolean(pick.castawayId))
-    .flatMap(pick=>{
-      const castaway=game.castaways.find(item=>item.id===pick.castawayId);
-      return castaway?[{pick,castaway,tribe:tribeForCastaway(game,castaway.id)}]:[];
-    });
+    .filter(pick=>pick.playerId===playerId)
+    .map(pick=>({pick,castaway:pick.castawayId?game.castaways.find(item=>item.id===pick.castawayId):undefined}));
 }
 
 export function activeLeaderRosterCount(game:GameState,playerId:string){

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {currentSeasonOpenPolls,makePoll,pollDeepLinkTarget} from '../lib/community.ts';
 import {initialGame} from '../lib/game-data.ts';
-import {activeLeaderRosterCount,leaderRoster,liveDraftTurn,pointsLead} from '../lib/homepage.ts';
+import {activeLeaderRosterCount,leaderPicks,leaderRoster,liveDraftTurn,pointsLead} from '../lib/homepage.ts';
 
 const copy=()=>structuredClone(initialGame);
 const now='2026-09-28T12:00:00.000Z';
@@ -51,6 +51,18 @@ test('leader roster follows current tribes, recognizes eliminations, and handles
   assert.equal(leaderRoster(game,playerId)[1].tribe?.color,'#7030A0');
   unresolved.status='active';
   assert.equal(leaderRoster(game,playerId).length,2);
+});
+
+test('leader picks preserve the canonical castaway status for leaderboard display',()=>{
+  const game=copy(),playerId=game.players[0].id;
+  game.castaways[0].status='voted-out';
+  game.draftPicks=[
+    {id:'eliminated-pick',playerId,castawayId:game.castaways[0].id,round:1,pickNumber:1,multiplier:1},
+    {id:'blind-pick',playerId,castawayId:'',round:2,pickNumber:1,multiplier:1},
+  ];
+  const picks=leaderPicks(game,playerId);
+  assert.equal(picks[0].castaway?.status,'voted-out');
+  assert.equal(picks[1].castaway,undefined);
 });
 
 test('points lead preserves decimals, omits single-player lead, and handles ties',()=>{
