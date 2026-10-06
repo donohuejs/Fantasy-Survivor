@@ -58,14 +58,15 @@ export function allowedRecipientModes(game:GameState,category:Category):Recipien
   return mergeIsActive(game)&&visible.includes('all-active')?['all-active',...visible.filter(mode=>mode!=='all-active')]:visible;
 }
 
-function eligibleCastaways(game:GameState,category:Category){
-  // Preserve the legacy individual-action behavior: actions without an explicit
-  // recipient status may be used for a historical/eliminated castaway. The UI
-  // still defaults its picker to active castaways for normal weekly scoring.
-  return game.castaways.filter(castaway=>category.recipientStatus?castaway.status===category.recipientStatus:true);
+export function eligibleRecipientCastaways(game:GameState,category:Category,options:{historical?:boolean;includeLegacyInactive?:boolean}={}){
+  // Current scoring only accepts active castaways unless a category explicitly
+  // targets another status. Historical backfills retain the previous behavior
+  // of allowing any current roster member when no status is configured.
+  if(category.recipientStatus)return game.castaways.filter(castaway=>castaway.status===category.recipientStatus);
+  return game.castaways.filter(castaway=>options.historical||options.includeLegacyInactive||castaway.status==='active');
 }
 
-export function resolveRecipients(game:GameState,category:Category,mode:RecipientMode,recipientId?:string,recipientIds:string[]=[]):Castaway[]{
+export function resolveRecipients(game:GameState,category:Category,mode:RecipientMode,recipientId?:string,recipientIds:string[]=[],historical=false):Castaway[]{
   if(!allowedRecipientModes(game,category).includes(mode))throw new Error('That scoring action does not support this recipient mode.');
   if(mode==='all-active')return game.castaways.filter(castaway=>castaway.status==='active');
   if(mode==='tribe'){
@@ -79,7 +80,7 @@ export function resolveRecipients(game:GameState,category:Category,mode:Recipien
   const found=unique.map(id=>game.castaways.find(castaway=>castaway.id===id));
   if(found.some(castaway=>!castaway))throw new Error('Choose valid castaways from this season.');
   const selected=found as Castaway[];
-  const eligible=eligibleCastaways(game,category);
+  const eligible=eligibleRecipientCastaways(game,category,{historical,includeLegacyInactive:category.custom});
   if(selected.some(castaway=>!eligible.some(item=>item.id===castaway.id)))throw new Error('One or more selected castaways are not eligible for this scoring action.');
   return selected;
 }
@@ -208,7 +209,7 @@ export function recordScoring(game:GameState,input:ScoringInput):GameState {
   validatePhase(game,action,input.episode);
   if(game.scoreEvents.some(e=>e.batchId===input.batchId))return game;
   const mode=input.recipientMode??(action.target==='tribe'?'tribe':'individual');
-  const selected=resolveRecipients(game,action,mode,input.recipientId,input.recipientIds);
+  const selected=resolveRecipients(game,action,mode,input.recipientId,input.recipientIds,Boolean(input.historical));
   if(!selected.length)throw new Error('This tribe has no active members. Assign members before scoring.');
   if(action.recipientStatus&&selected.some(castaway=>castaway.status!==action.recipientStatus))throw new Error(`${action.label} requires a ${action.recipientStatus==='active'?'current active':'voted-out'} castaway.`);
   if(!sameIds(selected.map(c=>c.id),input.expectedRecipientIds))throw new Error('Tribe membership changed. Review the updated recipients and try again.');

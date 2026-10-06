@@ -9,19 +9,22 @@ const labels:Record<RecipientMode,string>={individual:'Individual',tribe:'Tribe'
 
 export function RecipientSelector({label='Applies to',modes,castaways,tribes,value,onChange,disabled=false}:{label?:string;modes:RecipientMode[];castaways:Castaway[];tribes:Tribe[];value:RecipientSelection;onChange:(selection:RecipientSelection)=>void;disabled?:boolean}){
   const [editing,setEditing]=useState(value.mode==='custom'&&!value.castawayIds.length),[query,setQuery]=useState('');
-  const eligible=useMemo(()=>castaways.filter(castaway=>castaway.status==='active'||value.mode==='individual'&&castaway.status==='voted-out'),[castaways,value.mode]);
+  // The parent supplies the canonical eligible collection used by both the
+  // Individual dropdown and the Custom picker. Do not derive a second list
+  // here, or the two modes can silently disagree about who may be selected.
+  const eligible=castaways;
   const selected=useMemo(()=>castaways.filter(castaway=>value.castawayIds.includes(castaway.id)),[castaways,value.castawayIds]);
   const visible=useMemo(()=>eligible.filter(castaway=>`${castaway.name} ${castaway.shortName}`.toLowerCase().includes(query.trim().toLowerCase())),[eligible,query]);
-  const activeIds=()=>castaways.filter(castaway=>castaway.status==='active').map(castaway=>castaway.id);
+  const activeIds=()=>eligible.map(castaway=>castaway.id);
   const selectMode=(mode:RecipientMode)=>{
     const next:RecipientSelection={mode,castawayIds:[]};
     if(mode==='all-active')next.castawayIds=activeIds();
     if(mode==='custom')setEditing(true);
     if(mode==='individual'&&value.castawayIds.length===1)next.castawayIds=value.castawayIds;
-    if(mode==='tribe'&&value.tribeId){next.tribeId=value.tribeId;next.castawayIds=castaways.filter(castaway=>castaway.status==='active'&&castaway.tribeId===value.tribeId).map(castaway=>castaway.id);}
+    if(mode==='tribe'&&value.tribeId){next.tribeId=value.tribeId;next.castawayIds=eligible.filter(castaway=>castaway.tribeId===value.tribeId).map(castaway=>castaway.id);}
     onChange(next);
   };
-  const chooseTribe=(tribeId:string)=>onChange({mode:'tribe',tribeId,castawayIds:castaways.filter(castaway=>castaway.status==='active'&&castaway.tribeId===tribeId).map(castaway=>castaway.id)});
+  const chooseTribe=(tribeId:string)=>onChange({mode:'tribe',tribeId,castawayIds:eligible.filter(castaway=>castaway.tribeId===tribeId).map(castaway=>castaway.id)});
   const chooseIndividual=(castawayId:string)=>onChange({mode:'individual',castawayIds:castawayId?[castawayId]:[]});
   const toggleCustom=(castawayId:string)=>onChange({...value,mode:'custom',castawayIds:value.castawayIds.includes(castawayId)?value.castawayIds.filter(id=>id!==castawayId):[...value.castawayIds,castawayId]});
   const selectAll=()=>onChange({...value,mode:'custom',castawayIds:eligible.map(castaway=>castaway.id)});

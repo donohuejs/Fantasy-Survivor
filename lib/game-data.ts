@@ -82,7 +82,7 @@ export const categories: Category[] = [
   {id:'blindside',label:'Vote is a blindside',points:1,group:'Tribal council',target:'individual',phase:'merge-only'},
   {id:'survive-tribal',label:'Survive pre-merge Tribal Council',points:1,group:'Tribal council',target:'tribe',phase:'pre-merge',bulkOnly:true},
   {id:'letters',label:'Letters from home',points:10,group:'Bonuses',target:'individual',recipientModes:['individual','custom']},
-  {id:'orchestrate',label:'Orchestrate a move',points:5,group:'Bonuses',target:'individual',recipientModes:['individual','custom']},
+  {id:'orchestrate',label:'Orchestrate a move',points:5,group:'Bonuses',target:'individual',recipientModes:['individual','custom'],recipientStatus:'active'},
 ];
 
 const retiredCategoryIds = new Set(['tribe-first','tribe-second','tribe-third','alive']);

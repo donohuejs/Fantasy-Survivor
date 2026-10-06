@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {initialGame,migrateLegacyTribalState} from '../lib/game-data.ts';
-import {addTribalCouncil,mergeIsActive,recordScoring,recordTribalCouncilResolution,resolveRecipients,saveMergeEpisode,startEpisode,tribalCouncilId} from '../lib/scoring.ts';
+import {addTribalCouncil,eligibleRecipientCastaways,mergeIsActive,recordScoring,recordTribalCouncilResolution,resolveRecipients,saveMergeEpisode,startEpisode,tribalCouncilId} from '../lib/scoring.ts';
 
 function fixture(){
   const game=structuredClone(initialGame);
@@ -31,6 +31,26 @@ test('recipient modes snapshot actual recipients and exclude inactive group memb
   assert.deepEqual(resolveRecipients(game,tribeAction,'tribe','toka').map(castaway=>castaway.id),[game.castaways[3].id]);
   const moved={...tribe,castaways:tribe.castaways.map(castaway=>castaway.id===game.castaways[0].id?{...castaway,tribeId:'toka'}:castaway)};
   assert.deepEqual(moved.scoreEvents.slice(-3).map(event=>event.castawayId),[game.castaways[0].id,game.castaways[1].id,game.castaways[2].id]);
+});
+
+test('orchestrate uses the same active candidates for Individual and Custom and accepts multiple recipients',()=>{
+  const game=fixture(),action=game.categories.find(category=>category.id==='orchestrate')!;
+  const candidates=eligibleRecipientCastaways(game,action),candidateIds=candidates.map(castaway=>castaway.id);
+  assert.deepEqual(candidateIds,game.castaways.filter(castaway=>castaway.status==='active').map(castaway=>castaway.id));
+  assert.deepEqual(resolveRecipients(game,action,'individual',candidateIds[0]).map(castaway=>castaway.id),[candidateIds[0]]);
+  assert.deepEqual(resolveRecipients(game,action,'custom',undefined,candidateIds).map(castaway=>castaway.id),candidateIds);
+  const scored=recordScoring(game,{categoryId:action.id,recipientMode:'custom',recipientIds:candidateIds,episode:1,note:'Orchestrated group move',expectedRecipientIds:candidateIds,batchId:'orchestrate-multiple'});
+  assert.deepEqual(scored.scoreEvents.map(event=>event.castawayId),candidateIds);
+  assert.ok(scored.scoreEvents.every(event=>event.points===5&&event.recipientName));
+  const inactive=game.castaways.find(castaway=>castaway.status==='voted-out')!;
+  assert.throws(()=>resolveRecipients(game,action,'custom',undefined,[inactive.id]),/not eligible/);
+});
+
+test('orchestrate reports an empty candidate collection only when no active castaways remain',()=>{
+  const game=fixture(),action=game.categories.find(category=>category.id==='orchestrate')!;
+  const empty={...game,castaways:game.castaways.map(castaway=>({...castaway,status:'voted-out' as const}))};
+  assert.deepEqual(eligibleRecipientCastaways(empty,action),[]);
+  assert.throws(()=>resolveRecipients(empty,action,'custom',undefined,[]),/at least one castaway/);
 });
 
 test('all active resolves current active castaways only',()=>{
