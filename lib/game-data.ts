@@ -6,16 +6,20 @@ export type PossessionStatus = 'active'|'played'|'expired'|'lost'|'transferred';
 export type PossessionHistoryEntry = {action:'acquired'|'updated'|'played'|'expired'|'lost'|'transferred'|'transferred-in';at:string;episode?:number;fromCastawayId?:string;toCastawayId?:string;notes?:string};
 export type Possession = {id:string;seasonId:string;lineageId:string;castawayId:string;originalCastawayId:string;itemName:string;category:PossessionCategory;status:PossessionStatus;acquiredEpisode?:number;acquiredAt?:string;playedEpisode?:number;playedAt?:string;playedByCastawayId?:string;playedForCastawayId?:string;successful?:boolean;transferredFromPossessionId?:string;transferredToPossessionId?:string;notes?:string;updatedAt?:string;history:PossessionHistoryEntry[]};
 export type DraftPick = { id:string; playerId:string; castawayId:string; round:number; pickNumber:number; multiplier:number; decision?:'keep'|'swap'; keptAt?:number };
-export type ScoreEvent = { id:string; castawayId?:string; playerId?:string; categoryId?:string; points:number; episode?:number; note?:string; createdAt:string; batchId?:string; awardKey?:string; actionLabel?:string; recipientName?:string; tribeId?:string; tribeName?:string; source?:'standard'|'episode-wide'|'one-time-bonus'|'first-tribal-council'|'tribe-wide'|'tribal-council' };
+export type RecipientMode = 'individual'|'tribe'|'all-active'|'custom';
+export type ScoreEvent = { id:string; castawayId?:string; playerId?:string; categoryId?:string; points:number; episode?:number; note?:string; createdAt:string; batchId?:string; awardKey?:string; actionLabel?:string; recipientName?:string; tribeId?:string; tribeName?:string; source?:'standard'|'episode-wide'|'one-time-bonus'|'first-tribal-council'|'tribe-wide'|'tribal-council'; recipientMode?:RecipientMode; recipientIds?:string[]; tribalCouncilId?:string; resolved?:boolean };
 export type CategoryPhase = 'pre-merge'|'merge-only';
-export type Category = { id:string; label:string; points:number; group:string; details?:string; target:'individual'|'tribe'; custom?:boolean; phase?:CategoryPhase; recipientStatus?:Castaway['status']; bulkOnly?:boolean; retired?:boolean; dynamicPoints?:'episode'; systemManaged?:boolean };
+export type Category = { id:string; label:string; points:number; group:string; details?:string; target:'individual'|'tribe'; recipientModes?:RecipientMode[]; custom?:boolean; phase?:CategoryPhase; recipientStatus?:Castaway['status']; bulkOnly?:boolean; retired?:boolean; dynamicPoints?:'episode'; systemManaged?:boolean };
 export type DraftTurn = { playerId:string; playerName:string; email:string; uid?:string; round:number; pickNumber:number };
 export type DraftState = { status:'setup'|'live'|'paused'|'complete'; currentPick:number; turns:DraftTurn[]; version?:2; runId?:string; revision?:number; blind?:{discards:string[];keptCount:number} };
 export type SeasonResult={profileId:string;name:string;score:number;finish:number};
 export type SeasonArchive={season:number;finalizedAt:string;results:SeasonResult[]};
 export type EpisodeStatus='not-started'|'in-progress'|'complete';
-export type TribalCouncilResolutionRecord = {resolutionKey:string;tribeId:string;episode:number;eliminatedCastawayId:string;resolvedAt:string};
-export type GameState = { season:{ id:string; name:string; number:number; currentEpisode:number; episodeStarted?:boolean; episodeStatus?:EpisodeStatus; entryFee:number; mergeEpisode?:number; finalized?:boolean }; players:Player[]; castaways:Castaway[]; draftPicks:DraftPick[]; scoreEvents:ScoreEvent[]; draft:DraftState; tribes:Tribe[]; categories:Category[]; possessions?:Possession[]; tribalCouncilResolutions?:TribalCouncilResolutionRecord[]; history?:SeasonArchive[]; draftOrderVersion?:2 };
+export type TribalCouncilStatus = 'awaiting-resolution'|'resolved';
+export type TribalCouncilRecord = {id:string;episode:number;number:number;attendeeMode:RecipientMode;attendeeIds:string[];tribeId?:string;tribeName?:string;status:TribalCouncilStatus;resolutionKey?:string;eliminatedCastawayId?:string;createdAt?:string;resolvedAt?:string};
+export type TribalAttendanceRecord = {id:string;castawayId:string;episode:number;tribalCouncilId:string;tribalCouncilNumber:number;tribeId?:string;attendedAt:string};
+export type TribalCouncilResolutionRecord = {resolutionKey:string;tribeId:string;episode:number;eliminatedCastawayId:string;resolvedAt:string;tribalCouncilId?:string;number?:number;attendeeIds?:string[];attendeeMode?:RecipientMode;status?:TribalCouncilStatus};
+export type GameState = { season:{ id:string; name:string; number:number; currentEpisode:number; episodeStarted?:boolean; episodeStatus?:EpisodeStatus; entryFee:number; mergeEpisode?:number; mergeState?:'pre-merge'|'merged'; mergeOccurred?:boolean; finalized?:boolean }; players:Player[]; castaways:Castaway[]; draftPicks:DraftPick[]; scoreEvents:ScoreEvent[]; draft:DraftState; tribes:Tribe[]; categories:Category[]; possessions?:Possession[]; tribalCouncilResolutions?:TribalCouncilResolutionRecord[]; tribalCouncils?:TribalCouncilRecord[]; tribalAttendance?:TribalAttendanceRecord[]; history?:SeasonArchive[]; draftOrderVersion?:2 };
 
 const photo = (filename:string) => `https://public-assets-pressexpress.s3.amazonaws.com/assets/releases/docimages/ac468eba/${filename}`;
 const cast: Array<[string,string,number,string,string,string]> = [
@@ -47,10 +51,10 @@ export const categories: Category[] = [
   {id:'marooning-win',label:'Win the marooning challenge',points:2,group:'Challenges',target:'tribe',phase:'pre-merge'},
   {id:'individual-immunity',label:'Win individual immunity',points:5,group:'Challenges',target:'individual'},
   {id:'individual-reward',label:'Win individual reward',points:2,group:'Rewards',target:'individual'},
-  {id:'individual-reward-selected',label:'Selected for individual reward',points:1,group:'Rewards',target:'individual'},
-  {id:'group-reward',label:'Selected for group reward',points:1,group:'Rewards',target:'individual'},
-  {id:'tribal-reward-primary',label:'Primary tribal reward',points:2,group:'Rewards',target:'tribe'},
-  {id:'tribal-reward-secondary',label:'Secondary tribal reward',points:1,group:'Rewards',target:'tribe'},
+  {id:'individual-reward-selected',label:'Selected for individual reward',points:1,group:'Rewards',target:'individual',recipientModes:['individual','custom']},
+  {id:'group-reward',label:'Selected for group reward',points:1,group:'Rewards',target:'individual',recipientModes:['individual','custom']},
+  {id:'tribal-reward-primary',label:'Primary tribal reward',points:2,group:'Rewards',target:'tribe',recipientModes:['tribe','custom','all-active']},
+  {id:'tribal-reward-secondary',label:'Secondary tribal reward',points:1,group:'Rewards',target:'tribe',recipientModes:['tribe','custom','all-active']},
   {id:'sit-out',label:'Sit out a challenge',points:-1,group:'Challenges',target:'individual'},
   {id:'rice',label:'Sit out to earn rice',points:2,group:'Challenges',target:'individual'},
   {id:'still-on-island',label:'Still on the island',points:1,group:'Weekly',target:'individual',bulkOnly:true},
@@ -77,8 +81,8 @@ export const categories: Category[] = [
   {id:'majority',label:'Vote with the majority',points:2,group:'Tribal council',target:'individual',phase:'merge-only'},
   {id:'blindside',label:'Vote is a blindside',points:1,group:'Tribal council',target:'individual',phase:'merge-only'},
   {id:'survive-tribal',label:'Survive pre-merge Tribal Council',points:1,group:'Tribal council',target:'tribe',phase:'pre-merge',bulkOnly:true},
-  {id:'letters',label:'Letters from home',points:10,group:'Bonuses',target:'individual'},
-  {id:'orchestrate',label:'Orchestrate a move',points:5,group:'Bonuses',target:'individual'},
+  {id:'letters',label:'Letters from home',points:10,group:'Bonuses',target:'individual',recipientModes:['individual','custom']},
+  {id:'orchestrate',label:'Orchestrate a move',points:5,group:'Bonuses',target:'individual',recipientModes:['individual','custom']},
 ];
 
 const retiredCategoryIds = new Set(['tribe-first','tribe-second','tribe-third','alive']);
@@ -147,3 +151,44 @@ export const initialGame: GameState = {
   castaways:cast.map(([name,shortName,age,occupation,bio,imageSlug]) => ({id:`cast-${shortName.toLowerCase().replace(/\s/g,'-')}`,name,shortName,age,occupation,bio,imageUrl:photo(imageSlug),status:'active'})),
   draftPicks:[], scoreEvents:[], possessions:currentSeasonPossessions, tribalCouncilResolutions:[], draft:{status:'setup',currentPick:0,turns:buildDraftTurns(players)}, draftOrderVersion:DRAFT_ORDER_VERSION,
 };
+
+/**
+ * Additive migration for the original episode/tribe Tribal Council shape.
+ * The old score rows remain untouched apart from harmless audit metadata, and
+ * retries are idempotent because every generated record has a deterministic id.
+ */
+export function migrateLegacyTribalState(game:GameState):GameState {
+  const legacy=game.tribalCouncilResolutions??[];
+  const savedCouncils=game.tribalCouncils??[];
+  const generated:TribalCouncilRecord[]=[];
+  const counters=new Map<number,number>();
+  [...legacy].sort((a,b)=>a.episode-b.episode||a.resolvedAt.localeCompare(b.resolvedAt)||a.resolutionKey.localeCompare(b.resolutionKey)).forEach(record=>{
+    if(savedCouncils.some(council=>council.id===record.tribalCouncilId||council.id===record.resolutionKey))return;
+    const number=(counters.get(record.episode)??0)+1;counters.set(record.episode,number);
+    const eventIds=game.scoreEvents.filter(event=>event.awardKey===record.resolutionKey||event.batchId===record.resolutionKey).map(event=>event.castawayId).filter((id):id is string=>Boolean(id));
+    const attendeeIds=record.attendeeIds?.length?[...record.attendeeIds]:[...new Set(eventIds)];
+    generated.push({id:record.tribalCouncilId??record.resolutionKey,episode:record.episode,number:record.number??number,attendeeMode:record.attendeeMode??(record.tribeId?'tribe':'custom'),attendeeIds,tribeId:record.tribeId||undefined,tribeName:game.tribes.find(tribe=>tribe.id===record.tribeId)?.name,status:'resolved',resolutionKey:record.resolutionKey,eliminatedCastawayId:record.eliminatedCastawayId||undefined,resolvedAt:record.resolvedAt});
+  });
+  const councils=[...savedCouncils,...generated];
+  const councilByKey=new Map<string,TribalCouncilRecord>();
+  councils.forEach(council=>{if(council.resolutionKey)councilByKey.set(council.resolutionKey,council);councilByKey.set(council.id,council);});
+  const scoreEvents=game.scoreEvents.map(event=>{
+    if(event.tribalCouncilId)return event;
+    const council=event.awardKey?councilByKey.get(event.awardKey):undefined;
+    if(!council)return event;
+    const batchRecipients=game.scoreEvents.filter(candidate=>(candidate.awardKey===event.awardKey||candidate.batchId===event.batchId)&&candidate.castawayId).map(candidate=>candidate.castawayId as string);
+    return {...event,tribalCouncilId:council.id,recipientIds:event.recipientIds??[...new Set(batchRecipients)],resolved:true};
+  });
+  const attendance=[...(game.tribalAttendance??[])];
+  const attendanceIds=new Set(attendance.map(record=>record.id));
+  scoreEvents.filter(event=>event.categoryId==='first-tribal-council'&&event.castawayId).forEach(event=>{
+    const council=event.tribalCouncilId?councilByKey.get(event.tribalCouncilId):undefined;
+    const id=`${council?.id??event.awardKey??event.batchId??'legacy-first'}:${event.castawayId}`;
+    if(attendanceIds.has(id))return;
+    const episode=event.episode??council?.episode??0;
+    if(!episode)return;
+    attendance.push({id,castawayId:event.castawayId as string,episode,tribalCouncilId:council?.id??event.awardKey??event.batchId??'legacy-first',tribalCouncilNumber:council?.number??1,tribeId:event.tribeId,attendedAt:event.createdAt});
+    attendanceIds.add(id);
+  });
+  return {...game,scoreEvents,tribalCouncils:councils,tribalAttendance:attendance};
+}

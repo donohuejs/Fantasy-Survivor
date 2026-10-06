@@ -209,6 +209,23 @@ footer span { color:#f3d08c; font-family:var(--font-heading); font-size:var(--te
 .scoring-fields { border:0; padding:0; margin:0; display:contents; }
 .score-preview { padding:16px; border:1px solid #d4dcd5; border-radius:12px; background:#f5f6ef; overflow-wrap:anywhere; }
 .score-preview p { margin:8px 0; }
+.recipient-selector { grid-column:1/-1; min-width:0; border:0; padding:0; margin:0; }
+.recipient-selector legend { margin-bottom:8px; color:var(--ink); font-weight:700; }
+.recipient-mode-list { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+.recipient-mode { display:flex!important; grid-template-columns:none!important; align-items:center; gap:7px; padding:8px 11px; border:1px solid var(--line); border-radius:999px; background:var(--paper); cursor:pointer; font-size:var(--text-caption); font-weight:700; }
+.recipient-mode:has(input:checked) { border-color:var(--teal); background:#edf3f1; color:var(--forest); }
+.recipient-mode input { margin:0; accent-color:var(--teal); }
+.recipient-summary { display:grid; gap:7px; padding:12px; border:1px solid var(--line); border-radius:10px; background:#f7faf8; }
+.recipient-summary span { color:#65736a; font-size:var(--text-small); line-height:1.5; }
+.recipient-custom-panel { display:grid; gap:10px; padding:12px; border:1px solid var(--line); border-radius:10px; background:#f7faf8; }
+.recipient-custom-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.recipient-custom-actions input { flex:1 1 180px; min-width:0; }
+.recipient-options { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:6px 12px; max-height:230px; overflow:auto; padding:2px; }
+.recipient-option { display:flex!important; grid-template-columns:none!important; align-items:center; gap:8px; padding:6px 4px; font-weight:400; cursor:pointer; }
+.recipient-option input { accent-color:var(--teal); }
+.recipient-custom-summary { gap:10px; }
+.recipient-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.recipient-chip { border:1px solid var(--line); border-radius:999px; padding:5px 8px; background:var(--paper); color:var(--ink); cursor:pointer; font:inherit; font-size:var(--text-caption); }
 .scoring-error { padding:12px; color:#8b2222; background:#fff0ed; border-radius:8px; }
 .scoring-manager button:disabled { opacity:.55; cursor:wait; }
 .scoring-specials { margin-top:18px; }
@@ -235,6 +252,12 @@ footer span { color:#f3d08c; font-family:var(--font-heading); font-size:var(--te
 .episode-activity .event-list>div { align-items:flex-start; }
 .episode-activity .event-list small { display:block; }
 .tribal-resolution h3 { margin:16px 0 4px; font-size:var(--text-small); }
+.tribal-council-list { display:grid; gap:8px; margin:12px 0; }
+.tribal-council-tab { display:grid; grid-template-columns:24px minmax(0,1fr) auto; align-items:center; gap:8px; width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:9px; background:var(--paper); color:var(--ink); text-align:left; cursor:pointer; }
+.tribal-council-tab.selected { border-color:var(--teal); background:#edf3f1; }
+.tribal-council-tab span { color:var(--teal); font-weight:700; }
+.tribal-council-tab strong,.tribal-council-tab small { display:block; }
+.tribal-council-tab small { color:#657579; }
 .who-has-what { margin:0 0 22px; padding:22px; background:var(--paper); border:1px solid var(--line); border-radius:4px 18px 4px 4px; box-shadow:0 12px 28px rgba(40,47,35,.05); }
 .who-has-what-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
 .who-has-what-heading .eyebrow { margin-bottom:7px; }
