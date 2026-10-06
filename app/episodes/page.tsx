@@ -6,7 +6,7 @@ import {SiteHeader} from '../site-header';
 import {useGame} from '../game-provider';
 import {usePolls,useRecaps} from './community-client';
 import {CommentThread,PollCard,PreviousPolls,ScoringSummary,WhoHasWhat} from './episode-content';
-import {currentSeasonOpenPolls,episodePolls,pollDeepLinkTarget,type LeaguePoll} from '@/lib/community';
+import {currentSeasonOpenPolls,episodeActions,episodePolls,pollDeepLinkTarget,type LeaguePoll} from '@/lib/community';
 import {pollElementId} from '@/lib/homepage';
 
 export default function Episodes(){return <Suspense fallback={<main className="loading-screen">Loading episodes…</main>}><EpisodesContent/></Suspense>;}
@@ -42,7 +42,7 @@ function EpisodesContent(){
       {recap&&<nav className="episode-picker" aria-label="Choose an episode">{episodes.map(r=><button key={r.id} aria-pressed={r.id===recap.id} onClick={()=>setSelected(r.id)}>Episode {r.episode}</button>)}</nav>}
       {livePolls.length>0&&<Link className="episodes-live-poll" href={`/episodes?poll=${encodeURIComponent(livePolls[0].id)}`} aria-label="Jump to the live poll"><span><i aria-hidden="true">●</i> Live poll</span><strong>Vote now <span aria-hidden="true">→</span></strong>{livePolls.length>1&&<small>{livePolls.length} live polls</small>}</Link>}
       {recap&&<>
-        <article className="episode-recap"><header><p className="eyebrow dark">Season {recap.season} · Episode {recap.episode}</p><h2>{recap.title}</h2><p className="community-note">Updated {new Date(recap.updatedAt).toLocaleString()}</p></header>{recap.body&&<section><h3>Game master’s commentary</h3><p className="community-prose">{recap.body}</p></section>}<ScoringSummary recap={recap}/></article>
+        <article className="episode-recap"><header><p className="eyebrow dark">Season {recap.season} · Episode {recap.episode}</p><h2>{recap.title}</h2><p className="community-note">Updated {new Date(recap.updatedAt).toLocaleString()}</p></header>{recap.body&&<section><h3>Game master’s commentary</h3><p className="community-prose">{recap.body}</p></section>}<ScoringSummary recap={recap.season===game.season.number?{...recap,actions:episodeActions(game,recap.episode)}:recap}/></article>
         <EpisodePolls polls={selectedPolls}/>
         <CommentThread recap={recap} key={recap.id+':'+user?.uid}/>
       </>}

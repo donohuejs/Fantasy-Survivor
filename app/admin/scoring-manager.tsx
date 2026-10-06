@@ -3,7 +3,7 @@
 import {useRef,useState,type FormEvent} from 'react';
 import type {Castaway,Category,Tribe,Possession} from '@/lib/game-data';
 import {episodeActions} from '@/lib/community';
-import {activePossessions,allowedRecipientModes,currentEpisodeStatus,eligibleRecipientCastaways,episodeToStart,mergeIsActive,previewTribalCouncil,resolveRecipients,tribalCouncilResolutionKey} from '@/lib/scoring';
+import {activePossessions,allowedRecipientModes,currentEpisodeStatus,eligibleRecipientCastaways,episodeToStart,mergeIsActive,postMergeVoteTotals,previewTribalCouncil,resolveRecipients,tribalCouncilResolutionKey} from '@/lib/scoring';
 import {useGame} from '../game-provider';
 import {RecipientSelector,type RecipientSelection} from './recipient-selector';
 import {TribalCouncilManager} from './tribal-council-manager';
@@ -64,9 +64,19 @@ export function ScoringManager(){
       <div className="scoring-tribal-column"><ActionBucket title="Tribal Actions" description="Award group challenge and reward outcomes from a saved recipient selection." target="tribe" actions={actions} onScore={addScore} game={game} loading={loading}/><TribalCouncilManager game={game} loading={loading} onResolve={resolveTribalCouncil} onAdd={addTribalCouncil}/></div>
     </div>:<div className="admin-panel scoring-not-started"><h2>Scoring opens when the episode starts</h2><p>{status==='complete'?`Episode ${game.season.currentEpisode} is complete. Start Episode ${nextEpisode} to unlock Individual Actions, Tribal Actions, and the Tribal Council resolver.`:`Start Episode ${nextEpisode} to unlock Individual Actions, Tribal Actions, and the Tribal Council resolver.`}</p></div>}
     {episodeInProgress&&<div className="admin-grid scoring-support"><CastawayBonus game={game} loading={loading} onSave={addCastawayBonus}/><details className="admin-panel"><summary>Manage scoring rules</summary><p>Create a reusable custom category for an event that may happen more than once. This does not award points until you use it from an action bucket.</p><form className="admin-form" onSubmit={custom}><label className="wide">Action name<input name="label" required maxLength={100} placeholder="Win a surprise fire-making challenge"/></label><label>Points per castaway<input name="points" type="number" step="0.01" required placeholder="5 or -3"/></label><label>Applies to<select name="target"><option value="individual">Individual castaway</option><option value="tribe">Whole active tribe</option></select></label><button className="secondary-button wide" disabled={customBusy}>{customBusy?'Saving…':'Save reusable action'}</button></form>{customError&&<p role="alert" className="scoring-error">{customError}</p>}{customMessage&&<p role="status" className="success-banner">{customMessage}</p>}</details></div>}
+    {mergeIsActive(game)&&<PostMergeVoteTracker game={game}/>}
     <EpisodeActivity game={game}/>
     {pendingWorkflow&&<EpisodeConfirmation action={pendingWorkflow} episode={pendingWorkflow==='finish'?game.season.currentEpisode:nextEpisode} activeCount={active.length} busy={workflowBusy} error={workflowError} onCancel={()=>{if(!workflowBusy)setPendingWorkflow(null);}} onConfirm={confirmWorkflow}/>}
   </section>;
+}
+
+function PostMergeVoteTracker({game}:{game:ReturnType<typeof useGame>['game']}){
+  const totals=postMergeVoteTotals(game);
+  const hasVoteData=Boolean(game.tribalVotes?.length);
+  const rows=game.castaways.filter(castaway=>castaway.status==='active').map(castaway=>({castaway,total:totals[castaway.id]??0})).sort((a,b)=>b.total-a.total||a.castaway.name.localeCompare(b.castaway.name));
+  const finalFive=game.season.finalFiveSnapshot;
+  const resultText=(ids:string[])=>ids.length===1?`${game.castaways.find(castaway=>castaway.id===ids[0])?.name??ids[0]} — ${finalFive?.voteTotals[ids[0]]??0}`:`Tie — no bonus${ids.length?` (${ids.map(id=>game.castaways.find(castaway=>castaway.id===id)?.name??id).join(', ')})`:''}`;
+  return <section className="setup-section"><p className="eyebrow dark">Post-merge race</p><h2>Counted post-merge votes</h2><p>Only counted post-merge votes appear here. Idol-nullified votes are excluded; extra votes and revotes are included as additional counted votes.{!hasVoteData?' No post-merge vote records have been entered yet.':''}</p><div className="castaway-table-wrap"><table className="castaway-table"><thead><tr><th>Castaway</th><th>Counted post-merge votes</th></tr></thead><tbody>{rows.map(row=><tr key={row.castaway.id}><th scope="row">{row.castaway.name}</th><td>{hasVoteData?row.total:'—'}</td></tr>)}</tbody></table></div>{finalFive&&<article className="score-preview"><strong>Final 5 snapshot</strong><p>Most votes: {resultText(finalFive.mostCastawayIds)}</p><p>Least votes: {resultText(finalFive.leastCastawayIds)}</p></article>}</section>;
 }
 
 function EpisodeConfirmation({action,episode,activeCount,busy,error,onCancel,onConfirm}:{action:'finish'|'start';episode:number;activeCount:number;busy:boolean;error:string;onCancel:()=>void;onConfirm:()=>void}){

@@ -7,7 +7,7 @@ export type PossessionHistoryEntry = {action:'acquired'|'updated'|'played'|'expi
 export type Possession = {id:string;seasonId:string;lineageId:string;castawayId:string;originalCastawayId:string;itemName:string;category:PossessionCategory;status:PossessionStatus;acquiredEpisode?:number;acquiredAt?:string;playedEpisode?:number;playedAt?:string;playedByCastawayId?:string;playedForCastawayId?:string;successful?:boolean;transferredFromPossessionId?:string;transferredToPossessionId?:string;notes?:string;updatedAt?:string;history:PossessionHistoryEntry[]};
 export type DraftPick = { id:string; playerId:string; castawayId:string; round:number; pickNumber:number; multiplier:number; decision?:'keep'|'swap'; keptAt?:number };
 export type RecipientMode = 'individual'|'tribe'|'all-active'|'custom';
-export type ScoreEvent = { id:string; castawayId?:string; playerId?:string; categoryId?:string; points:number; episode?:number; note?:string; createdAt:string; batchId?:string; awardKey?:string; actionLabel?:string; recipientName?:string; tribeId?:string; tribeName?:string; source?:'standard'|'episode-wide'|'one-time-bonus'|'first-tribal-council'|'tribe-wide'|'tribal-council'; recipientMode?:RecipientMode; recipientIds?:string[]; tribalCouncilId?:string; resolved?:boolean };
+export type ScoreEvent = { id:string; castawayId?:string; playerId?:string; categoryId?:string; points:number; episode?:number; note?:string; createdAt:string; batchId?:string; awardKey?:string; actionLabel?:string; recipientName?:string; tribeId?:string; tribeName?:string; source?:'standard'|'episode-wide'|'one-time-bonus'|'first-tribal-council'|'tribe-wide'|'tribal-council'|'milestone'; recipientMode?:RecipientMode; recipientIds?:string[]; tribalCouncilId?:string; resolved?:boolean };
 export type CategoryPhase = 'pre-merge'|'merge-only';
 export type Category = { id:string; label:string; points:number; group:string; details?:string; target:'individual'|'tribe'; recipientModes?:RecipientMode[]; custom?:boolean; phase?:CategoryPhase; recipientStatus?:Castaway['status']; bulkOnly?:boolean; retired?:boolean; dynamicPoints?:'episode'; systemManaged?:boolean };
 export type DraftTurn = { playerId:string; playerName:string; email:string; uid?:string; round:number; pickNumber:number };
@@ -19,7 +19,10 @@ export type TribalCouncilStatus = 'awaiting-resolution'|'resolved';
 export type TribalCouncilRecord = {id:string;episode:number;number:number;attendeeMode:RecipientMode;attendeeIds:string[];tribeId?:string;tribeName?:string;status:TribalCouncilStatus;resolutionKey?:string;eliminatedCastawayId?:string;createdAt?:string;resolvedAt?:string};
 export type TribalAttendanceRecord = {id:string;castawayId:string;episode:number;tribalCouncilId:string;tribalCouncilNumber:number;tribeId?:string;attendedAt:string};
 export type TribalCouncilResolutionRecord = {resolutionKey:string;tribeId:string;episode:number;eliminatedCastawayId:string;resolvedAt:string;tribalCouncilId?:string;number?:number;attendeeIds?:string[];attendeeMode?:RecipientMode;status?:TribalCouncilStatus};
-export type GameState = { season:{ id:string; name:string; number:number; currentEpisode:number; episodeStarted?:boolean; episodeStatus?:EpisodeStatus; entryFee:number; mergeEpisode?:number; mergeState?:'pre-merge'|'merged'; mergeOccurred?:boolean; finalized?:boolean }; players:Player[]; castaways:Castaway[]; draftPicks:DraftPick[]; scoreEvents:ScoreEvent[]; draft:DraftState; tribes:Tribe[]; categories:Category[]; possessions?:Possession[]; tribalCouncilResolutions?:TribalCouncilResolutionRecord[]; tribalCouncils?:TribalCouncilRecord[]; tribalAttendance?:TribalAttendanceRecord[]; history?:SeasonArchive[]; draftOrderVersion?:2 };
+export type TribalVoteRecord = {id:string;tribalCouncilId:string;episode:number;castawayId:string;countedVotes:number;nullifiedVotes:number;extraVotes:number;revote:boolean;round:number;recordedAt:string};
+export type MergeSnapshot = {episode:number;activeCastawayIds:string[];idolPossessionIds:string[];fantasyRosters:Record<string,string[]>;intactFantasyPlayerIds:string[];createdAt:string};
+export type FinalFiveSnapshot = {episode:number;activeCastawayIds:string[];voteTotals:Record<string,number>;mostCastawayIds:string[];leastCastawayIds:string[];createdAt:string};
+export type GameState = { season:{ id:string; name:string; number:number; currentEpisode:number; episodeStarted?:boolean; episodeStatus?:EpisodeStatus; entryFee:number; mergeEpisode?:number; mergeState?:'pre-merge'|'merged'; mergeOccurred?:boolean; mergeSnapshot?:MergeSnapshot; finalFiveSnapshot?:FinalFiveSnapshot; finalized?:boolean }; players:Player[]; castaways:Castaway[]; draftPicks:DraftPick[]; scoreEvents:ScoreEvent[]; draft:DraftState; tribes:Tribe[]; categories:Category[]; possessions?:Possession[]; tribalCouncilResolutions?:TribalCouncilResolutionRecord[]; tribalCouncils?:TribalCouncilRecord[]; tribalAttendance?:TribalAttendanceRecord[]; tribalVotes?:TribalVoteRecord[]; history?:SeasonArchive[]; draftOrderVersion?:2 };
 
 const photo = (filename:string) => `https://public-assets-pressexpress.s3.amazonaws.com/assets/releases/docimages/ac468eba/${filename}`;
 const cast: Array<[string,string,number,string,string,string]> = [
@@ -74,8 +77,13 @@ export const categories: Category[] = [
   {id:'journey',label:'Go on a journey',points:1,group:'Milestones',target:'individual'},
   {id:'no-vote',label:'Attend tribal without a vote',points:-1,group:'Tribal council',target:'individual'},
   {id:'merge',label:'Earn the merge buff',points:1,group:'Milestones',target:'individual'},
+  {id:'merge-surviving-idol',label:'Pre-merge idol reaches the merge',points:2,group:'Merge bonuses',target:'individual',systemManaged:true},
+  {id:'merge-intact-roster',label:'All 3 drafted castaways reach the merge',points:5,group:'Merge bonuses',target:'individual',systemManaged:true},
   {id:'final-five',label:'Make the final five',points:5,group:'Milestones',target:'individual'},
+  {id:'final-five-most-votes',label:'Most counted post-merge votes at Final 5',points:10,group:'Post-merge / Final 5',target:'individual',systemManaged:true},
+  {id:'final-five-least-votes',label:'Fewest counted post-merge votes at Final 5',points:5,group:'Post-merge / Final 5',target:'individual',systemManaged:true},
   {id:'final-three',label:'Make the final three',points:10,group:'Milestones',target:'individual'},
+  {id:'final-three-vote-leader',label:'Final 5 vote leader reaches Final 3',points:5,group:'Post-merge / Final 5',target:'individual',systemManaged:true},
   {id:'sole-survivor',label:'Win Survivor',points:25,group:'Milestones',target:'individual'},
   {id:'title-quote',label:'Episode title quote',points:1,group:'Weekly',target:'individual'},
   {id:'majority',label:'Vote with the majority',points:2,group:'Tribal council',target:'individual',phase:'merge-only'},

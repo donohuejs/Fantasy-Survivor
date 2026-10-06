@@ -47,6 +47,7 @@ function withOfficialCastawayProfiles(saved:GameState):GameState {
     scoreEvents:saved.scoreEvents??[],
     possessions:seedCurrentSeasonPossessions(saved.season.id,saved.season.number,saved.possessions),
     tribalCouncilResolutions:saved.tribalCouncilResolutions??[],
+    tribalVotes:saved.tribalVotes??[],
     players:saved.players.map((player,index)=>({...player,email:player.email??'',priorFinish:player.priorFinish??index+1,draftSlot:player.draftSlot??saved.players.length-index})),
     castaways:saved.castaways.map((castaway) => {
       const official = saved.season.number===51?initialGame.castaways.find((item) => item.id === castaway.id):undefined;
@@ -57,7 +58,7 @@ function withOfficialCastawayProfiles(saved:GameState):GameState {
 }
 
 function needsGameMigration(saved:GameState,normalized:GameState){
-  return saved.draftOrderVersion!==normalized.draftOrderVersion||JSON.stringify(saved.categories??[])!==JSON.stringify(normalized.categories)||JSON.stringify(saved.possessions??[])!==JSON.stringify(normalized.possessions??[])||JSON.stringify(saved.tribalCouncilResolutions??[])!==JSON.stringify(normalized.tribalCouncilResolutions??[])||JSON.stringify(saved.tribalCouncils??[])!==JSON.stringify(normalized.tribalCouncils??[])||JSON.stringify(saved.tribalAttendance??[])!==JSON.stringify(normalized.tribalAttendance??[])||saved.season.episodeStarted!==normalized.season.episodeStarted||saved.season.episodeStatus!==normalized.season.episodeStatus||saved.season.mergeState!==normalized.season.mergeState||saved.season.mergeOccurred!==normalized.season.mergeOccurred;
+  return saved.draftOrderVersion!==normalized.draftOrderVersion||JSON.stringify(saved.categories??[])!==JSON.stringify(normalized.categories)||JSON.stringify(saved.possessions??[])!==JSON.stringify(normalized.possessions)||JSON.stringify(saved.tribalCouncilResolutions??[])!==JSON.stringify(normalized.tribalCouncilResolutions??[])||JSON.stringify(saved.tribalCouncils??[])!==JSON.stringify(normalized.tribalCouncils??[])||JSON.stringify(saved.tribalAttendance??[])!==JSON.stringify(normalized.tribalAttendance??[])||JSON.stringify(saved.tribalVotes??[])!==JSON.stringify(normalized.tribalVotes??[])||saved.season.episodeStarted!==normalized.season.episodeStarted||saved.season.episodeStatus!==normalized.season.episodeStatus||saved.season.mergeState!==normalized.season.mergeState||saved.season.mergeOccurred!==normalized.season.mergeOccurred;
 }
 
 export function GameProvider({children}:{children:React.ReactNode}) {
@@ -272,7 +273,7 @@ export function GameProvider({children}:{children:React.ReactNode}) {
     });
   }
   async function setPlayerPaid(playerId:string,paid:boolean){await adminMutation(current=>({...current,players:current.players.map(player=>player.id===playerId?{...player,paid}:player)}),true);}
-  async function resetSeason() {await adminMutation(current=>({...current,season:{...current.season,currentEpisode:1,episodeStarted:false,episodeStatus:'not-started'},scoreEvents:[],draftPicks:[],players:current.players.map(p=>({...p,entryBonus:0})),draft:{status:'setup',currentPick:0,turns:buildDraftTurns(current.players)}}));}
+  async function resetSeason() {await adminMutation(current=>{const season={...current.season,currentEpisode:1,episodeStarted:false,episodeStatus:'not-started' as const};delete season.mergeEpisode;delete season.mergeState;delete season.mergeOccurred;delete season.mergeSnapshot;delete season.finalFiveSnapshot;return {...current,season,scoreEvents:[],draftPicks:[],tribalVotes:[],tribalCouncilResolutions:[],tribalCouncils:[],tribalAttendance:[],players:current.players.map(p=>({...p,entryBonus:0})),draft:{status:'setup',currentPick:0,turns:buildDraftTurns(current.players)}};});}
   async function finalizeSeason(order:string[]){await adminMutation(current=>{if(JSON.stringify(seasonStandings(current))!==JSON.stringify(seasonStandings(game)))throw new Error('Scores changed during your review. Review the updated standings before locking.');return lockSeason(current,order,new Date().toISOString());},true);}
   async function beginNextSeason(){
     if(!isAdmin)throw new Error('Only the game master can open a season.');
