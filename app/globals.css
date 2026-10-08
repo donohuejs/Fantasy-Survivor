@@ -498,6 +498,7 @@ footer { color:var(--mist); background:var(--forest-deep); } footer span { color
 .castaway-table-eliminated { color:#858e8d; background:#f1f2ef; }
 .castaway-table-eliminated .castaway-table-name { color:#858e8d; text-decoration:line-through; }
 .castaway-table-eliminated td,.castaway-table-eliminated th { border-bottom-color:#dfe3e0; }
+.membership-row-eliminated { color:#7e8785; text-decoration:line-through; }
 .castaway-table td strong { color:var(--forest); }
 .castaway-section .section-title { margin-bottom:20px; }
 .eliminated-castaways { margin-top:64px; }

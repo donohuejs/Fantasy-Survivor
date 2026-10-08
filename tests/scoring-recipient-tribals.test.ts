@@ -46,6 +46,17 @@ test('orchestrate uses the same active candidates for Individual and Custom and 
   assert.throws(()=>resolveRecipients(game,action,'custom',undefined,[inactive.id]),/not eligible/);
 });
 
+test('Individual scoring accepts the selector state shape and awards exactly one castaway',()=>{
+  const game=fixture(),action=game.categories.find(category=>category.id==='orchestrate')!,castawayId=game.castaways[0].id;
+  const selected=resolveRecipients(game,action,'individual',undefined,[castawayId]);
+  assert.deepEqual(selected.map(castaway=>castaway.id),[castawayId]);
+  const scored=recordScoring(game,{categoryId:action.id,recipientMode:'individual',recipientIds:[castawayId],episode:1,note:'Individual action',expectedRecipientIds:[castawayId],batchId:'individual-selector-state'});
+  assert.deepEqual(scored.scoreEvents.map(event=>event.castawayId),[castawayId]);
+  assert.equal(scored.scoreEvents[0].points,5);
+  assert.throws(()=>resolveRecipients(game,action,'individual',undefined,[]),/exactly one castaway/);
+  assert.throws(()=>resolveRecipients(game,action,'individual',undefined,[castawayId,game.castaways[1].id]),/exactly one castaway/);
+});
+
 test('orchestrate reports an empty candidate collection only when no active castaways remain',()=>{
   const game=fixture(),action=game.categories.find(category=>category.id==='orchestrate')!;
   const empty={...game,castaways:game.castaways.map(castaway=>({...castaway,status:'voted-out' as const}))};
@@ -90,7 +101,7 @@ test('merge state is explicit, jury-like metadata cannot activate it, and episod
   game.castaways[1]={...game.castaways[1],status:'active',tribeId:'savu'};
   assert.equal(mergeIsActive(game,5),false);
   game=recordTribalCouncilResolution(game,{tribeId:'savu',councilNumber:1,attendeeMode:'tribe',episode:5,note:'Pre-merge despite episode number',expectedAttendeeIds:[game.castaways[0].id,game.castaways[1].id],eliminatedCastawayId:game.castaways[0].id});
-  assert.equal(game.scoreEvents.some(event=>event.categoryId==='voted-premerge'),true);
+  assert.equal(game.scoreEvents.some(event=>event.categoryId==='elimination-voted-out'),true);
   game=saveMergeEpisode(game,5);
   assert.equal(mergeIsActive(game,5),true);
   const merged=recordTribalCouncilResolution(game,{tribalCouncilId:tribalCouncilId(game,5,2),councilNumber:2,attendeeMode:'all-active',attendeeIds:[game.castaways[1].id],episode:5,note:'Post-merge',expectedAttendeeIds:[game.castaways[1].id],eliminatedCastawayId:game.castaways[1].id});

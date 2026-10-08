@@ -1,13 +1,13 @@
-import type {GameState} from './game-data.ts';
+import type {EliminationReason,GameState} from './game-data.ts';
 
-export type CastawayLeaderboardRow={castawayId:string;name:string;status:'active'|'voted-out';byEpisode:Record<number,number>;total:number};
+export type CastawayLeaderboardRow={castawayId:string;name:string;status:'active'|'voted-out';eliminationReason?:EliminationReason;byEpisode:Record<number,number>;total:number};
 export type CastawayLeaderboard={episodes:number[];active:CastawayLeaderboardRow[];eliminated:CastawayLeaderboardRow[]};
 
 const byScore=(left:CastawayLeaderboardRow,right:CastawayLeaderboardRow)=>right.total-left.total||left.name.localeCompare(right.name);
 
 export function castawayLeaderboard(game:Pick<GameState,'castaways'|'scoreEvents'|'season'>):CastawayLeaderboard {
   const episodes=Array.from({length:Math.max(1,game.season.currentEpisode)},(_,index)=>index+1);
-  const rows=game.castaways.map(castaway=>({castawayId:castaway.id,name:castaway.name,status:castaway.status,byEpisode:{},total:0} as CastawayLeaderboardRow));
+  const rows=game.castaways.map(castaway=>({castawayId:castaway.id,name:castaway.name,status:castaway.status,eliminationReason:castaway.eliminationReason,byEpisode:{},total:0} as CastawayLeaderboardRow));
   const byId=new Map(rows.map(row=>[row.castawayId,row]));
   for(const event of game.scoreEvents){
     if(!event.castawayId)continue;

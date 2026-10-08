@@ -21,10 +21,10 @@ export function PreviousPolls({polls}:{polls:LeaguePoll[]}){
   </section>;
 }
 
-export function ScoringSummary({recap}:{recap:EpisodeRecap}){
-  return <section className="episode-scoring"><h3>Scoring actions</h3><p className="community-note">Scoring snapshot saved with this recap. These points are already included in the leaderboard—not awarded again here.</p>
-    {recap.actions.map(action=><article key={action.id}><strong className={action.points<0?'negative':''}>{action.points>0?'+':''}{action.points}{action.recipients.length>1?' each':''}</strong><div><h4>{action.tribeName? action.tribeName+' · ':''}{action.label}</h4><p>{action.recipients.join(', ')}</p>{action.note&&<p className="community-prose">{action.note}</p>}</div></article>)}
-    {!recap.actions.length&&<p>No episode-tagged scoring actions were included when this recap was saved.</p>}
+export function ScoringSummary({recap,live=false,eliminatedRecipients}:{recap:Pick<EpisodeRecap,'actions'>;live?:boolean;eliminatedRecipients?:Set<string>}){
+  return <section className="episode-scoring"><h3>{live?'Current episode activity':'Scoring actions'}</h3><p className="community-note">{live?'Current scoring activity is already reflected in the leaderboard. The written recap will be posted separately.':'Scoring snapshot saved with this recap. These points are already included in the leaderboard—not awarded again here.'}</p>
+    {recap.actions.map(action=><article key={action.id}><strong className={action.points<0?'negative':''}>{action.points>0?'+':''}{action.points}{action.recipients.length>1?' each':''}</strong><div><h4>{action.tribeName? action.tribeName+' · ':''}{action.label}</h4><p>{action.recipients.map((recipient,index)=><span key={`${action.id}:${recipient}:${index}`}>{index>0&&', '}<span className={eliminatedRecipients?.has(recipient)?'membership-row-eliminated':''}>{recipient}</span></span>)}</p>{!live&&action.note&&<p className="community-prose">{action.note}</p>}</div></article>)}
+    {!recap.actions.length&&<p>{live?'No episode-tagged scoring actions have been recorded yet.':'No episode-tagged scoring actions were included when this recap was saved.'}</p>}
   </section>;
 }
 export function CommentThread({recap}:{recap:EpisodeRecap}){

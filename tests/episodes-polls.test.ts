@@ -11,6 +11,9 @@ test('Episodes page places the poll section after recap and keeps one top live i
   const recapIndex=page.indexOf('<article className="episode-recap"');
   const pollsIndex=page.indexOf('<EpisodePolls polls={selectedPolls}/>');
   assert.ok(recapIndex>=0&&pollsIndex>recapIndex);
+  assert.match(page,/availableEpisodeNumbers/);
+  assert.match(page,/Episode \{item\.episode\}/);
+  assert.match(page,/Recap coming soon/);
   assert.match(page,/className="episodes-live-poll"/);
   assert.match(page,/href=\{`\/episodes\?poll=\$\{encodeURIComponent\(livePolls\[0\]\.id\)\}`\}/);
   assert.equal((page.match(/<PollCard/g)??[]).length,1);
@@ -35,4 +38,9 @@ test('poll navigation has mobile-safe focus and scroll styling',()=>{
   assert.match(css,/\.league-poll\s*\{\s*scroll-margin-top:120px/);
   assert.match(css,/\.episodes-live-poll/);
   assert.match(css,/\.poll-history-toggle\{width:100%\}/);
+});
+
+test('episode navigation wraps and keeps touch targets usable on mobile',()=>{
+  assert.match(css,/\.episode-picker\{display:flex;flex-wrap:wrap/);
+  assert.match(css,/\.episode-picker button,\.community-shell button,\.recap-manager button\{min-height:44px/);
 });

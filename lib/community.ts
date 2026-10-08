@@ -9,6 +9,13 @@ export class CommunityError extends Error {}
 export const communityOwner='donohue.js@gmail.com';
 export function pollVoteTotal(poll:LeaguePoll){return poll.counts.reduce((sum,count)=>sum+count,0);}
 export function currentSeasonOpenPolls(polls:LeaguePoll[],season:number){return polls.filter(poll=>poll.status==='open'&&poll.season===season).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));}
+export function availableEpisodeNumbers(game:Pick<GameState,'season'|'scoreEvents'|'tribalCouncils'|'tribalCouncilResolutions'|'tribalAttendance'|'tribalVotes'>,recaps:EpisodeRecap[],polls:LeaguePoll[],season:number){
+  const numbers=[...recaps.filter(recap=>recap.status==='published'&&recap.season===season).map(recap=>recap.episode),...polls.filter(poll=>poll.season===season&&poll.episode>0).map(poll=>poll.episode)];
+  if(season===game.season.number){
+    numbers.push(game.season.currentEpisode,...game.scoreEvents.map(event=>event.episode??0),...(game.tribalCouncils??[]).map(council=>council.episode),...(game.tribalCouncilResolutions??[]).map(resolution=>resolution.episode),...(game.tribalAttendance??[]).map(record=>record.episode),...(game.tribalVotes??[]).map(record=>record.episode));
+  }
+  return [...new Set(numbers.filter(episode=>Number.isSafeInteger(episode)&&episode>0))].sort((left,right)=>right-left);
+}
 export function episodePolls(polls:LeaguePoll[],season:number,episode:number){
   const scoped=polls.filter(poll=>poll.season===season&&(poll.episode===episode||poll.episode===0));
   return {
