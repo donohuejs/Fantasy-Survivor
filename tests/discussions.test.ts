@@ -83,6 +83,10 @@ test('a reply resurfaces an older episode thread; newest-parent sorting stays in
   const f=await opened();await f.a.post(post('older'));f.setNow('2026-10-15T00:00:04.000Z');await f.a.post(post('newer'));f.setNow('2026-10-15T00:00:08.000Z');await f.b.post(post('resurface','Hello','older'));
   assert.deepEqual((await f.a.threads({})).rows.map(row=>row.rootId),['older','newer']);assert.deepEqual((await f.a.threads({sort:'newest'})).rows.map(row=>row.rootId),['newer','older']);
 });
+test('chronological thread sorting returns oldest conversations first',async()=>{
+  const f=await opened();await f.a.post(post('older'));f.setNow('2026-10-15T00:00:04.000Z');await f.a.post(post('newer'));
+  assert.deepEqual((await f.a.threads({sort:'chronological'})).rows.map(row=>row.rootId),['older','newer']);
+});
 test('Home feed returns three parent threads even when one has fifteen replies',async()=>{
   const f=await opened();for(let index=0;index<4;index++){f.setNow(new Date(Date.parse('2026-10-15T00:00:00Z')+index*4000).toISOString());await f.a.post(post('thread'+index));}
   for(let index=0;index<15;index++){f.setNow(new Date(Date.parse('2026-10-15T01:00:00Z')+index*4000).toISOString());await f.b.post(post('reply'+index,'Reply','thread0'));}

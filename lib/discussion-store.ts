@@ -176,11 +176,11 @@ export class DiscussionStore{
   }
   async threads(input:{episodeId?:string;season?:number;unread?:boolean;sort?:string;cursor?:string;pageSize?:number}):Promise<ThreadPage>{
     const catalog=await this.catalog(),eligible=new Set(catalog.episodes.filter(episode=>episode.available&&episode.discussionReady&&(!input.episodeId||episode.id===parseEpisodeIdentity(input.episodeId).id)&&(!input.season||episode.season===input.season)).map(episode=>episode.id));
-    const order=input.sort==='newest'?'createdAt':'lastActivityAt',size=Math.min(25,Math.max(1,input.pageSize??25));
+    const chronological=input.sort==='chronological',order=input.sort==='newest'||chronological?'createdAt':'lastActivityAt',direction=chronological?'asc':'desc',idDirection=chronological?'asc':'desc',size=Math.min(25,Math.max(1,input.pageSize??25));
     let source:Query=input.unread?this.user().collection('threads').where('hasUnread','==',true):this.root().collection('discussionThreads');
     if(input.episodeId)source=source.where('episodeId','==',parseEpisodeIdentity(input.episodeId).id);
     else if(input.season)source=source.where('season','==',input.season);
-    source=source.orderBy(order,'desc').orderBy('id','desc');
+    source=source.orderBy(order,direction).orderBy('id',idDirection);
     if(input.cursor){let cursor;try{cursor=JSON.parse(Buffer.from(input.cursor,'base64url').toString());}catch{throw new CommunityError('Invalid activity cursor.');}source=source.startAfter(timestamp(cursor.at),resourceThreadId(cursor.id));}
     const selected:DiscussionThread[]=[];let cursor:string|null=null,exhausted=false;
     // Scan bounded pages so held episodes never leak into a feed. No per-thread queries.

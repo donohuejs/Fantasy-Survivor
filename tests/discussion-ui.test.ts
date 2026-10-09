@@ -24,8 +24,11 @@ test('Chatter and recaps preserve inline composition, filters, and thread replie
   assert.match(chatter,/CommentComposer/);
   assert.match(episodes,/<EpisodeDiscussion episode=\{view\}/);
   assert.match(discussion,/thread-reply-composer/);
+  assert.match(discussion,/comment-reply-composer/);
+  assert.match(discussion,/data-reply-for/);
   assert.match(discussion,/discussionCommentDepths/);
   assert.match(discussion,/Reply/);
+  assert.match(chatter,/Oldest conversations/);
 });
 
 test('discussion presentation has compact feed rules and mobile wrapping safeguards',()=>{

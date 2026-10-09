@@ -747,6 +747,8 @@ footer { color:var(--mist); background:var(--forest-deep); } footer span { color
 .chatter-reply.chatter-depth-2 { margin-left:40px; }
 .chatter-reply.chatter-reply-flattened { margin-left:20px; }
 .comment-controls { margin-top:10px; }
+.comment-reply-composer { margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
+.comment-reply-composer .community-form { margin:0; }
 .community-shell .comment-controls button,.community-shell .mark-read-button,.community-shell .watched-control button { min-height:40px; padding:8px 12px; }
 .thread-reply-composer { margin-top:14px; padding-top:2px; }
 .thread-reply-composer .community-form { margin-bottom:4px; }
