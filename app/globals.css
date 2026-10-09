@@ -683,3 +683,86 @@ footer { color:var(--mist); background:var(--forest-deep); } footer span { color
   .homepage-action:hover { transform:none; }
   .league-poll { scroll-behavior:auto; }
 }
+
+/* Campfire Commentary uses a compact activity-feed treatment across Home, Chatter, and recaps. */
+.campfire-commentary { width:min(1140px,calc(100% - 40px)); margin:0 auto 40px; padding:18px 22px; border-radius:12px; box-shadow:0 12px 30px rgba(40,47,35,.06); }
+.campfire-header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+.campfire-title { display:flex; align-items:center; gap:10px; min-width:0; }
+.campfire-title>div { min-width:0; }
+.campfire-icon { display:grid; width:30px; height:30px; flex:0 0 30px; place-items:center; border-radius:50%; color:var(--paper); background:var(--forest); font-size:var(--text-lead); line-height:1; }
+.campfire-title .eyebrow { margin:0 0 3px; }
+.campfire-title h2 { margin:0; font-size:var(--text-subheading); }
+.campfire-title .chatter-unread { margin-left:2px; }
+.campfire-view-all { display:inline-flex; align-items:center; gap:5px; flex:0 0 auto; color:var(--forest); font-size:var(--text-caption); font-weight:700; white-space:nowrap; }
+.campfire-view-all span,.campfire-empty-action span { color:var(--flame); font-size:var(--text-lead); }
+.campfire-status { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:14px 0 0; color:#657579; font-size:var(--text-small); }
+.campfire-status button { min-height:36px; padding:6px 11px; }
+.campfire-commentary-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:0; margin-top:2px; }
+.campfire-thread-preview { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"top top" "author meta" "excerpt meta"; align-items:start; gap:5px 14px; min-width:0; padding:14px 0; border:0; border-bottom:1px solid var(--line); border-radius:0; background:transparent; overflow-wrap:anywhere; }
+.campfire-thread-preview:last-child { border-bottom:0; }
+.campfire-thread-preview:hover { background:#fbf8f0; }
+.campfire-thread-top { display:flex; align-items:center; justify-content:space-between; gap:10px; min-width:0; grid-area:top; }
+.campfire-thread-episode { color:#657579; font-size:var(--text-caption); font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+.campfire-thread-author { display:flex; align-items:center; gap:8px; min-width:0; grid-area:author; }
+.campfire-avatar,.thread-avatar { display:grid; width:28px; height:28px; flex:0 0 28px; place-items:center; border-radius:50%; color:var(--forest); background:#dfe9df; font-size:var(--text-caption); font-weight:700; }
+.campfire-thread-preview strong { min-width:0; overflow-wrap:anywhere; }
+.campfire-thread-preview p { grid-area:excerpt; min-width:0; margin:0; color:#36483e; font-size:var(--text-small); line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.campfire-thread-preview small { align-self:end; min-width:0; margin:0; color:#657579; font-size:var(--text-caption); text-align:right; white-space:nowrap; grid-area:meta; }
+.campfire-empty { padding:16px 0 2px; border-top:1px solid var(--line); }
+.campfire-empty p { margin:0 0 8px; color:#657579; font-size:var(--text-small); }
+.campfire-empty-action { display:inline-flex; align-items:center; gap:5px; color:var(--forest); font-size:var(--text-caption); font-weight:700; }
+
+.chatter-page .community-heading { margin:24px auto 18px; }
+.chatter-heading-row { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+.chatter-heading-row .eyebrow { margin-bottom:5px; }
+.chatter-page .community-heading h1 { margin:0; font-size:var(--text-heading); }
+.chatter-page .community-heading>p { margin:7px 0 0; line-height:1.5; }
+.chatter-page .spoiler-settings { margin:12px 0 0; }
+.chatter-page .community-shell .episode-comments { margin-top:0; }
+.chatter-page .episode-comments h2 { font-size:var(--text-subheading); }
+.chatter-page .chatter-toolbar { margin-top:20px; padding:12px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.chatter-page .chatter-filters button { min-height:40px; padding:8px 12px; border-radius:999px; }
+.chatter-page .chatter-toolbar>.thread-sort { margin-left:auto; }
+
+.episode-comments { padding:20px 22px; margin:18px 0; }
+.episode-comments .discussion-heading { padding-bottom:12px; border-bottom:1px solid var(--line); }
+.discussion-heading>div { min-width:0; }
+.discussion-heading .eyebrow { margin:0 0 3px; }
+.discussion-heading h3 { margin:0; font-size:var(--text-subheading); }
+.episode-comments>.chatter-composer { margin:16px 0; padding-bottom:16px; border-bottom:1px solid var(--line); }
+.episode-comments>.thread-sort { margin:0 0 4px; }
+.chatter-threads { gap:0; margin:14px 0; border-top:1px solid var(--line); }
+.chatter-thread { padding:16px 0; border:0; border-bottom:1px solid var(--line); border-radius:0; background:transparent; }
+.chatter-thread:last-child { border-bottom:0; }
+.chatter-thread-focused { padding:16px 12px; border:1px solid rgba(242,107,56,.5); border-radius:8px; background:#fff9ef; box-shadow:none; }
+.thread-heading>a { min-width:0; overflow-wrap:anywhere; }
+.community-shell .thread-preview-toggle { padding:12px 0 0; }
+.community-shell .thread-preview-toggle .thread-preview-author { display:flex; align-items:center; gap:8px; min-width:0; margin-top:0; }
+.community-shell .thread-preview-toggle .thread-avatar { display:grid; width:28px; height:28px; flex:0 0 28px; place-items:center; margin-top:0; }
+.thread-preview-author strong { min-width:0; overflow-wrap:anywhere; }
+.community-shell .thread-preview-toggle .thread-preview-meta { display:block; margin-top:9px; color:#657579; font-size:var(--text-caption); }
+.thread-conversation { margin-top:12px; padding-top:2px; border-top:1px solid var(--line); }
+.thread-conversation .chatter-parent { margin-top:0; padding-top:14px; }
+.chatter-reply { margin-left:20px; padding:12px 0 12px 16px; border-left:2px solid var(--line); }
+.comment-controls { margin-top:10px; }
+.community-shell .comment-controls button,.community-shell .mark-read-button,.community-shell .watched-control button { min-height:40px; padding:8px 12px; }
+.thread-reply-composer { margin-top:14px; padding-top:2px; }
+.thread-reply-composer .community-form { margin-bottom:4px; }
+.spoiler-warning { padding:20px 22px; margin:18px 0; }
+.spoiler-preview { padding-top:12px; }
+.spoiler-preview p { margin:0 0 12px; }
+.chatter-unread,.chatter-personal { padding:2px 6px; font-size:var(--text-caption); }
+
+@media(max-width:600px){
+  .campfire-commentary { width:calc(100% - 28px); margin-bottom:32px; padding:16px; }
+  .campfire-header { align-items:flex-start; gap:10px; }
+  .campfire-title { align-items:flex-start; flex-wrap:wrap; }
+  .campfire-title h2 { font-size:var(--text-lead); }
+  .campfire-title .chatter-unread { flex-basis:100%; margin-left:40px; }
+  .campfire-thread-preview { grid-template-columns:minmax(0,1fr); grid-template-areas:"top" "author" "excerpt" "meta"; gap:5px; }
+  .campfire-thread-preview small { text-align:left; }
+  .chatter-page .chatter-toolbar>.thread-sort { margin-left:0; }
+  .episode-comments { padding:18px; }
+  .chatter-thread-focused { padding:14px 10px; }
+  .chatter-reply { margin-left:8px; padding-left:12px; }
+}
