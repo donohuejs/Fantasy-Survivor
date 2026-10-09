@@ -18,10 +18,13 @@ test('Campfire Commentary keeps the compact Home feed states and direct thread l
 
 test('Chatter and recaps preserve inline composition, filters, and thread replies',()=>{
   assert.match(chatter,/className="inner-page chatter-page"/);
+  assert.match(chatter,/Campfire Commentary/);
+  assert.match(chatter,/Come on in, and join the chatter/);
   for(const label of ['All Episodes','Current Episode','Unread','Selected Episode'])assert.match(chatter,new RegExp(label));
   assert.match(chatter,/CommentComposer/);
   assert.match(episodes,/<EpisodeDiscussion episode=\{view\}/);
   assert.match(discussion,/thread-reply-composer/);
+  assert.match(discussion,/discussionCommentDepths/);
   assert.match(discussion,/Reply/);
 });
 
