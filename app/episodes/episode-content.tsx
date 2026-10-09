@@ -1,10 +1,10 @@
 'use client';
-import {useEffect,useRef,useState,type FormEvent} from 'react';
+import {useEffect,useState,type FormEvent} from 'react';
 import type {EpisodeRecap,LeaguePoll} from '@/lib/community';
 import {activePossessions} from '@/lib/scoring';
 import {useGame} from '../game-provider';
-import {communityRequest,useComments} from './community-client';
-import {PlayerName} from '../player-name';
+import {communityRequest} from './community-client';
+
 
 export function WhoHasWhat(){
   const {game}=useGame();
@@ -25,29 +25,6 @@ export function ScoringSummary({recap,live=false,eliminatedRecipients}:{recap:Pi
   return <section className="episode-scoring"><h3>{live?'Current episode activity':'Scoring actions'}</h3><p className="community-note">{live?'Current scoring activity is already reflected in the leaderboard. The written recap will be posted separately.':'Scoring snapshot saved with this recap. These points are already included in the leaderboard—not awarded again here.'}</p>
     {recap.actions.map(action=><article key={action.id}><strong className={action.points<0?'negative':''}>{action.points>0?'+':''}{action.points}{action.recipients.length>1?' each':''}</strong><div><h4>{action.tribeName? action.tribeName+' · ':''}{action.label}</h4><p>{action.recipients.map((recipient,index)=><span key={`${action.id}:${recipient}:${index}`}>{index>0&&', '}<span className={eliminatedRecipients?.has(recipient)?'membership-row-eliminated':''}>{recipient}</span></span>)}</p>{!live&&action.note&&<p className="community-prose">{action.note}</p>}</div></article>)}
     {!recap.actions.length&&<p>{live?'No episode-tagged scoring actions have been recorded yet.':'No episode-tagged scoring actions were included when this recap was saved.'}</p>}
-  </section>;
-}
-export function CommentThread({recap}:{recap:EpisodeRecap}){
-  const {game,user,isAdmin,login}=useGame();
-  const [count,setCount]=useState(50),[text,setText]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
-  const attempt=useRef<{id:string;text:string}|null>(null);
-  const comments=useComments(recap.id,count);
-  const player=game.players.find(p=>p.uid?p.uid===user?.uid:Boolean(p.email)&&p.email===user?.email?.toLowerCase());
-  async function post(event:FormEvent<HTMLFormElement>){
-    event.preventDefault();if(busy)return;
-    if(attempt.current?.text!==text)attempt.current={id:crypto.randomUUID(),text};
-    setBusy(true);setMessage('');
-    try{await communityRequest({action:'comment',episodeId:recap.id,id:attempt.current!.id,text});setText('');attempt.current=null;setMessage('Comment posted.');}
-    catch(error){setMessage(error instanceof Error?error.message:'Unable to post comment.');}finally{setBusy(false);}
-  }
-  async function remove(id:string){if(!confirm('Permanently remove this comment?'))return;setBusy(true);try{await communityRequest({action:'delete-comment',episodeId:recap.id,id});setMessage('Comment removed.');}catch(error){setMessage(error instanceof Error?error.message:'Unable to remove comment.');}finally{setBusy(false);}}
-  return <section className="episode-comments"><h3>Campfire comments</h3><p className="community-note">Comments are public. Your league name is shown, never your email.</p>
-    {comments.loading&&<p role="status">Loading comments…</p>}{comments.error&&<p role="alert">{comments.error}</p>}
-    {comments.rows.length===count&&<button type="button" onClick={()=>setCount(count+50)}>Load older comments</button>}
-    {comments.rows.map(comment=>{const author=game.players.find(item=>item.id===comment.authorId);return <article className="episode-comment" key={comment.id}><header><strong>{author?<PlayerName id={author.id} name={author.name} history={game.history}/>:comment.authorName}</strong><time dateTime={comment.createdAt}>{new Date(comment.createdAt).toLocaleString()}</time></header><p className="community-prose">{comment.text}</p>{(isAdmin||player?.id===comment.authorId)&&<button disabled={busy} className="comment-remove" onClick={()=>remove(comment.id)}>Remove comment</button>}</article>;})}
-    {!comments.loading&&!comments.error&&!comments.rows.length&&<p>No comments yet. Start the conversation.</p>}
-    {user&&(player||isAdmin)?<form onSubmit={post} className="community-form" lang="en"><label>Your comment<textarea value={text} onChange={e=>setText(e.target.value)} maxLength={2000} rows={3} required disabled={busy} spellCheck autoCorrect="on" autoCapitalize="sentences" lang="en"/></label><button disabled={busy||!text.trim()}>{busy?'Saving…':'Post comment'}</button></form>:user?<p>Your account must be linked to a league profile before commenting. Signing in registers you automatically; ask the game master to link your account in Player check-in.</p>:<button onClick={login}>Sign in with Google to comment</button>}
-    {message&&<p role="status">{message}</p>}
   </section>;
 }
 export function PollCard({poll,manage=false}:{poll:LeaguePoll;manage?:boolean}){

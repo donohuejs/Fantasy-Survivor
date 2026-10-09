@@ -15,8 +15,20 @@ service cloud.firestore {
         allow read: if isAdmin() || resource.data.status == 'published';
         allow write: if false;
         match /comments/{commentId} {
-          allow read: if isAdmin() || get(/databases/$(database)/documents/games/$(gameId)/episodes/$(episodeId)).data.status == 'published';
-          allow write: if false;
+          // Membership, opening time and spoiler redaction are enforced by the API.
+          allow read, write: if false;
+        }
+      }
+      match /discussionThreads/{threadId} {
+        allow read, write: if false;
+      }
+      match /discussionSchedules/{season} {
+        allow read, write: if false;
+      }
+      match /discussionUsers/{userId} {
+        allow read, write: if false;
+        match /{document=**} {
+          allow read, write: if false;
         }
       }
       match /polls/{pollId} {

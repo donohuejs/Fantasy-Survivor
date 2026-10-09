@@ -1,7 +1,9 @@
 import {NextRequest,NextResponse} from 'next/server';
 import {draftServerSetupMessage,getDraftServer} from '@/lib/firebase-admin';
-import {CommunityError,linkedAuthor,isCommunityOwner,makeRecap,makePoll,changeVote,requiredText,resourceId,wholeNumber,type EpisodeRecap,type EpisodeComment,type LeaguePoll,type CommunityActor} from '@/lib/community';
+import {CommunityError,linkedAuthor,isCommunityOwner,makeRecap,makePoll,changeVote,resourceId,wholeNumber,type EpisodeRecap,type LeaguePoll,type CommunityActor} from '@/lib/community';
 import type {GameState} from '@/lib/game-data';
+import {DiscussionStore} from '@/lib/discussion-store';
+import {calendarEpisodes,discussionOpening,type BroadcastSchedule} from '@/lib/discussions';
 
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
@@ -43,6 +45,12 @@ export async function POST(request:NextRequest){
     try{input=JSON.parse(raw);if(!input||typeof input!=='object'||Array.isArray(input))throw new Error();}catch{throw new CommunityError('Invalid request.');}
     const owner=isCommunityOwner(auth.actor);
     const ref=auth.server.db.doc('games/survivor-51');
+    // Older clients use the same canonical conversations and opening checks.
+    if(input.action==='comment'||input.action==='delete-comment'){
+      const store=new DiscussionStore(auth.server.db,auth.actor);
+      if(input.action==='comment')await store.post(input);else await store.changeComment(input,true);
+      return reply({ok:true});
+    }
     const result=await auth.server.db.runTransaction(async tx=>{
       const gameDoc=await tx.get(ref);if(!gameDoc.exists)throw new CommunityError('The league is not ready.');
       const game=gameDoc.data() as GameState,now=new Date().toISOString();
@@ -51,7 +59,14 @@ export async function POST(request:NextRequest){
         const id=wholeNumber(input.season,'season')+'-'+wholeNumber(input.episode,'episode');
         const recapRef=ref.collection('episodes').doc(id),old=await tx.get(recapRef);
         const recap=makeRecap(game,input,old.exists?old.data() as EpisodeRecap:null,now);
-        tx.set(recapRef,recap);return {updatedAt:recap.updatedAt};
+        const discussion=old.data();
+        let opening:Record<string,unknown>={};
+        if(!(discussion&&'discussionOpensAt' in discussion)){
+          const calendar=await tx.get(ref.collection('discussionSchedules').doc(String(game.season.number)));
+          const scheduled=calendar.exists?calendarEpisodes(calendar.data() as BroadcastSchedule).find(item=>item.id===id):undefined;
+          opening=scheduled?{discussionOpensAt:scheduled.discussionOpensAt,broadcastDate:scheduled.broadcastDate}: {discussionOpensAt:discussion?.status==='published'?discussionOpening(discussion as EpisodeRecap):recap.status==='published'?now:null};
+        }
+        tx.set(recapRef,{...recap,...opening},{merge:true});return {updatedAt:recap.updatedAt};
       }
       if(input.action==='create-poll'){
         if(!owner)throw new CommunityError('Only the game master can open polls.');
@@ -69,23 +84,6 @@ export async function POST(request:NextRequest){
         const author=linkedAuthor(game,auth.actor),voteRef=pollRef.collection('votes').doc(author.id),vote=await tx.get(voteRef);
         const updated=changeVote(poll,vote.exists?vote.data()!.choice:null,input.choice,game.season.number,now);
         tx.set(voteRef,{choice:input.choice,updatedAt:now});tx.set(pollRef,updated);return;
-      }
-      if(input.action==='comment'||input.action==='delete-comment'){
-        const recapRef=ref.collection('episodes').doc(resourceId(input.episodeId)),recap=await tx.get(recapRef);
-        if(!recap.exists||(!owner&&recap.data()!.status!=='published'))throw new CommunityError('This recap is not published.');
-        const author=linkedAuthor(game,auth.actor,true),commentRef=recapRef.collection('comments').doc(resourceId(input.id)),existing=await tx.get(commentRef);
-        if(input.action==='delete-comment'){
-          if(!existing.exists)return;
-          if(!owner&&existing.data()!.authorId!==author.id)throw new CommunityError('You can only remove your own comments.');
-          tx.delete(commentRef);return;
-        }
-        if(recap.data()!.status!=='published')throw new CommunityError('Publish the recap before commenting.');
-        const text=requiredText(input.text,'Comment',2000);
-        if(existing.exists){if(existing.data()!.authorId===author.id&&existing.data()!.text===text)return;throw new CommunityError('That comment ID is already used. Reload before posting again.');}
-        const rateRef=ref.collection('communityPrivate').doc(auth.actor.uid),rate=await tx.get(rateRef);
-        if(rate.exists&&Date.now()-Date.parse(rate.data()!.lastCommentAt)<10000)throw new CommunityError('Please wait a few seconds before posting another comment.');
-        const comment:EpisodeComment={id:String(input.id),authorId:author.id,authorName:author.name,text,createdAt:now};
-        tx.create(commentRef,comment);tx.set(rateRef,{lastCommentAt:now});return;
       }
       throw new CommunityError('Unknown action.');
     });

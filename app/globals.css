@@ -639,6 +639,33 @@ footer { color:var(--mist); background:var(--forest-deep); } footer span { color
 .nav-live-dot { width:7px; height:7px; flex:0 0 7px; border-radius:50%; background:var(--flame); box-shadow:0 0 0 2px rgba(240,120,63,.16); }
 .nav-status-live { color:var(--flame); font-size:var(--text-caption); letter-spacing:.07em; }
 .nav-poll-count { min-width:17px; height:17px; display:inline-grid; place-items:center; padding:0 4px; border-radius:999px; color:var(--paper); background:var(--flame); font-size:var(--text-caption); line-height:1; }
+
+/* Shared league conversations: compact previews, two visible levels, native forms. */
+.campfire-commentary{width:min(1140px,calc(100% - 40px));margin:0 auto 48px;padding:28px;border:1px solid var(--line);border-radius:14px;background:var(--paper)}
+.campfire-commentary .panel-heading{gap:18px;flex-wrap:wrap}.campfire-commentary h2{margin:6px 0}.campfire-commentary .text-link{margin:0}
+.campfire-commentary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.campfire-thread-preview{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:20px;border:1px solid var(--line);border-radius:10px;background:#edf3f1;min-width:0;overflow-wrap:anywhere}
+.campfire-thread-preview:hover{border-color:var(--forest)}.campfire-thread-preview p{margin:0;font-size:var(--text-small);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.campfire-thread-preview small{margin-top:auto;color:#657579}.chatter-empty{padding:18px 0}.chatter-empty h3{margin:0 0 10px}.chatter-empty p{margin:0 0 12px}
+.chatter-unread,.chatter-personal{display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:999px;font-size:var(--text-caption);font-weight:700;white-space:nowrap}
+.chatter-unread{color:var(--forest-deep);background:#d8eae5}.chatter-personal{color:#7a4029;background:#f8dfca}
+.discussion-heading,.thread-heading{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.discussion-heading h3{margin-right:auto}.thread-heading>a{margin-right:auto;font-size:var(--text-caption);font-weight:700;color:var(--forest)}
+.chatter-threads{display:grid;gap:18px;margin:20px 0}.chatter-thread{min-width:0;padding:22px;border:1px solid var(--line);border-radius:12px;background:var(--paper);scroll-margin-top:130px;overflow-wrap:anywhere}
+.chatter-thread-focused{border-color:var(--flame);box-shadow:0 0 0 2px rgba(240,120,63,.15)}
+.community-shell .thread-preview-toggle{display:block;width:100%;padding:16px 0 0;background:transparent;color:var(--ink);border:0;text-align:left;font-weight:400}
+.thread-preview-toggle strong{font-weight:700}.thread-preview-toggle p{margin:10px 0;white-space:pre-wrap;overflow-wrap:anywhere}.thread-preview-toggle span{display:block;margin-top:12px;color:#657579;font-size:var(--text-caption)}
+.thread-conversation .chatter-parent{margin-top:14px}.chatter-reply{margin-left:24px;padding-left:18px;border-left:3px solid var(--line)}
+.comment-controls{display:flex;flex-wrap:wrap;gap:8px}.community-shell .comment-controls button,.community-shell .mark-read-button,.community-shell .watched-control button{padding:8px 12px;background:#edf3f1;color:var(--forest);border-color:var(--line)}
+.reply-context{display:block;margin-top:8px;color:#657579}.chatter-composer small{align-self:center;color:#657579}.thread-reply-composer{border-top:1px solid var(--line);margin-top:18px}
+.thread-sort{display:flex;align-items:center;flex-wrap:wrap;gap:10px;font-size:var(--text-small);font-weight:700}.thread-sort select{min-height:44px;min-width:0;max-width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink)}
+.chatter-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:16px}.chatter-filters{display:flex;flex-wrap:wrap;gap:8px}.community-shell .chatter-filters button{color:var(--forest);background:var(--paper)}.community-shell .chatter-filters button[aria-pressed=true]{color:var(--paper);background:var(--forest)}
+.spoiler-settings{margin:18px 0}.spoiler-settings label{display:flex;align-items:center;flex-wrap:wrap;gap:10px;min-height:44px;font-size:var(--text-small)}.spoiler-settings input{width:20px;height:20px;accent-color:var(--forest)}
+.spoiler-warning{padding:28px;border:1px solid #e5b689;border-left:5px solid var(--flame);border-radius:12px;background:#fff5e9;margin:22px 0}.spoiler-warning .community-actions{margin-top:18px}.spoiler-preview p{font-size:var(--text-small);color:#657579}
+.discussion-calendar{max-width:100%}.broadcast-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.broadcast-review{padding:18px;border:1px solid var(--line);border-radius:9px;background:#edf3f1}.broadcast-review ol{max-height:320px;overflow:auto;padding-left:24px}.broadcast-review li{padding:5px 0;overflow-wrap:anywhere;font-size:var(--text-small)}.discussion-override{border-top:1px solid var(--line);margin-top:24px;padding-top:16px}
+.campfire-commentary button,.discussion-access button{min-height:44px;padding:10px 16px;border:1px solid var(--forest);border-radius:7px;color:var(--paper);background:var(--forest);cursor:pointer}
+.chatter-thread:focus-visible,.campfire-thread-preview:focus-visible,.thread-sort select:focus-visible,.campfire-commentary a:focus-visible{outline:3px solid var(--flame);outline-offset:3px}
+@media(max-width:800px){.campfire-commentary-grid{grid-template-columns:1fr}.broadcast-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.campfire-commentary{width:calc(100% - 28px);padding:18px;margin-bottom:32px}.chatter-thread,.spoiler-warning{padding:18px}.chatter-reply{margin-left:8px;padding-left:12px}.broadcast-fields{grid-template-columns:1fr}.chatter-toolbar{align-items:stretch;flex-direction:column}.thread-sort select{width:100%}.chatter-composer .community-actions{flex-direction:row;align-items:center}.thread-heading{align-items:flex-start}.chatter-thread{scroll-margin-top:160px}}
 .league-poll { scroll-margin-top:120px; }
 .league-poll-highlight { outline:2px solid var(--flame); outline-offset:4px; box-shadow:0 0 0 6px rgba(240,120,63,.14),0 14px 28px rgba(40,47,35,.1); }
 .league-poll:focus { outline:2px solid var(--flame); outline-offset:4px; }

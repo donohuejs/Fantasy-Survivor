@@ -6,6 +6,7 @@ import {PollCard,ScoringSummary,WhoHasWhat} from '../episodes/episode-content';
 import {PossessionManager} from './possession-manager';
 import {episodeActions,type EpisodeRecap} from '@/lib/community';
 import Link from 'next/link';
+import {DiscussionSchedule} from './discussion-schedule';
 
 function RecapEditor({episode,existing,onDirty}:{episode:number;existing?:EpisodeRecap;onDirty:(dirty:boolean)=>void}){
   const {game,cloud}=useGame();
@@ -15,7 +16,7 @@ function RecapEditor({episode,existing,onDirty}:{episode:number;existing?:Episod
   async function save(event:FormEvent<HTMLFormElement>){
     event.preventDefault();if(busy)return;
     const target=(event.nativeEvent as SubmitEvent).submitter?.getAttribute('value')==='draft'?'draft':'published';
-    if(status==='published'&&target==='draft'&&!confirm('Unpublish this recap? It and its comments will be hidden from players until you publish again.'))return;
+    if(status==='published'&&target==='draft'&&!confirm('Unpublish this recap? The written recap will be hidden. Its open discussion will remain available.'))return;
     setBusy(true);setMessage('');
     try{const result=await communityRequest({action:'save-recap',season:game.season.number,episode,title,body,status:target,expectedUpdatedAt:version});setVersion(result.updatedAt!);setStatus(target);onDirty(false);setMessage(target==='published'?'Recap published with a refreshed scoring snapshot.':'Draft saved privately.');}
     catch(error){setMessage(error instanceof Error?error.message:'Unable to save recap.');}finally{setBusy(false);}
@@ -50,7 +51,7 @@ export function RecapManager(){
     catch(error){setMessage(error instanceof Error?error.message:'Unable to open poll.');}finally{setBusy(false);}
   }
   return <section className="recap-manager"><h2>Episode recaps & league polls</h2><p>Publish an episode’s scoring story, invite comments, and put decisions to a vote. <Link href="/episodes">View the public Episodes page →</Link></p>
-    <WhoHasWhat/><PossessionManager/>
+    <DiscussionSchedule/><WhoHasWhat/><PossessionManager/>
     {recaps.error&&<p role="alert" className="setup-notice">{recaps.error}</p>}{polls.error&&<p role="alert" className="setup-notice">{polls.error}</p>}
     <form className="recap-editor-picker" onSubmit={e=>{e.preventDefault();chooseEpisode(Number(episodeInput));}}><label>Episode<input type="number" min={1} max={9999} step={1} value={followCurrent?String(game.season.currentEpisode):episodeInput} onChange={e=>setEpisodeInput(e.target.value)} required/></label><button>Load episode</button><button type="button" onClick={()=>{if(confirm('Reload the saved recap and discard any unfinished edits?'))setReload(reload+1);}}>Reload saved version</button></form>
     {current.length>0&&<nav className="episode-picker" aria-label="Saved recaps">{current.map(r=><button aria-pressed={r.episode===visibleEpisode} key={r.id} onClick={()=>chooseEpisode(r.episode)}>Episode {r.episode} · {r.status}</button>)}</nav>}
