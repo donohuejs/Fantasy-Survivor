@@ -102,9 +102,17 @@ test('recap and Chatter share canonical comment documents and recap publication 
   const existing=f.db.read<EpisodeRecord>(root+'/episodes/51-4'),recap=makeRecap(f.game,{season:51,episode:4,title:'Episode recap',body:'The episode story',status:'published',expectedUpdatedAt:''},existing as never,f.clock());
   await f.db.doc(root+'/episodes/51-4').set(recap,{merge:true});assert.equal((await f.a.threads({episodeId:'51-4'})).rows[0].text,'Below recap');assert.equal((await f.a.conversation(threadId)).comments[1].text,'From Chatter');assert.equal((await f.a.catalog()).episodes.find(row=>row.id==='51-4')!.recap!.body,'The episode story');assert.deepEqual(f.db.read(root),f.game);assert.equal(f.db.read<EpisodeRecord>(root+'/episodes/51-4').discussionOpensAt,existing.discussionOpensAt);
 });
+test('catalog leaves legacy Episode 51-3 untouched and dry-run reports a controlled migration',async()=>{
+  const f=fixture(),recap=makeRecap(f.game,{season:51,episode:3,title:'Episode three',body:'Historical recap',status:'published',expectedUpdatedAt:''},null,'2026-10-01T00:00:00.000Z');f.db.seed(root+'/episodes/51-3',recap);
+  f.db.seed(root+'/episodes/51-3/comments/root',{id:'root',authorId:f.game.players[0].id,authorName:'Original name',text:'Original text',createdAt:'2026-10-01T04:00:00.000Z'});
+  f.db.seed(root+'/episodes/51-3/comments/reply',{id:'reply',authorId:f.game.players[1].id,authorName:'Reply name',text:'Reply text',createdAt:'2026-10-01T05:00:00.000Z',parentId:'root'});
+  const before=structuredClone(f.db.data),catalog=await f.a.catalog();assert.equal(catalog.episodes.find(row=>row.id==='51-3')!.discussionReady,false);assert.deepEqual(f.db.data,before);assert.deepEqual((await f.a.threads({episodeId:'51-3'})).rows,[]);
+  const dry=await f.admin.migrateEpisode('51-3',{dryRun:true});assert.equal(dry.status,'pending');assert.equal(dry.dryRun,true);assert.equal(dry.plannedCommentCount,2);assert.equal(dry.plannedThreadCount,1);assert.deepEqual(f.db.data,before);
+  await assert.rejects(f.a.migrateEpisode('51-3'),/game master/);
+});
 test('flat migration retains authors, content, IDs, times and episode associations',async()=>{
   const f=fixture(),recap=makeRecap(f.game,{season:51,episode:1,title:'Original recap',body:'Original body',status:'published',expectedUpdatedAt:''},null,'2026-10-01T00:00:00.000Z');f.db.seed(root+'/episodes/51-1',recap);
-  const original:EpisodeComment={id:'historic',authorId:f.game.players[0].id,authorName:'Original name',text:'Original text',createdAt:'2026-10-01T04:00:00.000Z'};f.db.seed(root+'/episodes/51-1/comments/historic',original);await f.a.catalog();
+  const original:EpisodeComment={id:'historic',authorId:f.game.players[0].id,authorName:'Original name',text:'Original text',createdAt:'2026-10-01T04:00:00.000Z'};f.db.seed(root+'/episodes/51-1/comments/historic',original);await f.admin.migrateEpisode('51-1');
   const migrated=f.db.read<DiscussionComment>(root+'/episodes/51-1/comments/historic');for(const key of Object.keys(original) as Array<keyof EpisodeComment>)assert.equal(migrated[key],original[key]);assert.equal(migrated.rootId,'historic');assert.equal((await f.a.conversation('51-1__historic')).comments[0].text,original.text);assert.deepEqual(f.db.read(root),f.game);
 });
 test('migration preserves existing nested reply relationships without visual nesting',()=>{
@@ -115,7 +123,20 @@ test('migration preserves existing nested reply relationships without visual nes
 test('large historical migration batches safely and repeated migration is idempotent',async()=>{
   const f=fixture();f.db.seed(root+'/episodes/51-1',{id:'51-1',season:51,episode:1,status:'published',publishedAt:'2026-10-01T00:00:00Z'});
   for(let index=0;index<350;index++)f.db.seed(`${root}/episodes/51-1/comments/old${index}`,{id:'old'+index,authorId:'a',authorName:'A',text:'Old '+index,createdAt:'2026-10-01T00:00:00Z'});
-  await f.a.migrateEpisode('51-1');const before=structuredClone(f.db.data);await f.b.migrateEpisode('51-1');assert.deepEqual(f.db.data,before);assert.equal([...f.db.data.keys()].filter(path=>path.includes('/discussionThreads/')).length,350);
+  await f.admin.migrateEpisode('51-1');const before=structuredClone(f.db.data);await f.admin.migrateEpisode('51-1');assert.deepEqual(f.db.data,before);assert.equal([...f.db.data.keys()].filter(path=>path.includes('/discussionThreads/')).length,350);
+});
+test('partial migration recovery preserves legacy data and supports replies after completion',async()=>{
+  const f=fixture();f.db.seed(root+'/episodes/51-3',{id:'51-3',season:51,episode:3,status:'published',publishedAt:'2026-10-01T00:00:00Z'});
+  const original:EpisodeComment={id:'historic',authorId:f.game.players[0].id,authorName:'Original name',text:'Original text',createdAt:'2026-10-01T04:00:00.000Z'};f.db.seed(root+'/episodes/51-3/comments/historic',original);
+  for(let index=0;index<349;index++)f.db.seed(`${root}/episodes/51-3/comments/old${index}`,{id:'old'+index,authorId:f.game.players[1].id,authorName:'B',text:'Old '+index,createdAt:'2026-10-01T05:00:00.000Z'});
+  f.db.failOnTransactionCall=f.db.transactionCalls+3;await assert.rejects(f.admin.migrateEpisode('51-3'),/Simulated transaction failure/);assert.equal(f.db.read<EpisodeRecord>(root+'/episodes/51-3').discussionSchemaVersion,undefined);for(const key of Object.keys(original) as Array<keyof EpisodeComment>)assert.equal(f.db.read<DiscussionComment>(root+'/episodes/51-3/comments/historic')[key],original[key]);
+  const result=await f.admin.migrateEpisode('51-3');assert.equal(result.status,'ready');assert.equal(result.commentCount,350);assert.equal(result.threadCount,350);assert.equal(f.db.read<EpisodeRecord>(root+'/episodes/51-3').discussionSchemaVersion,2);for(const key of Object.keys(original) as Array<keyof EpisodeComment>)assert.equal(f.db.read<DiscussionComment>(root+'/episodes/51-3/comments/historic')[key],original[key]);
+  const posted=await f.a.post({episodeId:'51-3',id:'new-reply',text:'New reply',replyToCommentId:'historic'});assert.equal(posted.threadId,'51-3__historic');assert.deepEqual((await f.a.conversation(posted.threadId)).comments.map(comment=>comment.id),['historic','new-reply']);assert.equal((await f.a.recap('51-3',false)).recap?.id,'51-3');
+});
+test('migration does not finalize when a legacy comment arrives during finalization',async()=>{
+  const f=fixture();f.db.seed(root+'/episodes/51-3',{id:'51-3',season:51,episode:3,status:'published',publishedAt:'2026-10-01T00:00:00Z'});f.db.seed(root+'/episodes/51-3/comments/first',{id:'first',authorId:f.game.players[0].id,authorName:'A',text:'First',createdAt:'2026-10-01T04:00:00.000Z'});
+  const finalCall=f.db.transactionCalls+3;f.db.beforeTransactionCall=call=>{if(call===finalCall){f.db.seed(root+'/episodes/51-3/comments/late',{id:'late',authorId:f.game.players[1].id,authorName:'B',text:'Late',createdAt:'2026-10-01T05:00:00.000Z'});f.db.beforeTransactionCall=null;}};
+  await assert.rejects(f.admin.migrateEpisode('51-3'),/New historical comments/);assert.equal(f.db.read<EpisodeRecord>(root+'/episodes/51-3').discussionSchemaVersion,undefined);await f.admin.migrateEpisode('51-3');assert.equal(f.db.read<EpisodeRecord>(root+'/episodes/51-3').discussionSchemaVersion,2);const status=await f.admin.migrationStatus('51-3');assert(!Array.isArray(status));assert.equal(status.status,'ready');
 });
 test('ownership, edit revisions, moderation and tombstones preserve surviving replies',async()=>{
   const f=await opened();await f.a.post(post('root','Original'));await f.b.post(post('reply','Reply','root'));const comment=f.db.read<DiscussionComment>(root+'/episodes/51-4/comments/root');
@@ -141,7 +162,7 @@ test('read state and unread filters persist across fresh sessions/devices',async
 });
 test('historical baseline does not subtract old unread from new activity',async()=>{
   const f=fixture();f.db.seed(root+'/episodes/51-4',{id:'51-4',season:51,episode:4,status:'published',publishedAt:'2026-10-01T00:00:00Z'});f.db.seed(root+'/episodes/51-4/comments/old',{id:'old',authorId:f.game.players[0].id,authorName:'Alice',text:'Old',createdAt:'2026-10-01T00:00:00Z'});
-  await f.a.catalog();await f.a.post(post('new','New reply','old'));assert.equal(state(f,'bob','old').readSequence,1);await f.b.markRead({threadId:'51-4__old',through:1});assert.equal(state(f,'bob','old').unreadCount,1);
+  await f.admin.migrateEpisode('51-4');await f.a.catalog();await f.a.post(post('new','New reply','old'));assert.equal(state(f,'bob','old').readSequence,1);await f.b.markRead({threadId:'51-4__old',through:1});assert.equal(state(f,'bob','old').unreadCount,1);
 });
 test('deleting unread replies reduces counts and preserves sequence integrity',async()=>{
   const f=await opened();await f.a.post(post('root'));await f.b.post(post('reply','Hi','root'));await f.b.changeComment(post('reply'),true);assert.equal(state(f,'alice','root').unreadCount,0);assert.equal(getThread(f,'root').replyCount,0);assert.equal(getThread(f,'root').sequence,2);assert.equal((await f.a.conversation('51-4__root')).comments.length,2);

@@ -1,13 +1,14 @@
 import type {Firestore,Transaction,DocumentReference,DocumentSnapshot,Query} from 'firebase-admin/firestore';
 import type {GameState} from './game-data.ts';
 import {CommunityError,isCommunityOwner,linkedAuthor,requiredText,resourceId,type CommunityActor,type EpisodeRecap} from './community.ts';
-import {acknowledgeRead,assertCommentOwner,assertDiscussionOpen,calendarEpisodes,commentIsPersonal,discussionAvailable,discussionOpening,hiddenEpisode,localOpening,makeSchedule,migrateComments,parseEpisodeIdentity,previewThread,threadIdentity,type BroadcastSchedule,type ConversationPage,type DiscussionCatalog,type DiscussionComment,type DiscussionThread,type EpisodeRecord,type ReadState,type ThreadPage} from './discussions.ts';
+import {acknowledgeRead,assertCommentOwner,assertDiscussionOpen,calendarEpisodes,commentIsPersonal,discussionAvailable,discussionOpening,hiddenEpisode,localOpening,makeSchedule,migrateComments,parseEpisodeIdentity,previewThread,threadIdentity,type BroadcastSchedule,type ConversationPage,type DiscussionCatalog,type DiscussionComment,type DiscussionThread,type EpisodeRecord,type MigrationInspection,type MigrationResult,type ReadState,type ThreadPage} from './discussions.ts';
 
 const leaguePath='games/survivor-51';
 const emptyRead=(episodeId:string):ReadState=>({episodeId,readSequence:0,unreadCount:0,personalCount:0});
 function counterData(thread:DiscussionThread,state:ReadState){return {...state,id:thread.id,season:thread.season,episode:thread.episode,sequence:thread.sequence,lastActivityAt:thread.lastActivityAt,createdAt:thread.createdAt,hasUnread:state.unreadCount>0};}
 function asRecord(snapshot:DocumentSnapshot){return snapshot.data() as EpisodeRecord;}
 function timestamp(value:unknown){if(typeof value!=='string'||!Number.isFinite(Date.parse(value)))throw new CommunityError('Invalid activity cursor.');return value;}
+type MigrationPlan=ReturnType<typeof migrateComments>;
 
 /** All discussion writes stay below the league root; the scoring document is read-only here. */
 export class DiscussionStore{
@@ -27,7 +28,7 @@ export class DiscussionStore{
     const game=snapshot.data() as GameState;
     linkedAuthor(game,this.actor,true);return game;
   }
-  private owner(){if(!isCommunityOwner(this.actor))throw new CommunityError('Only the game master can manage the broadcast calendar.');}
+  private owner(){if(!isCommunityOwner(this.actor))throw new CommunityError('Only the game master can manage this discussion operation.',{status:403,code:'authorization'});}
   private async audience(game:GameState,tx:Transaction){
     const signups=await tx.get(this.root().collection('signups'));
     const audience=new Map<string,string>();
@@ -43,32 +44,72 @@ export class DiscussionStore{
     return entries.map((entry,index)=>({...entry,state:snapshots[index].exists?snapshots[index].data() as ReadState:undefined}));
   }
 
-  /** Resumable, leased migration; original content/authors/times are never rewritten. */
-  async migrateEpisode(id:string){
-    const ref=this.episode(id),now=this.clock(),token=crypto.randomUUID();
+  private async inspectMigration(id:string):Promise<{ref:DocumentReference;inspection:MigrationInspection;plan:MigrationPlan|null}>{
+    const ref=this.episode(id),snapshot=await ref.get(),episodeId=ref.id;
+    if(!snapshot.exists)return {ref,plan:null,inspection:{episodeId,status:'missing',schemaVersion:null,commentCount:0,threadCount:0,plannedCommentCount:0,plannedThreadCount:0,issues:['Episode not found.'],migrationUntil:''}};
+    const record=asRecord(snapshot),[rows,threads]=await Promise.all([ref.collection('comments').get(),this.root().collection('discussionThreads').where('episodeId','==',episodeId).get()]);
+    const comments=rows.docs.map(row=>({...row.data(),id:row.id}) as DiscussionComment),schemaVersion=typeof record.discussionSchemaVersion==='number'?record.discussionSchemaVersion:null;
+    let plan:MigrationPlan|null=null,issues:string[]=[];
+    if(schemaVersion!==2){
+      try{plan=migrateComments(record,comments);}
+      catch(error){issues=[error instanceof CommunityError?error.message:'Historical comments could not be validated.'];}
+    }else{
+      const missingFields=comments.some(comment=>typeof comment.threadId!=='string'||!comment.threadId||typeof comment.rootId!=='string'||!comment.rootId||!Number.isSafeInteger(comment.sequence)||comment.sequence<1);
+      if(missingFields)issues.push('Some comments are missing threaded fields.');
+      const roots=new Set(comments.map(comment=>comment.rootId));
+      if(roots.size!==threads.size)issues.push('The thread index does not match the comment roots.');
+    }
+    const until=record.migrationUntil??'',active=Boolean(record.migrationToken&&Date.parse(until)>Date.parse(this.clock()));
+    const status:MigrationInspection['status']=issues.length?'blocked':schemaVersion===2?'ready':active?'in-progress':'pending';
+    return {ref,plan,inspection:{episodeId,status,schemaVersion,commentCount:comments.length,threadCount:threads.size,plannedCommentCount:plan?.comments.length??0,plannedThreadCount:plan?.threads.length??0,issues,migrationUntil:until}};
+  }
+
+  async migrationStatus(episodeId?:string):Promise<MigrationInspection|MigrationInspection[]>{
+    await this.game();this.owner();
+    if(episodeId)return (await this.inspectMigration(episodeId)).inspection;
+    const episodes=await this.root().collection('episodes').get();
+    return Promise.all(episodes.docs.map(snapshot=>this.inspectMigration(snapshot.id).then(result=>result.inspection)));
+  }
+
+  /** Explicit, owner-only, resumable migration. Dry runs only read and validate. */
+  async migrateEpisode(id:string,options:{dryRun?:boolean}={}):Promise<MigrationResult>{
+    await this.game();this.owner();
+    const canonicalId=parseEpisodeIdentity(id).id,initial=await this.inspectMigration(canonicalId);
+    if(options.dryRun)return {...initial.inspection,dryRun:true,changed:initial.inspection.status==='pending'};
+    if(initial.inspection.status==='missing')throw new CommunityError('Episode not found.',{status:404,code:'not-found'});
+    if(initial.inspection.status==='blocked')throw new CommunityError('Historical comments need review before migration.',{status:409,code:'migration'});
+    if(initial.inspection.status==='in-progress')throw new CommunityError('Historical conversations are being prepared. Retry in a moment.',{status:409,code:'migration'});
+    if(initial.inspection.status==='ready')return {...initial.inspection,dryRun:false,changed:false};
+    const ref=initial.ref,now=this.clock(),token=crypto.randomUUID();
     const plan=await this.db.runTransaction(async tx=>{
       await this.game(tx);const snapshot=await tx.get(ref);
-      if(!snapshot.exists||snapshot.data()!.discussionSchemaVersion===2)return null;
+      if(!snapshot.exists)throw new CommunityError('Episode not found.',{status:404,code:'not-found'});
+      if(snapshot.data()!.discussionSchemaVersion===2)return null;
       const record=asRecord(snapshot);
-      if(record.migrationToken&&Date.parse(record.migrationUntil??'')>Date.parse(now))throw new CommunityError('Historical conversations are being prepared. Retry in a moment.');
-      const rows=await tx.get(ref.collection('comments'));
-      const result=migrateComments(record,rows.docs.map(row=>({...row.data(),id:row.id}) as DiscussionComment));
+      if(record.migrationToken&&Date.parse(record.migrationUntil??'')>Date.parse(now))throw new CommunityError('Historical conversations are being prepared. Retry in a moment.',{status:409,code:'migration'});
+      const rows=await tx.get(ref.collection('comments')),result=migrateComments(record,rows.docs.map(row=>({...row.data(),id:row.id}) as DiscussionComment));
       tx.update(ref,{migrationToken:token,migrationUntil:new Date(Date.parse(now)+60000).toISOString()});return result;
     });
-    if(!plan)return;
+    if(!plan){const ready=await this.inspectMigration(canonicalId);return {...ready.inspection,dryRun:false,changed:false};}
     const patches:Array<{ref:DocumentReference;data:object}>=plan.comments.map(comment=>({ref:ref.collection('comments').doc(comment.id),data:{threadId:comment.threadId,rootId:comment.rootId,sequence:comment.sequence,replyToId:comment.replyToId,replyToName:comment.replyToName,deletedAt:comment.deletedAt}}));
     patches.push(...plan.threads.map(thread=>({ref:this.thread(thread.id),data:thread})));
     try{
       for(let start=0;start<patches.length;start+=300){
         await this.db.runTransaction(async tx=>{
           const snapshot=await tx.get(ref);
-          if(snapshot.data()!.migrationToken!==token)throw new CommunityError('Migration changed. Retry after refreshing.');
+          if(snapshot.data()!.migrationToken!==token)throw new CommunityError('Migration changed. Retry after refreshing.',{status:409,code:'migration'});
           for(const patch of patches.slice(start,start+300))tx.set(patch.ref,patch.data,{merge:true});
           tx.update(ref,{migrationUntil:new Date(Date.parse(this.clock())+60000).toISOString()});
         });
       }
-      await this.db.runTransaction(async tx=>{const snapshot=await tx.get(ref);if(snapshot.data()!.migrationToken!==token)throw new CommunityError('Migration changed. Retry.');tx.update(ref,{discussionSchemaVersion:2,migrationToken:'',migrationUntil:''});});
-    }catch(error){await ref.set({migrationUntil:''},{merge:true});throw error;}
+      await this.db.runTransaction(async tx=>{
+        const snapshot=await tx.get(ref);if(snapshot.data()!.migrationToken!==token)throw new CommunityError('Migration changed. Retry.',{status:409,code:'migration'});
+        const rows=await tx.get(ref.collection('comments')),incomplete=rows.docs.some(row=>{const data=row.data();return typeof data.threadId!=='string'||!data.threadId||typeof data.rootId!=='string'||!data.rootId||!Number.isSafeInteger(data.sequence)||Number(data.sequence)<1;});
+        if(incomplete)throw new CommunityError('New historical comments were added during migration. Run the migration again.',{status:409,code:'migration'});
+        tx.update(ref,{discussionSchemaVersion:2,migrationToken:'',migrationUntil:''});
+      });
+    }catch(error){try{await ref.set({migrationUntil:''},{merge:true});}catch{/* Preserve the original failure; the lease will expire safely. */}throw error;}
+    const complete=await this.inspectMigration(canonicalId);return {...complete.inspection,dryRun:false,changed:true};
   }
 
   async catalog():Promise<DiscussionCatalog>{
@@ -77,15 +118,13 @@ export class DiscussionStore{
       this.root().collection('episodes').get(),this.user().get(),this.user().collection('episodes').get(),
       this.user().collection('threads').where('hasUnread','==',true).get(),
     ]);
-    // Historical episodes are upgraded lazily; simultaneous access is fenced by the lease.
-    for(const snapshot of episodes.docs)if(snapshot.data().discussionSchemaVersion!==2)await this.migrateEpisode(snapshot.id);
     const now=this.clock(),hideSpoilers=user.data()?.hideSpoilers===true,unread=Object.fromEntries(states.docs.map(row=>[row.id,row.data() as ReadState]));
     const watchedIds=new Set(watched.docs.filter(row=>row.data().watched===true).map(row=>row.id));
     return {serverNow:now,hideSpoilers,unread,schedule:null,
       episodes:episodes.docs.map(snapshot=>{
         const record=asRecord(snapshot),available=discussionAvailable(record,now),watched=watchedIds.has(record.id),hidden=hiddenEpisode(hideSpoilers,watched);
         const counters=Object.values(unread).filter(state=>state.episodeId===record.id);
-        return {id:record.id,season:record.season,episode:record.episode,opensAt:discussionOpening(record),broadcastDate:record.broadcastDate??'',version:record.discussionVersion??'',available,watched,spoilerHidden:hidden,
+        return {id:record.id,season:record.season,episode:record.episode,opensAt:discussionOpening(record),broadcastDate:record.broadcastDate??'',version:record.discussionVersion??'',available,discussionReady:record.discussionSchemaVersion===2,watched,spoilerHidden:hidden,
           lifecycle:!available?'scheduled' as const:Date.parse(now)-Date.parse(discussionOpening(record)!)<86400000?'open' as const:'ongoing' as const,
           unreadCount:counters.reduce((n,state)=>n+state.unreadCount,0),personalCount:counters.reduce((n,state)=>n+state.personalCount,0),recap:record.status==='published'&&!hidden?recapOnly(record):null};
       }).sort((a,b)=>b.season-a.season||b.episode-a.episode)};
@@ -136,7 +175,7 @@ export class DiscussionStore{
     await this.user().collection('episodes').doc(episode.id).set({watched:input.watched});
   }
   async threads(input:{episodeId?:string;season?:number;unread?:boolean;sort?:string;cursor?:string;pageSize?:number}):Promise<ThreadPage>{
-    const catalog=await this.catalog(),eligible=new Set(catalog.episodes.filter(episode=>episode.available&&(!input.episodeId||episode.id===parseEpisodeIdentity(input.episodeId).id)&&(!input.season||episode.season===input.season)).map(episode=>episode.id));
+    const catalog=await this.catalog(),eligible=new Set(catalog.episodes.filter(episode=>episode.available&&episode.discussionReady&&(!input.episodeId||episode.id===parseEpisodeIdentity(input.episodeId).id)&&(!input.season||episode.season===input.season)).map(episode=>episode.id));
     const order=input.sort==='newest'?'createdAt':'lastActivityAt',size=Math.min(25,Math.max(1,input.pageSize??25));
     let source:Query=input.unread?this.user().collection('threads').where('hasUnread','==',true):this.root().collection('discussionThreads');
     if(input.episodeId)source=source.where('episodeId','==',parseEpisodeIdentity(input.episodeId).id);
@@ -155,13 +194,17 @@ export class DiscussionStore{
       if(rows.size<requested)exhausted=true;
     }
     const roots=selected.length?await this.db.getAll(...selected.map(thread=>this.episode(thread.episodeId).collection('comments').doc(thread.rootId))):[];
-    return {rows:selected.map((thread,index)=>previewThread(thread,roots[index].data() as DiscussionComment,catalog.unread[thread.id],catalog.episodes.find(episode=>episode.id===thread.episodeId)!.spoilerHidden)),cursor:exhausted?null:cursor};
+    const rows=selected.flatMap((thread,index)=>{const root=roots[index],episode=catalog.episodes.find(item=>item.id===thread.episodeId);return root?.exists&&episode?[previewThread(thread,root.data() as DiscussionComment,catalog.unread[thread.id],episode.spoilerHidden)]:[];});
+    return {rows,cursor:exhausted?null:cursor};
   }
   async conversation(threadId:string,after=0,reveal=false):Promise<ConversationPage>{
     await this.game();const summary=await this.thread(threadId).get();if(!summary.exists)throw new CommunityError('Conversation not found.');
     const thread=summary.data() as DiscussionThread,ref=this.episode(thread.episodeId);
     const [episode,user,watched,state,root]=await Promise.all([ref.get(),this.user().get(),this.user().collection('episodes').doc(ref.id).get(),this.user().collection('threads').doc(thread.id).get(),ref.collection('comments').doc(thread.rootId).get()]);
+    if(!episode.exists)throw new CommunityError('Episode not found.',{status:404,code:'not-found'});
+    if(episode.data()!.discussionSchemaVersion!==2)throw new CommunityError('This historical conversation is not ready yet.',{status:409,code:'migration'});
     assertDiscussionOpen(asRecord(episode),this.clock());
+    if(!root.exists)throw new CommunityError('Conversation data needs repair.',{status:503,code:'migration'});
     const hidden=hiddenEpisode(user.data()?.hideSpoilers===true,watched.data()?.watched===true,reveal);
     const preview=previewThread(thread,root.data() as DiscussionComment,state.data() as ReadState|undefined,hidden);
     if(hidden)return {thread:preview,comments:[],through:0,hasMore:false,spoilerHidden:true};
@@ -178,11 +221,10 @@ export class DiscussionStore{
   }
   async post(input:Record<string,unknown>){
     const episodeRef=this.episode(input.episodeId),id=resourceId(input.id),text=requiredText(input.text,'Comment',2000);
-    await this.migrateEpisode(episodeRef.id);
     return this.db.runTransaction(async tx=>{
       const game=await this.game(tx),author=linkedAuthor(game,this.actor,true),now=this.clock(),episode=await tx.get(episodeRef);
-      if(!episode.exists)throw new CommunityError('Episode not found.');assertDiscussionOpen(asRecord(episode),now);
-      if(episode.data()!.discussionSchemaVersion!==2)throw new CommunityError('Conversations are being prepared. Retry in a moment.');
+      if(!episode.exists)throw new CommunityError('Episode not found.',{status:404,code:'not-found'});assertDiscussionOpen(asRecord(episode),now);
+      if(episode.data()!.discussionSchemaVersion!==2)throw new CommunityError('The game master must migrate this historical conversation before posting.',{status:409,code:'migration'});
       const commentRef=episodeRef.collection('comments').doc(id),existing=await tx.get(commentRef);
       const replyId=input.replyToCommentId?resourceId(input.replyToCommentId):'';
       const target=replyId?await tx.get(episodeRef.collection('comments').doc(replyId)):null;
@@ -204,10 +246,10 @@ export class DiscussionStore{
   }
   async changeComment(input:Record<string,unknown>,remove=false){
     const episodeRef=this.episode(input.episodeId),commentRef=episodeRef.collection('comments').doc(resourceId(input.id));
-    await this.migrateEpisode(episodeRef.id);
     await this.db.runTransaction(async tx=>{
       const game=await this.game(tx),author=linkedAuthor(game,this.actor,true),episode=await tx.get(episodeRef),snapshot=await tx.get(commentRef);
-      if(!episode.exists||!snapshot.exists)throw new CommunityError('Comment not found.');
+      if(!episode.exists||!snapshot.exists)throw new CommunityError('Comment not found.',{status:404,code:'not-found'});
+      if(episode.data()!.discussionSchemaVersion!==2)throw new CommunityError('The game master must migrate this historical conversation before editing it.',{status:409,code:'migration'});
       assertDiscussionOpen(asRecord(episode),this.clock());const comment=snapshot.data() as DiscussionComment;
       assertCommentOwner(comment,author.id,isCommunityOwner(this.actor));
       if(comment.deletedAt){if(remove)return;throw new CommunityError('This comment was deleted.');}
@@ -228,7 +270,10 @@ export class DiscussionStore{
     await this.db.runTransaction(async tx=>{
       const game=await this.game(tx),author=linkedAuthor(game,this.actor,true),snapshot=await tx.get(threadRef);
       if(!snapshot.exists)throw new CommunityError('Conversation not found.');
-      const thread=snapshot.data() as DiscussionThread,episode=await tx.get(this.episode(thread.episodeId));assertDiscussionOpen(asRecord(episode),this.clock());
+      const thread=snapshot.data() as DiscussionThread,episode=await tx.get(this.episode(thread.episodeId));
+      if(!episode.exists)throw new CommunityError('Episode not found.',{status:404,code:'not-found'});
+      if(episode.data()!.discussionSchemaVersion!==2)throw new CommunityError('This historical conversation is not ready yet.',{status:409,code:'migration'});
+      assertDiscussionOpen(asRecord(episode),this.clock());
       const through=Number(input.through);if(through>thread.sequence)throw new CommunityError('Reload the conversation before marking it read.');
       const stateRef=this.user().collection('threads').doc(thread.id),stateSnapshot=await tx.get(stateRef),state=(stateSnapshot.data() as ReadState|undefined)??emptyRead(thread.episodeId);
       if(through<=state.readSequence)return;

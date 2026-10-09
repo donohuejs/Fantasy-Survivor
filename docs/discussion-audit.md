@@ -14,3 +14,7 @@ Recorded before implementation on the discussion redesign branch, based on `815a
 ## Implementation decisions
 
 Reserve stable episode documents when a Game Master confirms a bounded broadcast calendar. Store IANA-zone-derived UTC openings in those documents; server time decides availability on each request, with no cron or scoring mutation. Keep the existing recap fields and comments in place. Add a materialized thread index (IDs/activity/counts, with canonical text read from comments) for paginated league-wide activity. Add private per-UID settings, watched records and unread thread counters with monotonic comment sequences. Reading acknowledges only the sequence actually delivered, preserving concurrent arrivals. Server responses redact unwatched discussion previews; recap/discussion content requires an intentional per-episode reveal. Use one composer and thread component across recap, Chatter, and Campfire Commentary.
+
+## Phase 2 repair note
+
+Reading no longer performs historical migration. The owner-only discussion API exposes migration inspection and dry-run validation, then runs the existing resumable, deterministic batch migration explicitly. Catalog and feed responses mark an episode as not thread-ready until `discussionSchemaVersion: 2`; legacy comments remain available to the recap path while migration is pending.

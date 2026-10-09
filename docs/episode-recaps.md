@@ -56,9 +56,10 @@ Recaps, comments, discussion indexes, and polls are independent of the active ga
 
 ## Deploying this update
 
-1. Publish this repository's updated **firestore.rules** and **firestore.indexes.json** in Firebase. Discussion and private-user paths are server-only; direct browser reads and writes are denied. The rules preserve existing draft protection and player registration rules.
-2. Deploy the new website code to Vercel.
-3. This uses the same **FIREBASE_SERVICE_ACCOUNT_JSON** already required for the private draft server. No new credential, hosting provider, or Firebase Cloud Function is needed.
-4. Rehearse with an owner, a linked non-admin account, and an unlinked account in a separate test project. Verify calendar openings across a daylight-saving change, two open unscored episodes, draft privacy, own-comment edit/delete, moderation, reply ordering, unread/read races, spoiler reveal, one vote per profile, changing a vote, closed-poll rejection, and that direct Firestore discussion writes/reads/private-ballot reads are denied.
+1. Follow [`docs/campfire-rollout.md`](campfire-rollout.md). In particular, do not publish the restrictive **firestore.rules** while the restored application still reads comments directly from Firestore.
+2. Deploy the additive **firestore.indexes.json** first, validate the explicit migration in a test project, and run the owner-only dry run before any production migration.
+3. Deploy the repaired website code to Vercel while the legacy rules remain compatible, smoke-test it, and publish the restrictive rules only after the new code is serving successfully.
+4. This uses the same **FIREBASE_SERVICE_ACCOUNT_JSON** already required for the private draft server. No new credential, hosting provider, or Firebase Cloud Function is needed.
+5. Rehearse with an owner, a linked non-admin account, and an unlinked account in a separate test project. Verify calendar openings across a daylight-saving change, two open unscored episodes, draft privacy, own-comment edit/delete, moderation, reply ordering, unread/read races, spoiler reveal, one vote per profile, changing a vote, closed-poll rejection, and that direct Firestore discussion writes/reads/private-ballot reads are denied.
 
 Local validation covers pure scoring-summary, publication-version, membership, input, and vote-count logic, plus the Campfire Commentary calendar, migration, threading, unread, spoiler, authorization, pagination, concurrency, TypeScript, lint, and production build checks. It does not prove deployed Firebase rules or real Google sign-in work: those checks still require the test-project rehearsal. No production recaps, comments, polls, scores, or player profiles were created or changed during development.

@@ -16,7 +16,7 @@ export type DiscussionThread = {
 export type ReadState = {episodeId:string;readSequence:number;unreadCount:number;personalCount:number;sequence?:number};
 export type EpisodeView = {
   id:string;season:number;episode:number;opensAt:string|null;broadcastDate:string;version:string;
-  lifecycle:'scheduled'|'open'|'ongoing';available:boolean;watched:boolean;spoilerHidden:boolean;
+  lifecycle:'scheduled'|'open'|'ongoing';available:boolean;discussionReady:boolean;watched:boolean;spoilerHidden:boolean;
   unreadCount:number;personalCount:number;recap:EpisodeRecap|null;
 };
 export type ThreadPreview = DiscussionThread & {authorName:string;text:string;deleted:boolean;unreadCount:number;personalCount:number;spoilerHidden:boolean};
@@ -28,6 +28,9 @@ export type BroadcastSchedule = {
 export type DiscussionCatalog = {episodes:EpisodeView[];unread:Record<string,ReadState>;hideSpoilers:boolean;serverNow:string;schedule:BroadcastSchedule|null};
 export type ThreadPage = {rows:ThreadPreview[];cursor:string|null};
 export type ConversationPage = {thread:ThreadPreview;comments:DiscussionComment[];through:number;hasMore:boolean;spoilerHidden:boolean};
+export type MigrationStatus='missing'|'pending'|'in-progress'|'ready'|'blocked';
+export type MigrationInspection={episodeId:string;status:MigrationStatus;schemaVersion:number|null;commentCount:number;threadCount:number;plannedCommentCount:number;plannedThreadCount:number;issues:string[];migrationUntil:string};
+export type MigrationResult=MigrationInspection&{dryRun:boolean;changed:boolean};
 
 export function episodeIdentity(season:unknown,episode:unknown){return wholeNumber(season,'season')+'-'+wholeNumber(episode,'episode');}
 export function parseEpisodeIdentity(value:unknown){
@@ -52,7 +55,7 @@ export function assertDiscussionOpen(record:EpisodeRecord,serverNow:string){
   if(!discussionAvailable(record,serverNow))throw new CommunityError('This discussion has not opened yet.');
 }
 export function assertCommentOwner(comment:EpisodeComment,authorId:string,moderator:boolean){
-  if(!moderator&&comment.authorId!==authorId)throw new CommunityError('You can only edit or delete your own comments.');
+  if(!moderator&&comment.authorId!==authorId)throw new CommunityError('You can only edit or delete your own comments.',{status:403,code:'authorization'});
 }
 export function commentIsPersonal(comment:DiscussionComment,rootAuthorId:string,recipientId:string){
   return comment.authorId!==recipientId&&(rootAuthorId===recipientId||comment.replyToId===recipientId);
