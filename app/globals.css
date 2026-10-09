@@ -748,6 +748,8 @@ footer { color:var(--mist); background:var(--forest-deep); } footer span { color
 .community-shell .comment-controls button,.community-shell .mark-read-button,.community-shell .watched-control button { min-height:40px; padding:8px 12px; }
 .thread-reply-composer { margin-top:14px; padding-top:2px; }
 .thread-reply-composer .community-form { margin-bottom:4px; }
+.community-shell .thread-reply-trigger { min-height:40px; padding:8px 14px; border:1px solid var(--line); border-radius:7px; color:var(--forest); background:var(--paper); font-weight:700; }
+.community-shell .thread-reply-trigger:hover { background:#edf3f1; }
 .spoiler-warning { padding:20px 22px; margin:18px 0; }
 .spoiler-preview { padding-top:12px; }
 .spoiler-preview p { margin:0 0 12px; }
