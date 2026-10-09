@@ -53,13 +53,14 @@ class Tx{
 }
 /** Optimistic retries and the read-before-write rule exercise the real store orchestration. */
 export class MemoryFirestore{
-  data=new Map<string,Data>();version=0;queryReads=0;documentReads=0;retries=0;
+  data=new Map<string,Data>();version=0;queryReads=0;documentReads=0;retries=0;transactionCalls=0;failOnTransactionCall:number|null=null;beforeTransactionCall:((call:number)=>void)|null=null;
   readonly firestore=this as unknown as Firestore;
   seed(path:string,data:object){this.data.set(path,structuredClone(data) as Data);this.version++;}
   read<T>(path:string){return structuredClone(this.data.get(path)) as T;}
   doc(path:string){return new Ref(this,path);}
   async getAll(...refs:Ref[]){return Promise.all(refs.map(ref=>ref.get()));}
   async runTransaction<T>(callback:(tx:Tx)=>Promise<T>):Promise<T>{
+    const call=++this.transactionCalls;this.beforeTransactionCall?.(call);if(this.failOnTransactionCall===call){this.failOnTransactionCall=null;throw new Error('Simulated transaction failure.');}
     for(let attempt=0;attempt<100;attempt++){
       const before=this.version,tx=new Tx(this,structuredClone(this.data)),result=await callback(tx);
       if(this.version!==before){this.retries++;continue;}
