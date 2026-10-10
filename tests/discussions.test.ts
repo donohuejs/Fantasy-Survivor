@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import {initialGame,type GameState} from '../lib/game-data.ts';
 import {linkedAuthor,makeRecap,type EpisodeComment} from '../lib/community.ts';
-import {calendarEpisodes,discussionAvailable,localOpening,makeSchedule,migrateComments,parseEpisodeIdentity,type DiscussionComment,type DiscussionThread,type EpisodeRecord,type ReadState} from '../lib/discussions.ts';
+import {calendarEpisodes,discussionAvailable,discussionCommentDepths,localOpening,makeSchedule,migrateComments,parseEpisodeIdentity,type DiscussionComment,type DiscussionThread,type EpisodeRecord,type ReadState,visibleReplyDepth} from '../lib/discussions.ts';
 import {DiscussionStore} from '../lib/discussion-store.ts';
 import {finishEpisode,startEpisode} from '../lib/scoring.ts';
 import {seasonStandings} from '../lib/league.ts';
@@ -83,6 +83,10 @@ test('a reply resurfaces an older episode thread; newest-parent sorting stays in
   const f=await opened();await f.a.post(post('older'));f.setNow('2026-10-15T00:00:04.000Z');await f.a.post(post('newer'));f.setNow('2026-10-15T00:00:08.000Z');await f.b.post(post('resurface','Hello','older'));
   assert.deepEqual((await f.a.threads({})).rows.map(row=>row.rootId),['older','newer']);assert.deepEqual((await f.a.threads({sort:'newest'})).rows.map(row=>row.rootId),['newer','older']);
 });
+test('chronological thread sorting returns oldest conversations first',async()=>{
+  const f=await opened();await f.a.post(post('older'));f.setNow('2026-10-15T00:00:04.000Z');await f.a.post(post('newer'));
+  assert.deepEqual((await f.a.threads({sort:'chronological'})).rows.map(row=>row.rootId),['older','newer']);
+});
 test('Home feed returns three parent threads even when one has fifteen replies',async()=>{
   const f=await opened();for(let index=0;index<4;index++){f.setNow(new Date(Date.parse('2026-10-15T00:00:00Z')+index*4000).toISOString());await f.a.post(post('thread'+index));}
   for(let index=0;index<15;index++){f.setNow(new Date(Date.parse('2026-10-15T01:00:00Z')+index*4000).toISOString());await f.b.post(post('reply'+index,'Reply','thread0'));}
@@ -115,10 +119,21 @@ test('flat migration retains authors, content, IDs, times and episode associatio
   const original:EpisodeComment={id:'historic',authorId:f.game.players[0].id,authorName:'Original name',text:'Original text',createdAt:'2026-10-01T04:00:00.000Z'};f.db.seed(root+'/episodes/51-1/comments/historic',original);await f.admin.migrateEpisode('51-1');
   const migrated=f.db.read<DiscussionComment>(root+'/episodes/51-1/comments/historic');for(const key of Object.keys(original) as Array<keyof EpisodeComment>)assert.equal(migrated[key],original[key]);assert.equal(migrated.rootId,'historic');assert.equal((await f.a.conversation('51-1__historic')).comments[0].text,original.text);assert.deepEqual(f.db.read(root),f.game);
 });
-test('migration preserves existing nested reply relationships without visual nesting',()=>{
+test('migration preserves existing nested reply relationships for bounded visual nesting',()=>{
   const rows=[{id:'root',authorId:'a',authorName:'A',text:'Root',createdAt:'2026-10-01T00:00:00Z'},{id:'reply',parentId:'root',authorId:'b',authorName:'B',text:'Reply',createdAt:'2026-10-01T01:00:00Z'},{id:'third',parentId:'reply',authorId:'c',authorName:'C',text:'Third',createdAt:'2026-10-01T02:00:00Z'}];
-  const plan=migrateComments({id:'51-1',season:51,episode:1},rows);assert.equal(plan.threads.length,1);assert.deepEqual(plan.comments.map(row=>row.rootId),['root','root','root']);assert.equal(plan.comments[2].replyToId,'b');assert.equal(plan.comments[2].text,'Third');
+  const plan=migrateComments({id:'51-1',season:51,episode:1},rows);assert.equal(plan.threads.length,1);assert.deepEqual(plan.comments.map(row=>row.rootId),['root','root','root']);assert.equal(plan.comments[1].replyToCommentId,'root');assert.equal(plan.comments[2].replyToCommentId,'reply');assert.equal(plan.comments[2].replyToId,'b');assert.equal(plan.comments[2].text,'Third');
   assert.throws(()=>migrateComments({id:'51-1',season:51,episode:1},[{...rows[0],parentId:'missing'}]),/missing/);
+});
+test('comment depth supports two visible reply levels and flattens deeper replies',()=>{
+  const rows=[
+    {id:'root',rootId:'root',replyToCommentId:'',parentId:null},
+    {id:'reply',rootId:'root',replyToCommentId:'root',parentId:'root'},
+    {id:'third',rootId:'root',replyToCommentId:'reply',parentId:'reply'},
+    {id:'fourth',rootId:'root',replyToCommentId:'third',parentId:'third'},
+  ];
+  const depths=discussionCommentDepths(rows,'root');
+  assert.deepEqual(rows.map(row=>depths.get(row.id)),[0,1,2,3]);
+  assert.deepEqual(rows.map(row=>visibleReplyDepth(depths.get(row.id)!)),[0,1,2,1]);
 });
 test('large historical migration batches safely and repeated migration is idempotent',async()=>{
   const f=fixture();f.db.seed(root+'/episodes/51-1',{id:'51-1',season:51,episode:1,status:'published',publishedAt:'2026-10-01T00:00:00Z'});

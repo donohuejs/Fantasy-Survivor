@@ -7,7 +7,7 @@ export type EpisodeRecord = Partial<EpisodeRecap> & {
 };
 export type DiscussionComment = EpisodeComment & {
   threadId:string;rootId:string;sequence:number;replyToId:string;replyToName:string;
-  updatedAt?:string;deletedAt:string;authorUid?:string;replyToCommentId?:string;
+  updatedAt?:string;deletedAt:string;authorUid?:string;replyToCommentId?:string;parentId?:string|null;
 };
 export type DiscussionThread = {
   id:string;episodeId:string;season:number;episode:number;rootId:string;authorId:string;
@@ -31,6 +31,21 @@ export type ConversationPage = {thread:ThreadPreview;comments:DiscussionComment[
 export type MigrationStatus='missing'|'pending'|'in-progress'|'ready'|'blocked';
 export type MigrationInspection={episodeId:string;status:MigrationStatus;schemaVersion:number|null;commentCount:number;threadCount:number;plannedCommentCount:number;plannedThreadCount:number;issues:string[];migrationUntil:string};
 export type MigrationResult=MigrationInspection&{dryRun:boolean;changed:boolean};
+
+export const maxVisibleReplyDepth=2;
+export function visibleReplyDepth(depth:number){return depth>maxVisibleReplyDepth?1:Math.max(0,depth);}
+export function discussionCommentDepths(comments:Array<Pick<DiscussionComment,'id'|'rootId'|'replyToCommentId'> & {parentId?:string|null}>,rootId:string){
+  const byId=new Map(comments.map(comment=>[comment.id,comment])),depths=new Map<string,number>();
+  function visit(comment:typeof comments[number],trail=new Set<string>()):number{
+    const cached=depths.get(comment.id);if(cached!==undefined)return cached;
+    if(comment.id===rootId){depths.set(comment.id,0);return 0;}
+    const parentId=comment.replyToCommentId||comment.parentId||'',parent=byId.get(parentId);
+    if(!parent||parent.id===comment.id||trail.has(comment.id)||trail.has(parent.id)){depths.set(comment.id,1);return 1;}
+    const depth=visit(parent,new Set([...trail,comment.id]))+1;depths.set(comment.id,depth);return depth;
+  }
+  for(const comment of comments)visit(comment);
+  return depths;
+}
 
 export function episodeIdentity(season:unknown,episode:unknown){return wholeNumber(season,'season')+'-'+wholeNumber(episode,'episode');}
 export function parseEpisodeIdentity(value:unknown){
@@ -138,7 +153,7 @@ export function migrateComments(episode:EpisodeRecord,rows:Array<EpisodeComment 
     const ordered=[root,...group.filter(row=>row.id!==rootId).sort((a,b)=>a.createdAt.localeCompare(b.createdAt)||a.id.localeCompare(b.id))];
     const normalized=ordered.map((row,index)=>{
       const recipient=row.parentId?byId.get(row.parentId):undefined;
-      return {...row,threadId:id,rootId,sequence:index+1,replyToId:row.replyToId??recipient?.authorId??'',replyToName:row.replyToName??recipient?.authorName??'',deletedAt:row.deletedAt??''} as DiscussionComment;
+      return {...row,threadId:id,rootId,sequence:index+1,replyToId:row.replyToId??recipient?.authorId??'',replyToName:row.replyToName??recipient?.authorName??'',replyToCommentId:row.replyToCommentId??row.parentId??'',deletedAt:row.deletedAt??''} as DiscussionComment;
     });
     comments.push(...normalized);
     threads.push({id,episodeId:episode.id,season:episode.season,episode:episode.episode,rootId,authorId:root.authorId,createdAt:root.createdAt,lastActivityAt:ordered.map(row=>row.createdAt).sort().at(-1)!,replyCount:normalized.filter(row=>row.id!==rootId&&!row.deletedAt).length,sequence:normalized.length});

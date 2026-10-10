@@ -744,7 +744,11 @@ footer { color:var(--mist); background:var(--forest-deep); } footer span { color
 .thread-conversation { margin-top:12px; padding-top:2px; border-top:1px solid var(--line); }
 .thread-conversation .chatter-parent { margin-top:0; padding-top:14px; }
 .chatter-reply { margin-left:20px; padding:12px 0 12px 16px; border-left:2px solid var(--line); }
+.chatter-reply.chatter-depth-2 { margin-left:40px; }
+.chatter-reply.chatter-reply-flattened { margin-left:20px; }
 .comment-controls { margin-top:10px; }
+.comment-reply-composer { margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
+.comment-reply-composer .community-form { margin:0; }
 .community-shell .comment-controls button,.community-shell .mark-read-button,.community-shell .watched-control button { min-height:40px; padding:8px 12px; }
 .thread-reply-composer { margin-top:14px; padding-top:2px; }
 .thread-reply-composer .community-form { margin-bottom:4px; }
@@ -767,4 +771,6 @@ footer { color:var(--mist); background:var(--forest-deep); } footer span { color
   .episode-comments { padding:18px; }
   .chatter-thread-focused { padding:14px 10px; }
   .chatter-reply { margin-left:8px; padding-left:12px; }
+  .chatter-reply.chatter-depth-2 { margin-left:16px; }
+  .chatter-reply.chatter-reply-flattened { margin-left:8px; }
 }
