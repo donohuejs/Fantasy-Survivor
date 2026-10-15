@@ -431,6 +431,7 @@ function reconcileEliminationPenalty(game:GameState,castawayId:string,reason:Eli
   // outcome too, so remove it only inside this future-episode reconciliation;
   // historical events remain untouched.
   const oldEvents=withReferences.scoreEvents.filter(event=>(event.source==='elimination'||event.categoryId==='elimination-voted-out'||event.categoryId==='voted-premerge')&&event.castawayId===castawayId&&event.episode===episode);
+  if(oldEvents.some(event=>event.correctionId))throw new Error('This elimination score was corrected manually. Review it in Activity log before changing the elimination reason.');
   const existing=oldEvents[0];
   const preMerge=!mergeIsActive(withReferences,episode);
   const points=eliminationPenalty(reason,preMerge);

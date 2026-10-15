@@ -1,0 +1,90 @@
+// Run against `npm run dev` with no Firebase configuration. Only synthetic local data is used.
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {mkdir} from 'node:fs/promises';
+import {correctionFixture} from '../tests/helpers/scoring-fixture.ts';
+
+const base=process.env.SCORING_TEST_URL??'http://127.0.0.1:3100';
+const url=new URL(base);
+assert(['localhost','127.0.0.1'].includes(url.hostname),'UI testing must use a local server.');
+const {chromium}=process.env.PLAYWRIGHT_PACKAGE?createRequire(process.env.PLAYWRIGHT_PACKAGE)('playwright'):await import('playwright');
+const browser=await chromium.launch({headless:true,...(process.env.SCORING_BROWSER_EXECUTABLE?{executablePath:process.env.SCORING_BROWSER_EXECUTABLE}:{})});
+const errors=[];
+await mkdir('work/scoring-ui',{recursive:true});
+try{
+  for(const viewport of [{name:'desktop',width:1440,height:1000},{name:'mobile',width:390,height:844}]){
+    const context=await browser.newContext({viewport:{width:viewport.width,height:viewport.height},isMobile:viewport.name==='mobile',hasTouch:viewport.name==='mobile'});
+    await context.route('**/*',route=>{
+      const target=new URL(route.request().url());
+      return target.origin===url.origin?route.continue():route.abort();
+    });
+    const fixture=correctionFixture();
+    await context.addInitScript(game=>{if(!localStorage.getItem('fantasy-survivor-51-game'))localStorage.setItem('fantasy-survivor-51-game',JSON.stringify(game));},fixture);
+    const page=await context.newPage();page.on('pageerror',error=>errors.push(error.message));
+    await page.goto(base+'/admin');
+    const activity=page.locator('section.episode-activity');
+    await activity.getByLabel('Episode',{exact:true}).selectOption('4');
+    let action=activity.locator('.score-history-row').filter({hasText:'Toka · Win tribal immunity'});
+    await action.getByRole('button',{name:'Edit',exact:true}).click();
+    let dialog=page.getByRole('dialog');
+    assert.equal(await dialog.getByRole('checkbox',{checked:true}).count(),7);
+    assert(await dialog.getByRole('checkbox',{name:'Ori Jean-Charles',exact:true}).isChecked());
+    await dialog.getByRole('checkbox',{name:'Ori Jean-Charles',exact:true}).uncheck();
+    await dialog.getByLabel('Reason for correction').fill('Synthetic test: remove Ori immunity recipient.');
+    await dialog.getByRole('button',{name:'Review changes',exact:true}).click();
+    await dialog.getByRole('heading',{name:'Review correction',exact:true}).waitFor();
+    assert((await dialog.innerText()).includes('13 → 11'));
+    assert((await dialog.innerText()).includes('16.25 → 13.75'));
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('fantasy-survivor-51-game')).scoreEvents.filter(e=>e.scoringStatus==='reversed').length),0,'review is read-only');
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no page overflow');
+    assert(await dialog.evaluate(node=>node.scrollWidth<=node.clientWidth),'no dialog overflow');
+    await page.screenshot({path:`work/scoring-ui/${viewport.name}-review.png`,fullPage:true});
+    await dialog.getByRole('button',{name:'Save correction',exact:true}).click();
+    await dialog.waitFor({state:'hidden'});
+    assert((await action.innerText()).includes('6 recipients'));
+    const corrected=await page.evaluate(()=>JSON.parse(localStorage.getItem('fantasy-survivor-51-game')));
+    assert.equal(corrected.castaways.find(c=>c.id==='cast-ori').tribeId,'savu');
+    assert.equal(corrected.scoreEvents.filter(e=>e.scoringStatus==='reversed').length,1);
+    assert(corrected.scoreEvents.filter(e=>e.batchId==='test-immunity'&&e.castawayId!=='cast-ori').every(e=>e.points===2));
+    await action.getByRole('button',{name:'Undo',exact:true}).click();
+    dialog=page.getByRole('dialog');
+    await dialog.getByLabel('Reason for undo').fill('Synthetic test: undo six remaining awards.');
+    await dialog.getByRole('button',{name:'Review changes',exact:true}).click();
+    await dialog.getByRole('button',{name:'Confirm undo 6 awards',exact:true}).waitFor();
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('fantasy-survivor-51-game')).scoreEvents.filter(e=>e.scoringStatus==='reversed').length),1);
+    await dialog.getByRole('button',{name:'Close scoring editor'}).click();
+    assert((await action.innerText()).includes('6 recipients'),'cancel leaves scoring unchanged');
+    await action.getByRole('button',{name:'Undo',exact:true}).click();
+    dialog=page.getByRole('dialog');
+    await dialog.getByLabel('Reason for undo').fill('Synthetic test: confirmed undo.');
+    await dialog.getByRole('button',{name:'Review changes',exact:true}).click();
+    await dialog.getByRole('button',{name:'Confirm undo 6 awards',exact:true}).click();
+    await dialog.waitFor({state:'hidden'});
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('fantasy-survivor-51-game')).scoreEvents.filter(e=>e.scoringStatus==='reversed').length),7);
+    assert(await action.getByRole('button',{name:'Undo',exact:true}).isDisabled());
+    await page.getByRole('tab',{name:'Activity log',exact:true}).click();
+    let row=page.locator('#panel-activity-log .score-history-row').filter({hasText:'Ori Jean-Charles'}).filter({hasText:'Win tribal immunity'});
+    assert((await row.innerText()).includes('Reversed · original award +2'));
+    await row.getByText('Audit history',{exact:true}).click();
+    await row.getByText('Synthetic test: remove Ori immunity recipient.',{exact:true}).waitFor();
+    await page.screenshot({path:`work/scoring-ui/${viewport.name}-audit.png`,fullPage:true});
+    // Reload proves durable local corrections. Reset to synthetic data for entry-edit checks.
+    await page.reload();
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('fantasy-survivor-51-game')).scoreEvents.filter(e=>e.scoringStatus==='reversed').length),7);
+    await page.evaluate(game=>localStorage.setItem('fantasy-survivor-51-game',JSON.stringify(game)),fixture);
+    await page.reload();
+    await page.getByRole('tab',{name:'Activity log',exact:true}).click();
+    row=page.locator('#panel-activity-log .score-history-row').filter({hasText:'Ori Jean-Charles'}).filter({hasText:'Win tribal immunity'});
+    await row.getByRole('button',{name:'Correct entry',exact:true}).click();dialog=page.getByRole('dialog');
+    await dialog.getByLabel('Points per recipient').fill('3');await dialog.getByLabel('Reason for correction').fill('Synthetic individual point correction.');
+    await dialog.getByRole('button',{name:'Review changes',exact:true}).click();await dialog.getByRole('button',{name:'Save correction',exact:true}).click();await dialog.waitFor({state:'hidden'});
+    const single=await page.evaluate(()=>JSON.parse(localStorage.getItem('fantasy-survivor-51-game')));
+    assert.equal(single.scoreEvents.find(e=>e.id==='test-immunity:cast-ori').points,3);
+    assert(single.scoreEvents.slice(0,6).every(e=>e.points===2));
+    console.log(`${viewport.name}: seven recorded recipients, review, Ori removal, multiplier totals, confirmed/cancelled undo, repeat prevention, audit, reload, individual edit and overflow checks passed.`);
+    await context.close();
+  }
+  assert.deepEqual(errors,[],'no browser exceptions');
+  const anonymous=await fetch(base+'/api/scoring',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  assert.equal(anonymous.status,401);console.log('Unauthenticated scoring endpoint returned HTTP 401.');
+}finally{await browser.close();}

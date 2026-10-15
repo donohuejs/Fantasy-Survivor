@@ -1,3 +1,4 @@
+import {effectiveScorePoints} from './score-ledger.ts';
 import type {EliminationReason,GameState} from './game-data.ts';
 
 export type CastawayLeaderboardRow={castawayId:string;name:string;status:'active'|'voted-out';eliminationReason?:EliminationReason;byEpisode:Record<number,number>;total:number};
@@ -13,8 +14,8 @@ export function castawayLeaderboard(game:Pick<GameState,'castaways'|'scoreEvents
     if(!event.castawayId)continue;
     const row=byId.get(event.castawayId);
     if(!row)continue;
-    row.total+=event.points;
-    if(event.episode!==undefined&&Number.isInteger(event.episode)&&event.episode>0)row.byEpisode[event.episode]=(row.byEpisode[event.episode]??0)+event.points;
+    row.total+=effectiveScorePoints(event);
+    if(event.episode!==undefined&&Number.isInteger(event.episode)&&event.episode>0)row.byEpisode[event.episode]=(row.byEpisode[event.episode]??0)+effectiveScorePoints(event);
   }
   return {episodes,active:rows.filter(row=>row.status==='active').sort(byScore),eliminated:rows.filter(row=>row.status==='voted-out').sort(byScore)};
 }
