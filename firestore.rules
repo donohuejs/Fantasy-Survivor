@@ -45,6 +45,10 @@ service cloud.firestore {
         // No browser, including the game master's, may inspect the hidden deck.
         allow read, write: if false;
       }
+      match /scoreCorrections/{correctionId} {
+        // Immutable audit receipts are created only by the commissioner-authenticated API.
+        allow read, write: if false;
+      }
       match /archives/{season} {
         allow read, write: if isAdmin();
       }

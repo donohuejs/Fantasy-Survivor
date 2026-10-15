@@ -13,6 +13,7 @@ A standalone Next.js fantasy league application designed for Vercel, with Fireba
 - Prominent Google sign-in/sign-out controls in the shared header, outside the mobile scrolling navigation
 - Public Episodes page with scoring recaps, owner commentary, linked-player comments, and league polls
 - Game Master tabs for Scoring, League setup, Tribe membership, Player check-in, Draft room, and Activity log
+- Commissioner-only scoring Edit/Undo with recipient and point review, immutable audits, atomic retries, and automatic multiplier-aware totals. See [scoring corrections and the pending Episode 4 plan](docs/scoring-corrections.md).
 
 Game Master sections have shareable hash links (for example, `/admin#player-check-in`) and support arrow keys, Home, and End. Switching tabs preserves unfinished form entries; changing the season resets the forms. Access checks still guard the entire control room, and Firebase remains the authority for permissions.
 
@@ -64,4 +65,4 @@ Hidden card assignments are stored outside the public game document and never re
 
 Before publishing, follow [the private draft deployment checklist](docs/draft-deployment.md): add the server-only credential in Vercel, publish Firestore rules separately, then deploy and rehearse with non-admin test accounts. Existing scores, profiles and payment records are not automatically reset. Old-format active drafts require explicit review.
 
-Validation: `npm run build`, `npm run lint`, and `node --experimental-strip-types --test tests/*.test.ts`. There are 51 passing local tests. Live Firebase/emulator authorization tests are still outstanding; see the deployment checklist for limitations and dependency-audit findings.
+Validation: `npm run build`, `npm run lint`, and `node --experimental-strip-types --test tests/*.test.ts`. There are 252 passing local tests and 33 passing isolated Auth/Firestore emulator integration checks for scoring corrections. See [the verification findings](docs/scoring-verification.md) for the pending recap issue and production authorization boundary, and the deployment checklist for other limitations and dependency-audit findings.

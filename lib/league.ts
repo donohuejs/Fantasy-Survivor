@@ -1,10 +1,11 @@
+import {effectiveScorePoints} from './score-ledger.ts';
 import {activePlayers,DRAFT_ORDER_VERSION,type GameState,type Player,type SeasonResult} from './game-data.ts';
 
 export type PlayerSignup={uid:string;name:string;email:string;createdAt:string;assignedPlayerId?:string};
 export function seasonStandings(game:GameState):SeasonResult[]{
   const points:Record<string,number>={};
-  for(const event of game.scoreEvents)if(event.castawayId)points[event.castawayId]=(points[event.castawayId]??0)+event.points;
-  return activePlayers(game.players).map(player=>({profileId:player.id,name:player.name,score:player.entryBonus+game.draftPicks.filter(p=>p.playerId===player.id).reduce((total,p)=>total+(points[p.castawayId]??0)*p.multiplier,0)+game.scoreEvents.filter(e=>e.playerId===player.id).reduce((total,e)=>total+e.points,0),finish:0})).sort((a,b)=>b.score-a.score||a.profileId.localeCompare(b.profileId)).map((row,index)=>({...row,finish:index+1}));
+  for(const event of game.scoreEvents)if(event.castawayId)points[event.castawayId]=(points[event.castawayId]??0)+effectiveScorePoints(event);
+  return activePlayers(game.players).map(player=>({profileId:player.id,name:player.name,score:player.entryBonus+game.draftPicks.filter(p=>p.playerId===player.id).reduce((total,p)=>total+(points[p.castawayId]??0)*p.multiplier,0)+game.scoreEvents.filter(e=>e.playerId===player.id).reduce((total,e)=>total+effectiveScorePoints(e),0),finish:0})).sort((a,b)=>b.score-a.score||a.profileId.localeCompare(b.profileId)).map((row,index)=>({...row,finish:index+1}));
 }
 export function bindProfile(game:GameState,signup:PlayerSignup,playerId:string):GameState{
   if(game.season.finalized||game.draft.status!=='setup')throw new Error('Assign profiles before starting the draft.');
@@ -41,5 +42,5 @@ export function nextSeasonRoster(game:GameState):Player[]{
 }
 export function prepareNextSeason(game:GameState):GameState{
   const players=nextSeasonRoster(game),number=game.season.number+1;
-  return {...game,season:{id:`season-${number}`,name:`Survivor ${number}`,number,currentEpisode:1,episodeStarted:false,episodeStatus:'not-started',entryFee:game.season.entryFee,finalized:false},players,castaways:[],tribes:[],draftPicks:[],scoreEvents:[],possessions:[],tribalCouncilResolutions:[],draft:{status:'setup',currentPick:0,turns:[]},draftOrderVersion:DRAFT_ORDER_VERSION};
+  return {...game,season:{id:`season-${number}`,name:`Survivor ${number}`,number,currentEpisode:1,episodeStarted:false,episodeStatus:'not-started',entryFee:game.season.entryFee,finalized:false},players,castaways:[],tribes:[],draftPicks:[],scoreEvents:[],localScoreCorrections:[],scoringRevision:0,possessions:[],tribalCouncilResolutions:[],draft:{status:'setup',currentPick:0,turns:[]},draftOrderVersion:DRAFT_ORDER_VERSION};
 }

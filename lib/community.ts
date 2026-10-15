@@ -1,3 +1,4 @@
+import {scoreActionKey} from './score-ledger.ts';
 import type {GameState} from './game-data.ts';
 
 export type EpisodeAction={id:string;label:string;points:number;recipients:string[];tribeName:string;note:string;target:'castaway'|'player'};
@@ -58,10 +59,10 @@ export function resourceId(value:unknown){
 }
 export function episodeActions(game:GameState,episode:number):EpisodeAction[]{
   const grouped=new Map<string,EpisodeAction>();
-  for(const event of game.scoreEvents.filter(e=>e.episode===episode)){
+  for(const event of game.scoreEvents.filter(e=>e.episode===episode&&e.scoringStatus!=='reversed')){
     const label=event.actionLabel||game.categories.find(c=>c.id===event.categoryId)?.label||'Player adjustment';
     const target=event.playerId?'player':'castaway';
-    const key=JSON.stringify([event.batchId||event.id,label,event.points,event.tribeName||'',event.note||'',target]);
+    const key=JSON.stringify([scoreActionKey(event),label,event.points,event.tribeName||'',event.note||'',target]);
     const name=event.recipientName||game.castaways.find(c=>c.id===event.castawayId)?.name||game.players.find(p=>p.id===event.playerId)?.name||'Unknown recipient';
     const group=grouped.get(key);
     if(group)group.recipients.push(name);
