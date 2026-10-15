@@ -9,7 +9,7 @@ const statusLabel=(status:PossessionStatus)=>status==='active'?'Active':status==
 
 export function PossessionManager(){
   const {game,createPossession}=useGame();
-  const records=game.possessions??[];
+  const records=game.possessions??[],active=records.filter(record=>record.status==='active'),history=records.filter(record=>record.status!=='active');
   const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
   async function create(event:FormEvent<HTMLFormElement>){
     event.preventDefault();if(busy)return;const form=event.currentTarget,data=new FormData(form);setBusy(true);setMessage('');setError('');
@@ -19,8 +19,9 @@ export function PossessionManager(){
   return <details className="admin-panel possession-manager" open><summary>Manage Idols &amp; Advantages</summary><p>Give, edit, transfer, or close out a possession. Closed records stay in the history but disappear from Who Has What.</p>
     <form className="admin-form possession-create-form" onSubmit={create}><fieldset disabled={busy}><label>Castaway<select name="castawayId" required><option value="">Choose a castaway…</option>{game.castaways.filter(castaway=>castaway.status==='active').map(castaway=><option key={castaway.id} value={castaway.id}>{castaway.name}</option>)}</select></label><label>Category<select name="category" defaultValue="idol" required><option value="idol">Idol</option><option value="advantage">Advantage</option></select></label><label className="wide">Item name<input name="itemName" maxLength={120} required placeholder="Final 5 Immunity Idol" spellCheck autoCorrect="on" autoCapitalize="words" lang="en"/></label><label>Acquired episode<input name="acquiredEpisode" type="number" min={1} step={1} placeholder="Optional"/></label><label className="wide">Notes<input name="notes" maxLength={500} placeholder="Optional context" spellCheck autoCorrect="on" autoCapitalize="sentences" lang="en"/></label><button className="primary-button wide">{busy?'Saving…':'Give possession'}</button></fieldset></form>
     {message&&<p className="success-banner" role="status">{message}</p>}{error&&<p className="scoring-error" role="alert">{error}</p>}
-    <div className="possession-records">{records.map(record=><PossessionRow key={record.id} record={record}/>)}</div>
-    {!records.length&&<p className="admin-empty">No possession records yet.</p>}
+    <div className="possession-records">{active.map(record=><PossessionRow key={record.id} record={record}/>)}</div>
+    {!active.length&&<p className="admin-empty">No active possessions.</p>}
+    {history.length>0&&<details className="closed-possession-history"><summary>Closed possession history ({history.length})</summary><div className="possession-records">{history.map(record=><PossessionRow key={record.id} record={record}/>)}</div></details>}
   </details>;
 }
 
