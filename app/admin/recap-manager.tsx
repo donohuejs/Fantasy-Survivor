@@ -2,11 +2,12 @@
 import {useRef,useState,type FormEvent} from 'react';
 import {useGame} from '../game-provider';
 import {usePolls,useRecaps,communityRequest} from '../episodes/community-client';
-import {PollCard,ScoringSummary,WhoHasWhat} from '../episodes/episode-content';
+import {PollCard,ScoringSummary} from '../episodes/episode-content';
 import {PossessionManager} from './possession-manager';
-import {episodeActions,type EpisodeRecap} from '@/lib/community';
+import {availableEpisodeNumbers,episodeActions,hasAuthoredRecap,type EpisodeRecap} from '@/lib/community';
 import Link from 'next/link';
 import {DiscussionSchedule} from './discussion-schedule';
+import {useDiscussions} from '../discussion-provider';
 
 function RecapEditor({episode,existing,onDirty}:{episode:number;existing?:EpisodeRecap;onDirty:(dirty:boolean)=>void}){
   const {game,cloud}=useGame();
@@ -30,10 +31,13 @@ function RecapEditor({episode,existing,onDirty}:{episode:number;existing?:Episod
 }
 export function RecapManager(){
   const {game,cloud,user}=useGame(),recaps=useRecaps(true),polls=usePolls();
+  const {catalog}=useDiscussions();
   const [episode,setEpisode]=useState(game.season.currentEpisode),[reload,setReload]=useState(0),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[editorDirty,setEditorDirty]=useState(false),[selectionBaseEpisode,setSelectionBaseEpisode]=useState(game.season.currentEpisode);
   const [episodeInput,setEpisodeInput]=useState(String(game.season.currentEpisode));
   const pollAttempt=useRef<{id:string;fingerprint:string}|null>(null);
   const current=recaps.rows.filter(r=>r.season===game.season.number).sort((a,b)=>a.episode-b.episode);
+  const available=availableEpisodeNumbers(game,current,polls.rows,game.season.number,catalog?.episodes).sort((a,b)=>a-b);
+  const futureDrafts=current.filter(recap=>!available.includes(recap.episode)&&hasAuthoredRecap(recap));
   const followCurrent=!editorDirty&&game.season.currentEpisode!==selectionBaseEpisode;
   const visibleEpisode=followCurrent?game.season.currentEpisode:episode;
   function chooseEpisode(n:number){
@@ -51,10 +55,11 @@ export function RecapManager(){
     catch(error){setMessage(error instanceof Error?error.message:'Unable to open poll.');}finally{setBusy(false);}
   }
   return <section className="recap-manager"><h2>Episode recaps & league polls</h2><p>Publish an episode’s scoring story, invite comments, and put decisions to a vote. <Link href="/episodes">View the public Episodes page →</Link></p>
-    <DiscussionSchedule/><WhoHasWhat/><PossessionManager/>
+    <PossessionManager/>
     {recaps.error&&<p role="alert" className="setup-notice">{recaps.error}</p>}{polls.error&&<p role="alert" className="setup-notice">{polls.error}</p>}
     <form className="recap-editor-picker" onSubmit={e=>{e.preventDefault();chooseEpisode(Number(episodeInput));}}><label>Episode<input type="number" min={1} max={9999} step={1} value={followCurrent?String(game.season.currentEpisode):episodeInput} onChange={e=>setEpisodeInput(e.target.value)} required/></label><button>Load episode</button><button type="button" onClick={()=>{if(confirm('Reload the saved recap and discard any unfinished edits?'))setReload(reload+1);}}>Reload saved version</button></form>
-    {current.length>0&&<nav className="episode-picker" aria-label="Saved recaps">{current.map(r=><button aria-pressed={r.episode===visibleEpisode} key={r.id} onClick={()=>chooseEpisode(r.episode)}>Episode {r.episode} · {r.status}</button>)}</nav>}
+    <nav className="episode-picker" aria-label="Available recap episodes">{available.map(n=>{const recap=current.find(row=>row.episode===n);return <button aria-pressed={n===visibleEpisode} key={n} onClick={()=>chooseEpisode(n)}>Episode {n} · {recap?.status==='published'?'Published':recap&&hasAuthoredRecap(recap)?'Saved draft':'Recap not saved'}</button>;})}</nav>
+    {futureDrafts.length>0&&<details className="future-recap-drafts"><summary>Saved future recap drafts ({futureDrafts.length})</summary><nav className="episode-picker" aria-label="Saved future recap drafts">{futureDrafts.map(recap=><button aria-pressed={recap.episode===visibleEpisode} key={recap.id} onClick={()=>chooseEpisode(recap.episode)}>Episode {recap.episode} · Saved draft</button>)}</nav></details>}
     {editorDirty&&!followCurrent&&visibleEpisode!==game.season.currentEpisode&&<p className="setup-notice" role="status">Episode {game.season.currentEpisode} is now active. Your unsaved Episode {visibleEpisode} recap is still open; save it or reload before switching.</p>}
     {recaps.loading?<p role="status">Loading saved recaps…</p>:!recaps.error&&<RecapEditor key={game.season.number+'-'+visibleEpisode+'-'+reload} episode={visibleEpisode} existing={current.find(r=>r.episode===visibleEpisode)} onDirty={setEditorDirty}/>}
     <article className="admin-panel poll-creator"><h3>Open a league poll</h3><p>Players may change their one vote until you close voting. Choices are locked once opened. Apply any resulting scoring changes separately in Scoring.</p>
@@ -64,5 +69,6 @@ export function RecapManager(){
     <h3>Manage polls</h3>{polls.loading&&<p role="status">Loading polls…</p>}<div className="community-polls">{polls.rows.filter(p=>p.season===game.season.number).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).map(p=><PollCard poll={p} manage key={p.id+':'+user?.uid}/>)}</div>
     {!polls.loading&&!polls.error&&!polls.rows.some(p=>p.season===game.season.number)&&<p>No polls this season yet.</p>}
     <p className="community-note">To moderate comments, open the public recap while signed in as Game Master and use “Remove comment.” Recaps, comments, and polls are kept separately from the active season’s scores, so opening a new season does not erase them.</p>
+    <DiscussionSchedule/>
   </section>;
 }

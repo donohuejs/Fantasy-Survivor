@@ -91,7 +91,7 @@ export class DiscussionStore{
       tx.update(ref,{migrationToken:token,migrationUntil:new Date(Date.parse(now)+60000).toISOString()});return result;
     });
     if(!plan){const ready=await this.inspectMigration(canonicalId);return {...ready.inspection,dryRun:false,changed:false};}
-    const patches:Array<{ref:DocumentReference;data:object}>=plan.comments.map(comment=>({ref:ref.collection('comments').doc(comment.id),data:{threadId:comment.threadId,rootId:comment.rootId,sequence:comment.sequence,replyToId:comment.replyToId,replyToName:comment.replyToName,deletedAt:comment.deletedAt}}));
+    const patches:Array<{ref:DocumentReference;data:object}>=plan.comments.map(comment=>({ref:ref.collection('comments').doc(comment.id),data:{threadId:comment.threadId,rootId:comment.rootId,sequence:comment.sequence,replyToId:comment.replyToId,replyToName:comment.replyToName,replyToCommentId:comment.replyToCommentId??'',deletedAt:comment.deletedAt}}));
     patches.push(...plan.threads.map(thread=>({ref:this.thread(thread.id),data:thread})));
     try{
       for(let start=0;start<patches.length;start+=300){

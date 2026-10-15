@@ -1,9 +1,9 @@
 import {NextRequest,NextResponse} from 'next/server';
 import {draftServerSetupMessage,getDraftServer} from '@/lib/firebase-admin';
-import {CommunityError,linkedAuthor,isCommunityOwner,makeRecap,makePoll,changeVote,resourceId,wholeNumber,type EpisodeRecap,type LeaguePoll,type CommunityActor} from '@/lib/community';
+import {CommunityError,linkedAuthor,isCommunityOwner,makePoll,changeVote,resourceId,type LeaguePoll,type CommunityActor} from '@/lib/community';
 import type {GameState} from '@/lib/game-data';
 import {DiscussionStore} from '@/lib/discussion-store';
-import {calendarEpisodes,discussionOpening,type BroadcastSchedule} from '@/lib/discussions';
+import {saveEpisodeRecap} from '@/lib/recap-store';
 
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
@@ -21,7 +21,7 @@ async function authenticate(request:NextRequest){
   }catch{return {error:reply({error:'Your sign-in expired. Sign out and sign in again.'},401)} as const;}
 }
 function failure(error:unknown){
-  if(error instanceof CommunityError)return reply({error:error.message},409);
+  if(error instanceof CommunityError)return reply({error:error.message},error.status);
   console.error('Community request failed',{code:typeof error==='object'&&error!==null&&'code' in error?String(error.code):'unknown'});
   return reply({error:'Unable to save. Check your connection and reload before trying again.'},500);
 }
@@ -45,29 +45,16 @@ export async function POST(request:NextRequest){
     try{input=JSON.parse(raw);if(!input||typeof input!=='object'||Array.isArray(input))throw new Error();}catch{throw new CommunityError('Invalid request.');}
     const owner=isCommunityOwner(auth.actor);
     const ref=auth.server.db.doc('games/survivor-51');
+    if(input.action==='save-recap')return reply({ok:true,...await saveEpisodeRecap(auth.server.db,auth.actor,input,new Date().toISOString())});
     // Older clients use the same canonical conversations and opening checks.
     if(input.action==='comment'||input.action==='delete-comment'){
       const store=new DiscussionStore(auth.server.db,auth.actor);
       if(input.action==='comment')await store.post(input);else await store.changeComment(input,true);
       return reply({ok:true});
     }
-    const result=await auth.server.db.runTransaction(async tx=>{
+    await auth.server.db.runTransaction(async tx=>{
       const gameDoc=await tx.get(ref);if(!gameDoc.exists)throw new CommunityError('The league is not ready.');
       const game=gameDoc.data() as GameState,now=new Date().toISOString();
-      if(input.action==='save-recap'){
-        if(!owner)throw new CommunityError('Only the game master can publish recaps.');
-        const id=wholeNumber(input.season,'season')+'-'+wholeNumber(input.episode,'episode');
-        const recapRef=ref.collection('episodes').doc(id),old=await tx.get(recapRef);
-        const recap=makeRecap(game,input,old.exists?old.data() as EpisodeRecap:null,now);
-        const discussion=old.data();
-        let opening:Record<string,unknown>={};
-        if(!(discussion&&'discussionOpensAt' in discussion)){
-          const calendar=await tx.get(ref.collection('discussionSchedules').doc(String(game.season.number)));
-          const scheduled=calendar.exists?calendarEpisodes(calendar.data() as BroadcastSchedule).find(item=>item.id===id):undefined;
-          opening=scheduled?{discussionOpensAt:scheduled.discussionOpensAt,broadcastDate:scheduled.broadcastDate}: {discussionOpensAt:discussion?.status==='published'?discussionOpening(discussion as EpisodeRecap):recap.status==='published'?now:null};
-        }
-        tx.set(recapRef,{...recap,...opening},{merge:true});return {updatedAt:recap.updatedAt};
-      }
       if(input.action==='create-poll'){
         if(!owner)throw new CommunityError('Only the game master can open polls.');
         const poll=makePoll(game,input,now),pollRef=ref.collection('polls').doc(poll.id);
@@ -87,6 +74,6 @@ export async function POST(request:NextRequest){
       }
       throw new CommunityError('Unknown action.');
     });
-    return reply({ok:true,...result});
+    return reply({ok:true});
   }catch(error){return failure(error);}
 }

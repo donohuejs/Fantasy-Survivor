@@ -26,7 +26,7 @@ function EpisodesContent(){
   const requestedId=searchParams.get('episode')??'',requestedSeason=/^([1-9]\d*)-[1-9]\d*$/.test(requestedId)?Number(requestedId.split('-')[0]):null;
   const visibleSeason=seasonChoice??requestedSeason??season;
   const seasons=[...new Set([game.season.number,...recapRows.map(r=>r.season),...polls.rows.map(p=>p.season),...(catalog?.episodes.map(item=>item.season)??[])])].sort((a,b)=>b-a);
-  const episodeNumbers=[...new Set([...availableEpisodeNumbers(game,recapRows,polls.rows,visibleSeason),...(catalog?.episodes.filter(item=>item.season===visibleSeason).map(item=>item.episode)??[])])].sort((a,b)=>b-a);
+  const episodeNumbers=availableEpisodeNumbers(game,recapRows,polls.rows,visibleSeason,catalog?.episodes);
   const publishedRecaps=new Map(recapRows.filter(recap=>recap.season===visibleSeason).map(recap=>[recap.episode,recap] as const));
   const episodes=episodeNumbers.map(episode=>({episode,recap:publishedRecaps.get(episode)}));
   const requestedEpisode=selected?Number(selected):requestedId&&visibleSeason===requestedSeason?Number(requestedId.split('-')[1]):deepLink?.poll.episode||undefined;

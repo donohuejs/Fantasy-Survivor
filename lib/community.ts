@@ -17,12 +17,16 @@ export class CommunityError extends Error {
 export const communityOwner='donohue.js@gmail.com';
 export function pollVoteTotal(poll:LeaguePoll){return poll.counts.reduce((sum,count)=>sum+count,0);}
 export function currentSeasonOpenPolls(polls:LeaguePoll[],season:number){return polls.filter(poll=>poll.status==='open'&&poll.season===season).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));}
-export function availableEpisodeNumbers(game:Pick<GameState,'season'|'scoreEvents'|'tribalCouncils'|'tribalCouncilResolutions'|'tribalAttendance'|'tribalVotes'>,recaps:EpisodeRecap[],polls:LeaguePoll[],season:number){
-  const numbers=[...recaps.filter(recap=>recap.status==='published'&&recap.season===season).map(recap=>recap.episode),...polls.filter(poll=>poll.season===season&&poll.episode>0).map(poll=>poll.episode)];
+export function availableEpisodeNumbers(game:Pick<GameState,'season'|'scoreEvents'|'tribalCouncils'|'tribalCouncilResolutions'|'tribalAttendance'|'tribalVotes'>,recaps:EpisodeRecap[],polls:LeaguePoll[],season:number,discussions:Array<{season:number;episode:number;available:boolean}>=[]){
+  const numbers=[...recaps.filter(recap=>recap.status==='published'&&recap.season===season).map(recap=>recap.episode),...polls.filter(poll=>poll.season===season&&poll.episode>0).map(poll=>poll.episode),...discussions.filter(episode=>episode.season===season&&episode.available).map(episode=>episode.episode)];
   if(season===game.season.number){
     numbers.push(game.season.currentEpisode,...game.scoreEvents.map(event=>event.episode??0),...(game.tribalCouncils??[]).map(council=>council.episode),...(game.tribalCouncilResolutions??[]).map(resolution=>resolution.episode),...(game.tribalAttendance??[]).map(record=>record.episode),...(game.tribalVotes??[]).map(record=>record.episode));
   }
   return [...new Set(numbers.filter(episode=>Number.isSafeInteger(episode)&&episode>0))].sort((left,right)=>right-left);
+}
+// Calendar reservations use status=draft, but have never been saved by an author.
+export function hasAuthoredRecap(recap:EpisodeRecap){
+  return recap.status==='published'||Boolean(recap.updatedAt||recap.publishedAt||recap.body?.trim()||recap.actions?.length||recap.title?.trim()&&recap.title.trim()!=='Episode '+recap.episode);
 }
 export function episodePolls(polls:LeaguePoll[],season:number,episode:number){
   const scoped=polls.filter(poll=>poll.season===season&&(poll.episode===episode||poll.episode===0));

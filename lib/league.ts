@@ -2,6 +2,17 @@ import {effectiveScorePoints} from './score-ledger.ts';
 import {activePlayers,DRAFT_ORDER_VERSION,type GameState,type Player,type SeasonResult} from './game-data.ts';
 
 export type PlayerSignup={uid:string;name:string;email:string;createdAt:string;assignedPlayerId?:string};
+export type SignupAssociation={status:'linked'|'legacy-email';player:Player}|{status:'unassigned'|'conflict';player?:never};
+/** Read-only check-in view of the same UID-first, legacy-email access used by the server. */
+export function signupAssociation(players:Player[],signup:PlayerSignup):SignupAssociation{
+  if(!signup.uid)return {status:'conflict'};
+  const email=signup.email.trim().toLowerCase();
+  const candidates=players.filter(player=>player.uid===signup.uid||player.id===signup.assignedPlayerId||Boolean(email&&player.email&&player.email.toLowerCase()===email));
+  if(candidates.length>1||signup.assignedPlayerId&&!players.some(player=>player.id===signup.assignedPlayerId))return {status:'conflict'};
+  const player=candidates[0];if(!player)return {status:'unassigned'};
+  if(player.uid)return player.uid===signup.uid?{status:'linked',player}:{status:'conflict'};
+  return email&&(player.email??'').toLowerCase()===email?{status:'legacy-email',player}:{status:'conflict'};
+}
 export function seasonStandings(game:GameState):SeasonResult[]{
   const points:Record<string,number>={};
   for(const event of game.scoreEvents)if(event.castawayId)points[event.castawayId]=(points[event.castawayId]??0)+effectiveScorePoints(event);
