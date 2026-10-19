@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {automaticRegistration,registrationForAccount,registrationErrorMessage} from '../lib/registration.ts';
-import {initialGame} from '../lib/game-data.ts';
-import {linkedAuthor} from '../lib/community.ts';
+import {initialGame} from '../lib/private-league-seed.ts';
+import {linkedAuthor} from '../lib/community-authority.ts';
 
 const user={uid:'google-one',email:'Player@Example.com',displayName:' New Player ',emailVerified:true};
 const now='2026-09-04T12:00:00Z';

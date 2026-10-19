@@ -5,7 +5,7 @@ export type EpisodeAction={id:string;label:string;points:number;recipients:strin
 export type EpisodeRecap={id:string;season:number;episode:number;title:string;body:string;status:'draft'|'published';actions:EpisodeAction[];createdAt:string;updatedAt:string;publishedAt:string};
 export type EpisodeComment={id:string;authorId:string;authorName:string;text:string;createdAt:string};
 export type LeaguePoll={id:string;season:number;episode:number;question:string;options:string[];counts:number[];status:'open'|'closed';createdAt:string;updatedAt:string};
-export type CommunityActor={uid:string;email:string;verified:boolean};
+export type CommunityActor={uid:string;email:string;verified:boolean;displayName?:string};
 export type CommunityErrorCode='community-error'|'authentication'|'authorization'|'validation'|'not-found'|'conflict'|'migration';
 export class CommunityError extends Error {
   readonly status:number;
@@ -14,7 +14,7 @@ export class CommunityError extends Error {
     super(message);this.name='CommunityError';this.status=options.status??409;this.code=options.code??'community-error';
   }
 }
-export const communityOwner='donohue.js@gmail.com';
+
 export function pollVoteTotal(poll:LeaguePoll){return poll.counts.reduce((sum,count)=>sum+count,0);}
 export function currentSeasonOpenPolls(polls:LeaguePoll[],season:number){return polls.filter(poll=>poll.status==='open'&&poll.season===season).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));}
 export function availableEpisodeNumbers(game:Pick<GameState,'season'|'scoreEvents'|'tribalCouncils'|'tribalCouncilResolutions'|'tribalAttendance'|'tribalVotes'>,recaps:EpisodeRecap[],polls:LeaguePoll[],season:number,discussions:Array<{season:number;episode:number;available:boolean}>=[]){
@@ -40,14 +40,6 @@ export function pollDeepLinkTarget(polls:LeaguePoll[],recaps:EpisodeRecap[],poll
   if(!poll)return null;
   const recap=poll.episode?recaps.find(candidate=>candidate.season===poll.season&&candidate.episode===poll.episode):undefined;
   return {poll,recapId:recap?.id};
-}
-export function isCommunityOwner(actor:CommunityActor){return actor.verified&&actor.email.toLowerCase()===communityOwner;}
-export function linkedAuthor(game:GameState,actor:CommunityActor,allowOwner=false){
-  if(!actor.verified||!actor.uid)throw new CommunityError('Sign in with a verified Google account.',{status:401,code:'authentication'});
-  const player=game.players.find(p=>p.uid?p.uid===actor.uid:Boolean(p.email)&&p.email.toLowerCase()===actor.email.toLowerCase());
-  if(player)return {id:player.id,name:player.name};
-  if(allowOwner&&isCommunityOwner(actor))return {id:'commissioner',name:'Game master'};
-  throw new CommunityError('Your Google account needs to be linked to a league profile in Player check-in first.',{status:403,code:'authorization'});
 }
 export function requiredText(value:unknown,label:string,max:number){
   if(typeof value!=='string'||!value.trim()||value.trim().length>max)throw new CommunityError(label+' must be between 1 and '+max+' characters.');

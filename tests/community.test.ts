@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {initialGame} from '../lib/game-data.ts';
-import {episodeActions,episodePolls,makeRecap,makePoll,changeVote,linkedAuthor,isCommunityOwner,requiredText,resourceId,wholeNumber} from '../lib/community.ts';
+import {initialGame} from '../lib/private-league-seed.ts';
+import {episodeActions,episodePolls,makeRecap,makePoll,changeVote,requiredText,resourceId,wholeNumber} from '../lib/community.ts';
+import {linkedAuthor,isCommunityOwner} from '../lib/community-authority.ts';
 
 function game(){const g=structuredClone(initialGame);g.players[0].uid='account-one';g.players[0].email='';return g;}
 const actor={uid:'account-one',email:'player@example.com',verified:true};

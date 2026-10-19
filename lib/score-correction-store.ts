@@ -1,8 +1,9 @@
+import {assertScoringCommissioner} from './scoring-authority.ts';
 import type {Firestore} from 'firebase-admin/firestore';
 import type {GameState} from './game-data.ts';
 import {episodeActions,type EpisodeRecap} from './community.ts';
 import {canonicalJson} from './score-ledger.ts';
-import {assertScoringCommissioner,parseScoreCorrection,planScoreCorrection,sameCorrection,ScoreCorrectionError,type ScoreCorrection,type ScoringActor} from './score-corrections.ts';
+import {parseScoreCorrection,planScoreCorrection,sameCorrection,ScoreCorrectionError,type ScoreCorrection,type ScoringActor} from './score-corrections.ts';
 
 export async function correctScoring(db:Firestore,actor:ScoringActor,input:unknown,save:boolean,at=new Date().toISOString()){
   assertScoringCommissioner(actor);
@@ -17,7 +18,7 @@ export async function correctScoring(db:Firestore,actor:ScoringActor,input:unkno
       if(!sameCorrection(correction.command,command)||correction.actorUid!==actor.uid)throw new ScoreCorrectionError('That correction ID was already used for a different request.');
       return {correction,expectedVersion:command.expectedVersion,alreadyApplied:true};
     }
-    const result=await planScoreCorrection(current,actor,command,at);
+    const result=await planScoreCorrection(current,{...actor,commissioner:true},command,at);
     const episode=result.preview.correction.episode;
     const recapRef=episode!==undefined?ref.collection('episodes').doc(`${command.season}-${episode}`):null;
     const recap=recapRef?await tx.get(recapRef):null;

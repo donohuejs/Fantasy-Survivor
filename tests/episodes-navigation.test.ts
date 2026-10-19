@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {availableEpisodeNumbers,type EpisodeRecap} from '../lib/community.ts';
 import {finishEpisode,startEpisode} from '../lib/scoring.ts';
-import {initialGame} from '../lib/game-data.ts';
+import {initialGame} from '../lib/private-league-seed.ts';
 
 const activeIds=()=>initialGame.castaways.map(castaway=>castaway.id);
 const recap=(episode:number,status:'draft'|'published'='published'):EpisodeRecap=>({id:`51-${episode}`,season:51,episode,title:`Episode ${episode}`,body:status==='draft'?'Private draft':'Published commentary',status,actions:[],createdAt:'2026-10-01T00:00:00.000Z',updatedAt:'2026-10-01T00:00:00.000Z',publishedAt:status==='published'?'2026-10-01T00:00:00.000Z':''});

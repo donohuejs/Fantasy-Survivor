@@ -1,4 +1,5 @@
 'use client';
+import {requestId} from '@/lib/request-id';
 import Link from 'next/link';
 import {useEffect,useRef,useState,type FormEvent} from 'react';
 import {discussionCommentDepths,visibleReplyDepth,type DiscussionComment,type EpisodeView,type ThreadPreview} from '@/lib/discussions';
@@ -36,7 +37,7 @@ export function CommentComposer({episodeId,replyToCommentId='',replyName='',init
   const locked=useRef(false),attempt=useRef<{id:string;fingerprint:string}|null>(null),textarea=useRef<HTMLTextAreaElement>(null);
   async function submit(event:FormEvent){
     event.preventDefault();if(locked.current||!text.trim())return;locked.current=true;setBusy(true);setMessage('');setError('');
-    const fingerprint=JSON.stringify([episodeId,replyToCommentId,text]);if(attempt.current?.fingerprint!==fingerprint)attempt.current={id:crypto.randomUUID(),fingerprint};
+    const fingerprint=JSON.stringify([episodeId,replyToCommentId,text]);if(attempt.current?.fingerprint!==fingerprint)attempt.current={id:requestId(),fingerprint};
     try{
       const result=await discussionRequest<{threadId?:string}>({action:edit?'edit':'post',episodeId,id:edit?.id??attempt.current!.id,text,replyToCommentId,...(edit?{expectedUpdatedAt:edit.updatedAt??edit.createdAt}:{})});
       setText('');attempt.current=null;setMessage(edit?'Comment updated.':replyToCommentId?'Reply posted.':'Conversation started.');await refresh();onPosted?.(result.threadId??edit?.threadId??'');textarea.current?.focus();

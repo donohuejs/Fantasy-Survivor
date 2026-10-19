@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
-import {initialGame,type GameState} from '../lib/game-data.ts';
-import {linkedAuthor,makeRecap,type EpisodeComment} from '../lib/community.ts';
+import {initialGame} from '../lib/private-league-seed.ts';
+import {type GameState} from '../lib/game-data.ts';
+import {makeRecap,type EpisodeComment} from '../lib/community.ts';
+import {linkedAuthor} from '../lib/community-authority.ts';
 import {calendarEpisodes,discussionAvailable,discussionCommentDepths,localOpening,makeSchedule,migrateComments,parseEpisodeIdentity,type DiscussionComment,type DiscussionThread,type EpisodeRecord,type ReadState,visibleReplyDepth} from '../lib/discussions.ts';
 import {DiscussionStore} from '../lib/discussion-store.ts';
 import {finishEpisode,startEpisode} from '../lib/scoring.ts';
@@ -211,8 +213,8 @@ test('plain text is stored literally and React content rendering never uses HTML
   const source=readFileSync(new URL('../app/discussion-content.tsx',import.meta.url),'utf8');assert.doesNotMatch(source,/dangerouslySetInnerHTML/);assert.match(source,/\{comment\.text\}/);
 });
 test('server-only Firestore paths and shared recap composer/navigation remain wired',()=>{
-  const rules=readFileSync(new URL('../firestore.rules',import.meta.url),'utf8');for(const path of ['comments','discussionThreads','discussionUsers','discussionSchedules'])assert.match(rules,new RegExp('match /'+path+'/'));
-  assert.match(rules,/match \/comments\/\{commentId\}[\s\S]*?allow read, write: if false/);
+  const rules=readFileSync(new URL('../firestore.rules',import.meta.url),'utf8');assert.match(rules,/match \/\{document=\*\*\} \{ allow read, write: if false;/);
+  assert.doesNotMatch(rules,/allow .*if (?!false)/);
   const page=readFileSync(new URL('../app/episodes/page.tsx',import.meta.url),'utf8'),chatter=readFileSync(new URL('../app/chatter/page.tsx',import.meta.url),'utf8');assert.match(page,/EpisodeDiscussion/);assert.match(chatter,/CommentComposer/);assert.match(page,/SpoilerWarning/);
   const store=readFileSync(new URL('../lib/discussion-store.ts',import.meta.url),'utf8');assert.doesNotMatch(store,/tx\.(set|update|create)\(this\.root\(/);
 });

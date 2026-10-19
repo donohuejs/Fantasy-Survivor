@@ -36,7 +36,7 @@ async function main(){
   const action=scoringActions(game,4).find(a=>a.events.some(e=>e.id===ori.id))!;
   assert.equal(action.active.length,7);
   const command={id:'episode-4-toka-remove-ori-v1',season:51,kind:'edit' as const,scope:'action' as const,eventId:action.id,recipientIds:awards.filter(e=>e.castawayId!==oriId).map(e=>e.castawayId!),points:2,reason:'Ori Jean-Charles belonged to Savu when Episode 4 Toka tribal immunity was awarded. Remove only his erroneous +2 award.',expectedVersion:await scoringVersion(game)};
-  const result=await planScoreCorrection(game,{uid:'dry-run-only',email:'donohue.js@gmail.com',verified:true},command,new Date().toISOString());
+  const result=await planScoreCorrection(game,{uid:'dry-run-only',email:'donohue.js@gmail.com',verified:true,commissioner:true},command,new Date().toISOString());
   assert.equal(result.preview.correction.castaways.length,1);assert.equal(result.preview.correction.castaways[0].id,oriId);assert.equal(result.preview.correction.castaways[0].delta,-2);
   for(const award of awards.filter(e=>e.castawayId!==oriId))assert.equal(result.game.scoreEvents.find(e=>e.id===award.id)!.points,2);
   const unrelated=game.scoreEvents.filter(e=>e.batchId!==batch);assert.deepEqual(result.game.scoreEvents.filter(e=>e.batchId!==batch),unrelated);

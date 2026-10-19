@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {currentSeasonOpenPolls,makePoll,pollDeepLinkTarget} from '../lib/community.ts';
-import {initialGame} from '../lib/game-data.ts';
+import {initialGame} from '../lib/private-league-seed.ts';
 import {activeLeaderRosterCount,leaderPicks,leaderRoster,liveDraftTurn,pointsLead} from '../lib/homepage.ts';
 
 const copy=()=>structuredClone(initialGame);

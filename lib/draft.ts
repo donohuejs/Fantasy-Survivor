@@ -1,11 +1,11 @@
-import {activePlayers,buildDraftTurns,migrateLegacyDraftOrder, type GameState, type DraftPick} from './game-data.ts';
+import {activePlayers,buildDraftTurns, type GameState, type DraftPick} from './game-data.ts';
 
 // Never include this type in the public game document or an API response.
 export type PrivateDeal = {runId:string;dealt:Record<string,string>;initialDiscards:string[]};
-export type DraftActor = {uid:string;email:string;verified:boolean};
+export type DraftActor = {uid:string;email:string;verified:boolean;commissioner?:boolean};
 export type DraftCommand = {action:'start'|'pick'|'toggle'|'undo';season:number;runId:string;revision:number;currentPick:number;decision?:'select'|'keep'|'swap';castawayId?:string;onBehalf?:boolean};
 export class DraftError extends Error {}
-export const draftOwner = 'donohue.js@gmail.com';
+
 
 // Rejection sampling avoids modulo bias; both the order and the deck get independent shuffles.
 function randomBelow(upper:number):number {
@@ -53,13 +53,13 @@ export function keepsUntilReveal(game:GameState,pick:DraftPick):number {
 }
 
 export function executeDraft(game:GameState,deal:PrivateDeal|null,actor:DraftActor,command:DraftCommand,randomIndex?: (upper:number)=>number):{game:GameState;deal:PrivateDeal|null} {
-  const admin=actor.verified&&actor.email.toLowerCase()===draftOwner;
+  const admin=actor.verified&&actor.commissioner===true;
   if(!actor.uid||!actor.verified)throw new DraftError('Sign in with a verified Google account.');
   if(command.season!==game.season.number||command.runId!==(game.draft.runId??'')||command.revision!==(game.draft.revision??0)||command.currentPick!==game.draft.currentPick)throw new DraftError('The draft changed. Review the current turn and try again.');
   if(game.season.finalized)throw new DraftError('This season’s results are locked.');
   if(command.action!=='pick'&&!admin)throw new DraftError('Only the game master can control the draft.');
   if(command.action==='start'){
-    const prepared=migrateLegacyDraftOrder(game);
+    const prepared=game;
     if(prepared.draft.status!=='setup'||prepared.draftPicks.length)throw new DraftError('The draft has already started or contains picks. Do not start it again.');
     const roster=activePlayers(prepared.players);
     if(!roster.length||roster.some(p=>!p.uid&&!p.email))throw new DraftError('Assign every active player a unique email or linked account before starting the draft.');

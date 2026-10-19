@@ -1,0 +1,9 @@
+'use client';
+import {useState,type FormEvent} from 'react';
+import {signInWithEmailAndPassword,signOut} from 'firebase/auth';
+import {getFirebase} from '@/lib/firebase';
+export function AcceptanceLogin(){
+  const [error,setError]=useState(''),[busy,setBusy]=useState(false);
+  async function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();setBusy(true);setError('');const data=new FormData(event.currentTarget);try{const {auth}=getFirebase();await signOut(auth);await signInWithEmailAndPassword(auth,String(data.get('email')),String(data.get('password')));window.location.assign('/');}catch(e){setError(e instanceof Error?e.message:'Local sign-in failed.');setBusy(false);}}
+  return <main className="inner-page"><section className="panel"><p className="eyebrow dark">ISOLATED LOCAL DEMO · SYNTHETIC DATA</p><h1>iPhone acceptance sign-in</h1><p>Use only the temporary accounts from the Windows test instructions. This uses Firebase emulator authentication and the normal server authorization checks. Google account-picker testing remains separate.</p><form className="admin-form" onSubmit={submit}><label>Test account<select name="email"><option value="jury@jury.test">Synthetic Jury player</option><option value="active@jury.test">Synthetic active player</option><option value="commissioner@jury.test">Synthetic commissioner</option><option value="legacy@jury.test">Synthetic legacy-email player</option><option value="unlinked@jury.test">Synthetic unlinked account</option></select></label><label>Temporary test password<input name="password" type="password" autoComplete="current-password" required/></label><button disabled={busy}>{busy?'Signing in…':'Sign in to local demo'}</button></form>{error&&<p role="alert">{error}</p>}<p><a href="/rules">Public rules</a> · <a href="/castaways">Original castaway list</a></p></section></main>;
+}

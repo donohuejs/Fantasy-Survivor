@@ -1,4 +1,5 @@
 'use client';
+import {requestId} from '@/lib/request-id';
 import {useRef,useState,type FormEvent} from 'react';
 import {useGame} from '../game-provider';
 import {usePolls,useRecaps,communityRequest} from '../episodes/community-client';
@@ -48,7 +49,7 @@ export function RecapManager(){
   async function poll(event:FormEvent<HTMLFormElement>){
     event.preventDefault();if(busy)return;const form=event.currentTarget,data=new FormData(form);
     const values={season:game.season.number,episode:Number(data.get('episode')),question:String(data.get('question')),options:String(data.get('options')).split('\n').map(s=>s.trim()).filter(Boolean)};
-    const fingerprint=JSON.stringify(values);if(pollAttempt.current?.fingerprint!==fingerprint)pollAttempt.current={id:crypto.randomUUID(),fingerprint};
+    const fingerprint=JSON.stringify(values);if(pollAttempt.current?.fingerprint!==fingerprint)pollAttempt.current={id:requestId(),fingerprint};
     if(!confirm('Open this poll for league players? The question and choices cannot be edited after opening.'))return;
     setBusy(true);setMessage('');
     try{await communityRequest({action:'create-poll',id:pollAttempt.current!.id,...values});pollAttempt.current=null;form.reset();setMessage('Poll opened. Players can vote on the Episodes page.');}

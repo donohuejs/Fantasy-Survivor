@@ -1,6 +1,7 @@
+import {assertScoringCommissioner} from '@/lib/scoring-authority';
 import {NextRequest,NextResponse} from 'next/server';
 import {getDraftServer,draftServerSetupMessage} from '@/lib/firebase-admin';
-import {assertScoringCommissioner,ScoreCorrectionError,type ScoringActor} from '@/lib/score-corrections';
+import {ScoreCorrectionError,type ScoringActor} from '@/lib/score-corrections';
 import {correctScoring,scoringCorrectionHistory} from '@/lib/score-correction-store';
 
 export const runtime='nodejs';

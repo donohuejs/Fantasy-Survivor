@@ -1,6 +1,7 @@
 import type {Firestore,Transaction,DocumentReference,DocumentSnapshot,Query} from 'firebase-admin/firestore';
 import type {GameState} from './game-data.ts';
-import {CommunityError,isCommunityOwner,linkedAuthor,requiredText,resourceId,type CommunityActor,type EpisodeRecap} from './community.ts';
+import {CommunityError,requiredText,resourceId,type CommunityActor,type EpisodeRecap} from './community.ts';
+import {isCommunityOwner,linkedAuthor} from './community-authority.ts';
 import {acknowledgeRead,assertCommentOwner,assertDiscussionOpen,calendarEpisodes,commentIsPersonal,discussionAvailable,discussionOpening,hiddenEpisode,localOpening,makeSchedule,migrateComments,parseEpisodeIdentity,previewThread,threadIdentity,type BroadcastSchedule,type ConversationPage,type DiscussionCatalog,type DiscussionComment,type DiscussionThread,type EpisodeRecord,type MigrationInspection,type MigrationResult,type ReadState,type ThreadPage} from './discussions.ts';
 
 const leaguePath='games/survivor-51';

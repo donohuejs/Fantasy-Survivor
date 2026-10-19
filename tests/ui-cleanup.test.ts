@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
-import {initialGame} from '../lib/game-data.ts';
-import {availableEpisodeNumbers,hasAuthoredRecap,linkedAuthor,type EpisodeRecap} from '../lib/community.ts';
+import {initialGame} from '../lib/private-league-seed.ts';
+import {availableEpisodeNumbers,hasAuthoredRecap,type EpisodeRecap} from '../lib/community.ts';
+import {linkedAuthor} from '../lib/community-authority.ts';
 import {bindProfile,signupAssociation} from '../lib/league.ts';
 import {DiscussionStore} from '../lib/discussion-store.ts';
 import {saveEpisodeRecap} from '../lib/recap-store.ts';

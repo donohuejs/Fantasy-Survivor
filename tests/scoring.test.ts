@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {assertGameMaster} from '../lib/admin-auth.ts';
-import {initialGame,normalizeCategories,tribeForCastaway} from '../lib/game-data.ts';
+import {initialGame} from '../lib/private-league-seed.ts';
+import {normalizeCategories,tribeForCastaway} from '../lib/game-data.ts';
 import {episodeActions} from '../lib/community.ts';
 import {assignCastaway,currentEpisodeStatus,finishEpisode,recordCastawayBonus,recordFirstTribalCouncil,recordScoring,recordStillOnIsland,recordTribalCouncilResolution,recordTribalCouncilSurvival,saveCustomAction,saveMergeEpisode,startEpisode,saveTribe,recipients} from '../lib/scoring.ts';
 

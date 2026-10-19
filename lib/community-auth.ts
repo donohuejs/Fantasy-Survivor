@@ -12,7 +12,7 @@ export async function authenticateCommunity(request:NextRequest){
   try{
     const token=await server.auth.verifyIdToken(header.slice(7),true);
     if(!token.email_verified)return {error:communityReply({error:'Use a verified Google account.',code:'authentication-unverified'},403)} as const;
-    const actor:CommunityActor={uid:token.uid,email:token.email??'',verified:true};return {server,actor} as const;
+    const actor:CommunityActor={uid:token.uid,email:token.email??'',verified:true,...(typeof token.name==='string'?{displayName:token.name}:{})};return {server,actor} as const;
   }catch{return {error:communityReply({error:'Your sign-in expired. Sign out and sign in again.',code:'authentication-invalid'},401)} as const;}
 }
 export function communityFailure(error:unknown){

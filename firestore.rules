@@ -1,78 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
-  function isAdmin() {
-    return request.auth != null && request.auth.token.email_verified == true && request.auth.token.email == 'donohue.js@gmail.com';
-  }
-
   match /databases/{database}/documents {
-    match /games/{gameId} {
-      allow read: if true;
-      allow create, delete: if isAdmin();
-      // Player decisions are verified by /api/draft using the Admin SDK.
-      allow update: if isAdmin();
-      // Community writes and per-player ballots are handled by the authenticated server.
-      match /episodes/{episodeId} {
-        allow read: if isAdmin() || resource.data.status == 'published';
-        allow write: if false;
-        match /comments/{commentId} {
-          // Membership, opening time and spoiler redaction are enforced by the API.
-          allow read, write: if false;
-        }
-      }
-      match /discussionThreads/{threadId} {
-        allow read, write: if false;
-      }
-      match /discussionSchedules/{season} {
-        allow read, write: if false;
-      }
-      match /discussionUsers/{userId} {
-        allow read, write: if false;
-        match /{document=**} {
-          allow read, write: if false;
-        }
-      }
-      match /polls/{pollId} {
-        allow read: if true;
-        allow write: if false;
-        match /votes/{profileId} {
-          allow read, write: if false;
-        }
-      }
-      match /communityPrivate/{userId} {
-        allow read, write: if false;
-      }
-      match /draftPrivate/{document} {
-        // No browser, including the game master's, may inspect the hidden deck.
-        allow read, write: if false;
-      }
-      match /scoreCorrections/{correctionId} {
-        // Immutable audit receipts are created only by the commissioner-authenticated API.
-        allow read, write: if false;
-      }
-      match /archives/{season} {
-        allow read, write: if isAdmin();
-      }
-      match /signups/{userId} {
-        allow create: if isAdmin() || (request.auth != null
-          && request.auth.uid == userId
-          && request.auth.token.email_verified == true
-          && request.resource.data.keys().hasOnly(['uid', 'name', 'email', 'createdAt'])
-          && request.resource.data.uid == request.auth.uid
-          && request.resource.data.email == request.auth.token.email.lower()
-          && request.resource.data.name is string
-          && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 50
-          && request.resource.data.createdAt is string);
-        allow update: if isAdmin() || (request.auth != null
-          && request.auth.uid == userId
-          && !('assignedPlayerId' in resource.data)
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
-          && request.resource.data.name is string
-          && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 50
-          && request.resource.data.uid == resource.data.uid
-          && request.resource.data.email == resource.data.email);
-        allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
-        allow delete: if isAdmin();
-      }
-    }
+    // Protected access is server-authoritative and verifies token revocation.
+    // Deny direct access even for unexpired commissioner JWTs revoked outside the app.
+    match /{document=**} { allow read, write: if false; }
   }
 }

@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {initialGame,type GameState} from '../lib/game-data.ts';
+import {initialGame} from '../lib/private-league-seed.ts';
+import {migrateLegacyDraftOrder} from '../lib/private-league-seed.ts';
+import {type GameState} from '../lib/game-data.ts';
 import {executeDraft,parseDraftCommand,availableCastaways,keepsUntilReveal,pickProblem,shuffle,type DraftCommand,type DraftActor,type PrivateDeal} from '../lib/draft.ts';
 import {seasonStandings} from '../lib/league.ts';
 
-const owner:DraftActor={uid:'owner',email:'donohue.js@gmail.com',verified:true};
+const owner:DraftActor={uid:'owner',email:'donohue.js@gmail.com',verified:true,commissioner:true};
 type State={game:GameState;deal:PrivateDeal|null};
 function setup(count=6,castCount=8):GameState{
   const game=structuredClone(initialGame);
@@ -43,7 +45,7 @@ test('starting a legacy appended Adam roster repairs Slot 1 and persists the sna
   const game=setup(3,4);delete game.draftOrderVersion;
   game.players.push({...initialGame.players[3],id:'player-adam',name:'Adam',email:'',uid:'account-adam',priorFinish:0,draftSlot:4});
   game.draft={status:'setup',currentPick:0,turns:[]};
-  const result=executeDraft(game,null,owner,command(game,'start'),()=>0),roundOne=result.game.draft.turns.filter(turn=>turn.round===1),roundTwo=result.game.draft.turns.filter(turn=>turn.round===2);
+  const result=executeDraft(migrateLegacyDraftOrder(game),null,owner,command(game,'start'),()=>0),roundOne=result.game.draft.turns.filter(turn=>turn.round===1),roundTwo=result.game.draft.turns.filter(turn=>turn.round===2);
   assert.equal(result.game.players.find(player=>player.id==='player-adam')!.draftSlot,1);
   assert.deepEqual(roundTwo.map(turn=>turn.playerId),[...roundOne].reverse().map(turn=>turn.playerId));
   assert.equal(result.game.draftOrderVersion,2);
@@ -55,7 +57,7 @@ test('shuffle does not mutate the source and uses bounds for every position',()=
 });
 test('only verified owner starts or controls draft',()=>{
   const game=setup();
-  assert.throws(()=>executeDraft(game,null,{...owner,email:'intruder@example.com'},command(game,'start')),/game master/);
+  assert.throws(()=>executeDraft(game,null,{...owner,email:'intruder@example.com',commissioner:false},command(game,'start')),/game master/);
   assert.throws(()=>executeDraft(game,null,{...owner,verified:false},command(game,'start')),/verified/);
   const state=start();
   for(const action of ['toggle','undo'] as const)assert.throws(()=>executeDraft(state.game,state.deal,turnActor(state.game),command(state.game,action)),/game master/);

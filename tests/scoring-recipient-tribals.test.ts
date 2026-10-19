@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {initialGame,migrateLegacyTribalState} from '../lib/game-data.ts';
+import {initialGame} from '../lib/private-league-seed.ts';
+import {migrateLegacyTribalState} from '../lib/game-data.ts';
 import {addTribalCouncil,eligibleRecipientCastaways,mergeIsActive,recordScoring,recordTribalCouncilResolution,resolveRecipients,saveMergeEpisode,startEpisode,tribalCouncilId} from '../lib/scoring.ts';
 
 function fixture(){

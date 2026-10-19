@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {initialGame} from '../lib/game-data.ts';
+import {initialGame} from '../lib/private-league-seed.ts';
 import {castawayLeaderboard} from '../lib/castaway-leaderboard.ts';
 
 test('castaway leaderboard totals episodes and keeps eliminated castaways at the bottom',()=>{

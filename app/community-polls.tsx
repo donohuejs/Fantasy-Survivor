@@ -1,8 +1,8 @@
 'use client';
+import {startVisiblePolling,readIntervals} from '@/lib/visible-polling';
 
 import {createContext,useContext,useEffect,useState} from 'react';
-import {collection,onSnapshot} from 'firebase/firestore';
-import {getFirebase} from '@/lib/firebase';
+import {leagueRequest} from './league-client';
 import {currentSeasonOpenPolls,type LeaguePoll} from '@/lib/community';
 import {useGame} from './game-provider';
 
@@ -10,17 +10,16 @@ type PollResult={rows:LeaguePoll[];loading:boolean;error:string};
 const PollContext=createContext<PollResult|null>(null);
 
 export function CommunityPollProvider({children}:{children:React.ReactNode}){
-  const {cloud}=useGame();
-  const [state,setState]=useState<{rows:LeaguePoll[];loaded:boolean;error:string}>({rows:[],loaded:false,error:''});
+  const {cloud,user,leagueAccess}=useGame();
+  const key=leagueAccess==='authorized'?user?.uid??'':'';
+  const [state,setState]=useState<{key:string;rows:LeaguePoll[];loaded:boolean;error:string}>({key:'',rows:[],loaded:false,error:''});
   useEffect(()=>{
-    if(!cloud){
-      queueMicrotask(()=>setState({rows:[],loaded:true,error:''}));
-      return;
-    }
-    const source=collection(getFirebase().db,'games','survivor-51','polls');
-    return onSnapshot(source,snapshot=>setState({rows:snapshot.docs.map(doc=>doc.data() as LeaguePoll),loaded:true,error:''}),()=>setState({rows:[],loaded:true,error:'Could not load polls. Check your connection and make sure the updated Firebase rules are published.'}));
-  },[cloud]);
-  return <PollContext.Provider value={{rows:state.rows,loading:cloud&&!state.loaded,error:cloud?state.error:''}}>{children}</PollContext.Provider>;
+    if(!cloud||!key)return;let active=true;
+    async function refresh(signal:AbortSignal){try{const result=await leagueRequest<{rows:LeaguePoll[]}>('polls',signal);if(active&&!signal.aborted)setState({key,rows:result.rows,loaded:true,error:''});}catch(error){if(active&&!signal.aborted)setState({key,rows:[],loaded:true,error:'Could not load polls. Check your connection.'});throw error;}}
+    const poll=startVisiblePolling(refresh,readIntervals.polls,['league-refresh']);
+    return()=>{active=false;poll.stop();};
+  },[cloud,key]);
+  return <PollContext.Provider value={{rows:key&&state.key===key?state.rows:[],loading:Boolean(key&&state.key!==key),error:key&&state.key===key?state.error:''}}>{children}</PollContext.Provider>;
 }
 
 export function usePolls(){

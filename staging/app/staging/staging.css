@@ -1,0 +1,13 @@
+.staging-operator-bar { position:fixed; bottom:0; left:0; right:0; z-index:30; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:6px 12px; background:var(--paper); border-top:2px solid var(--forest); box-shadow:0 -3px 12px #17211c20; font-size:13px; }
+.staging-operator-bar a { text-decoration:underline; font-weight:700; }
+html:has(.staging-operator-bar) { scroll-padding-bottom:calc(var(--staging-controls-height, 7rem) + 16px); }
+body:has(.staging-operator-bar) { padding-bottom:calc(var(--staging-controls-height, 7rem) + 16px); }
+body:has(.staging-operator-bar) :is(input,select,textarea,button,[tabindex]) { scroll-margin-bottom:calc(var(--staging-controls-height, 7rem) + 16px); }
+.staging-page-links { display:flex; flex-wrap:wrap; gap:14px; margin:20px 0; }
+.staging-page-links a { text-decoration:underline; }
+.staging-build-id { font-size:12px; overflow-wrap:anywhere; }
+.staging-diagnostics { flex:0 1 100%; min-width:0; text-align:center; }
+.staging-diagnostics summary { cursor:pointer; text-decoration:underline; }
+.staging-diagnostics-panel { max-height:min(50dvh,26rem); overflow:auto; margin-top:8px; padding:12px; text-align:left; background:var(--paper); border:1px solid var(--forest); border-radius:8px; }
+.staging-diagnostics-panel button { margin:4px; }
+.staging-diagnostics-panel pre { font-size:11px; white-space:pre-wrap; overflow-wrap:anywhere; text-align:left; }

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {initialGame,type EliminationReason} from '../lib/game-data.ts';
+import {initialGame} from '../lib/private-league-seed.ts';
+import {type EliminationReason} from '../lib/game-data.ts';
 import {episodeActions} from '../lib/community.ts';
 import {effectiveEliminationScoringEpisode,eliminationPenalty,ensureEliminationScoringBoundary,recordCastawayElimination,recordTribalCouncilResolution,tribalCouncilId,updateEliminationReason} from '../lib/scoring.ts';
 

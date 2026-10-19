@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {buildDraftTurns,initialGame} from '../lib/game-data.ts';
+import {initialGame} from '../lib/private-league-seed.ts';
+import {buildDraftTurns} from '../lib/game-data.ts';
 import {castawayBoard,draftHistoryEntries,draftOverallPickNumber,draftRounds,draftRosterSize} from '../lib/draft-board.ts';
 
 const copy=()=>structuredClone(initialGame);

@@ -1,6 +1,7 @@
 'use client';
+import {startVisiblePolling,readIntervals} from '@/lib/visible-polling';
 import {useEffect,useState} from 'react';
-import {collection,onSnapshot,query,where} from 'firebase/firestore';
+import {leagueRequest} from '../league-client';
 import {getFirebase} from '@/lib/firebase';
 import type {EpisodeRecap,LeaguePoll} from '@/lib/community';
 import {useGame} from '../game-provider';
@@ -8,17 +9,18 @@ export {usePolls} from '../community-polls';
 
 type Result<T>={key:string;rows:T[];error:string;loaded:boolean};
 function useList<T extends EpisodeRecap|LeaguePoll>(name:'episodes'|'polls',drafts=false,enabled=true){
-  const {cloud,isAdmin,user}=useGame();
+  const {cloud,isAdmin,user,leagueAccess}=useGame();
   const privateView=drafts&&isAdmin;
-  const scope=name+':'+(privateView?user?.uid??'local':'public');
+  const authorized=leagueAccess==='authorized';
+  const scope=name+':'+(user?.uid??'')+':'+privateView;
   const [state,setState]=useState<Result<T>>({key:'',rows:[],error:'',loaded:false});
   useEffect(()=>{
-    if(!cloud||!enabled)return;
-    const ref=collection(getFirebase().db,'games','survivor-51',name);
-    const source=name==='episodes'&&!privateView?query(ref,where('status','==','published')):ref;
-    return onSnapshot(source,snapshot=>setState({key:scope,rows:snapshot.docs.map(d=>d.data() as T),error:'',loaded:true}),()=>setState({key:scope,rows:[],error:'Could not load '+name+'. Check your connection and make sure the updated Firebase rules are published.',loaded:true}));
-  },[cloud,name,privateView,scope,enabled]);
-  return {rows:enabled&&state.key===scope?state.rows:[],loading:enabled&&cloud&&(state.key!==scope||!state.loaded),error:!cloud?'Connect Firebase to use recaps, comments, and polls.':enabled&&state.key===scope?state.error:''};
+    if(!cloud||!enabled||!authorized)return;let active=true;
+    async function refresh(signal:AbortSignal){try{const result=await leagueRequest<{rows:T[]}>(name==='episodes'?'recaps':'polls',signal);if(active&&!signal.aborted)setState({key:scope,rows:result.rows.filter(row=>privateView||name!=='episodes'||(row as EpisodeRecap).status==='published'),error:'',loaded:true});}catch(error){if(active&&!signal.aborted)setState({key:scope,rows:[],error:'Could not load '+name+'. Check your connection.',loaded:true});throw error;}}
+    const poll=startVisiblePolling(refresh,readIntervals.recaps,['league-refresh']);
+    return()=>{active=false;poll.stop();};
+  },[cloud,name,privateView,scope,enabled,authorized]);
+  return {rows:enabled&&authorized&&state.key===scope?state.rows:[],loading:enabled&&cloud&&authorized&&(state.key!==scope||!state.loaded),error:!cloud?'Connect Firebase to use recaps, comments, and polls.':enabled&&authorized&&state.key===scope?state.error:''};
 }
 export function useRecaps(drafts=false,enabled=true){return useList<EpisodeRecap>('episodes',drafts,enabled);}
 export async function communityRequest(input:Record<string,unknown>,pollId?:string):Promise<{ok?:boolean;updatedAt?:string;choice?:number|null}>{
@@ -30,5 +32,6 @@ export async function communityRequest(input:Record<string,unknown>,pollId?:stri
   let result:{error?:string;ok?:boolean;updatedAt?:string;choice?:number|null};
   try{result=JSON.parse(body) as typeof result;}catch{throw new Error(`The server returned an unexpected response (HTTP ${response.status}). Reload before trying again.`);}
   if(!response.ok)throw new Error(result.error??'Unable to complete the request.');
+  if(!pollId)window.dispatchEvent(new Event('league-refresh'));
   return result;
 }

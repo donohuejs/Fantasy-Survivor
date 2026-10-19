@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {assertScoringCommissioner} from '../lib/scoring-authority.ts';
 import {readFileSync} from 'node:fs';
-import {planScoreCorrection,parseScoreCorrection,assertScoringCommissioner} from '../lib/score-corrections.ts';
+import {planScoreCorrection,parseScoreCorrection} from '../lib/score-corrections.ts';
 import {castawayScoreTotals,scoringActions,effectiveScorePoints,scoringVersion} from '../lib/score-ledger.ts';
 import {seasonStandings,lockSeason} from '../lib/league.ts';
 import {castawayLeaderboard} from '../lib/castaway-leaderboard.ts';
@@ -135,7 +136,7 @@ test('authorization rejects non-commissioners, unverified owners, empty UIDs and
   const game=correctionFixture(),command=await correctionCommand(game);
   for(const actor of [{...commissioner,email:'player@example.com'},{...commissioner,verified:false},{...commissioner,uid:''}]){
     assert.throws(()=>assertScoringCommissioner(actor),/Only the game master/);
-    await assert.rejects(planScoreCorrection(game,actor,command,now),/Only the game master/);
+    await assert.rejects(planScoreCorrection(game,{...actor,commissioner:false},command,now),/Only the game master/);
   }
   assert.doesNotThrow(()=>assertScoringCommissioner({...commissioner,email:'DONOHUE.JS@GMAIL.COM'}));
 });
@@ -165,7 +166,8 @@ test('manual elimination corrections cannot be erased by elimination reason reco
 });
 test('audit paths deny browser writes; the API verifies revoked tokens and does not trust client roles',()=>{
   const rules=readFileSync(new URL('../firestore.rules',import.meta.url),'utf8'),route=readFileSync(new URL('../app/api/scoring/route.ts',import.meta.url),'utf8');
-  assert.match(rules,/match \/scoreCorrections\/\{correctionId\} \{[^}]*allow read, write: if false;/);
+  assert.match(rules,/match \/\{document=\*\*\} \{ allow read, write: if false;/);
+  assert.doesNotMatch(rules,/allow .*if (?!false)/);
   assert.match(route,/verifyIdToken\(header.slice\(7\),true\)/);
   assert.match(route,/assertScoringCommissioner\(actor\)/);
 });

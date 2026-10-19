@@ -2,13 +2,14 @@
 /* eslint-disable @next/next/no-img-element */
 import {SiteHeader} from '../site-header';
 import { useGame } from '../game-provider';
-import {eliminationReasonLabels,tribeForCastaway} from '@/lib/game-data';
+import {eliminationReasonLabels,tribeForCastaway,initialGame} from '@/lib/game-data';
 import {castawayLeaderboard} from '@/lib/castaway-leaderboard';
 
 const scoreText=(score:number)=>Number.isInteger(score)?String(score):score.toFixed(1);
 
 export default function CastawaysPage() {
-  const { game, loading } = useGame();
+  const { game, loading, cloud, leagueAccess } = useGame();
+  if((cloud||process.env.NODE_ENV==='production')&&leagueAccess!=='authorized')return <main className="inner-page"><SiteHeader active="/castaways" subtitle="Original season cast"/><section className="inner-hero"><p className="eyebrow">Survivor 51</p><h1>Meet the original cast.</h1><p>Original cast profiles. Sign in with an authorized league account for current standings, tribes, and episode results.</p></section><section className="castaway-grid">{initialGame.castaways.map(c=><article className="castaway-card" key={c.id}><img src={c.imageUrl} alt={c.name} loading="lazy"/><div className="castaway-body"><h3>{c.name}</h3><p>Age {c.age} · {c.occupation}</p><p>{c.bio}</p></div></article>)}</section></main>;
   if (loading) return <main className="loading-screen">Loading season…</main>;
   const leaderboard=castawayLeaderboard(game);
   const allRows=[...leaderboard.active,...leaderboard.eliminated];

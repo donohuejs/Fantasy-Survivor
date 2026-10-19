@@ -31,7 +31,7 @@ async function main(){
   const gameRaw=await get('games/survivor-51'),game=decode({mapValue:{fields:gameRaw.fields}}),originalRaw=JSON.parse(readFileSync(path.join(preflight.folder,'game-document.json'),'utf8')),original=decode({mapValue:{fields:originalRaw.fields}});
   const ori=game.scoreEvents.find(e=>e.id==='e0c90d3b-786b-47bd-9fbc-261c5d65329b:cast-ori');assert.equal(ori?.scoringStatus,'reversed');assert(/^[a-zA-Z0-9_-]{1,100}$/.test(ori.correctionId));
   const auditRaw=await get('games/survivor-51/scoreCorrections/'+ori.correctionId),audit=decode({mapValue:{fields:auditRaw.fields}});
-  const expected=await planScoreCorrection(original,{uid:audit.actorUid,email:'donohue.js@gmail.com',verified:true},audit.command,audit.at);
+  const expected=await planScoreCorrection(original,{uid:audit.actorUid,email:'donohue.js@gmail.com',verified:true,commissioner:true},audit.command,audit.at);
   assert.equal(canonicalJson(game),canonicalJson(expected.game),'Game differs from the single approved Edit correction. Stop.');
   assert.equal(castawayScoreTotals(game)['cast-ori'],13);assert.equal(game.castaways.find(c=>c.id==='cast-ori').tribeId,'savu');
   const scores=new Map(seasonStandings(game).map(p=>[p.profileId,p.score]));for(const [id,score] of [['player-katie',58.25],['player-zoda',55.75],['player-chad',51]])assert.equal(scores.get(id),score);

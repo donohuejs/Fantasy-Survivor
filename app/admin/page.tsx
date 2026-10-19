@@ -13,6 +13,7 @@ import {RecapManager} from './recap-manager';
 import {ScoringHistory} from './score-editor';
 import {playerDisplayName} from '@/lib/player-honors';
 import {activePlayers} from '@/lib/game-data';
+import {JuryManager} from './jury-manager';
 
 export default function Admin(){
   const {game,standings,user,isAdmin,cloud,authLoading,addAdjustment,addPlayer,startDraft,toggleDraft,undoDraftPick,resetSeason}=useGame();
@@ -35,10 +36,10 @@ export default function Admin(){
   const locked=Boolean(game.season.finalized);
   const currentTurn=game.draft.turns[game.draft.currentPick];
   if((!cloud&&!isAdmin)||authLoading||(!user&&!isAdmin))return <main className="admin-shell"><SiteHeader active="/admin" subtitle="Game master"/><section className="admin-intro"><div><p className="eyebrow">Game master</p><h1>Sign in to run Survivor {game.season.number}.</h1><AuthControls/></div></section></main>;
-  if(!isAdmin)return <main className="admin-shell"><SiteHeader active="/admin" subtitle="Game master"/><section className="admin-intro"><div><h1>This account is not the game master.</h1><p>Use the league owner account, donohue.js@gmail.com.</p><AuthControls/></div></section></main>;
+  if(!isAdmin)return <main className="admin-shell"><SiteHeader active="/admin" subtitle="Game master"/><section className="admin-intro"><div><h1>This account is not the game master.</h1><p>Use the authorized league owner account.</p><AuthControls/></div></section></main>;
 
   const scoring=<>
-    {locked?<p className="setup-notice">Final results are locked. Open the next season in League setup before recording new scores.</p>:<ScoringManager key={game.season.number}/>}
+    {locked?<p className="setup-notice">Final results are locked. Open the next season in League setup before recording new scores.</p>:<><ScoringManager key={game.season.number}/><JuryManager key={'jury-'+game.season.number}/></>}
   </>;
   const setup=<>
     <section className="setup-section"><h2>League setup</h2><p>Add new profiles here, then link their Google accounts in <a href="#player-check-in">Player check-in</a>. New profiles automatically enter Round 1 at Slot 1; existing active players shift down, and Round 2 reverses that order. Returning accounts remain linked to their permanent profiles.</p>

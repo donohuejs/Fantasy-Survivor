@@ -3,6 +3,7 @@ import './globals.css';
 import { GameProvider } from './game-provider';
 import { CommunityPollProvider } from './community-polls';
 import { DiscussionProvider } from './discussion-provider';
+import { LeagueGate } from './league-gate';
 
 export const metadata: Metadata = {
   title: 'Fantasy Survivor',
@@ -24,5 +25,5 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><GameProvider><CommunityPollProvider><DiscussionProvider>{children}</DiscussionProvider></CommunityPollProvider></GameProvider></body></html>;
+  return <html lang="en"><body><GameProvider><CommunityPollProvider><DiscussionProvider><LeagueGate>{children}</LeagueGate></DiscussionProvider></CommunityPollProvider></GameProvider></body></html>;
 }

@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {initialGame,buildDraftTurns,insertPlayerAtDraftFront,migrateLegacyDraftOrder} from '../lib/game-data.ts';
+import {initialGame} from '../lib/private-league-seed.ts';
+import {migrateLegacyDraftOrder} from '../lib/private-league-seed.ts';
+import {buildDraftTurns,insertPlayerAtDraftFront} from '../lib/game-data.ts';
 import {bindProfile,seasonStandings,lockSeason,nextSeasonRoster,prepareNextSeason} from '../lib/league.ts';
-import {historicalResults,allTimeStandings,combinedHistory} from '../lib/history-data.ts';
+import {historicalResults,withHistoricalSeed} from '../lib/private-league-seed.ts';
+import {allTimeStandings,combinedHistory} from '../lib/history-data.ts';
 
 const signup={uid:'google-one',name:'New display name',email:'player@example.com',createdAt:'2026-09-03T12:00:00Z'};
 function finished(){const game=structuredClone(initialGame);game.players=game.players.slice(0,3).map((p,index)=>({...p,uid:`google-${index}`,paid:true,entryBonus:0}));game.draft.status='complete';game.scoreEvents=game.players.map((p,index)=>({id:`score-${index}`,playerId:p.id,points:30-index*10,createdAt:'2026-12-01T00:00:00Z'}));return game;}
@@ -84,9 +87,9 @@ test('historical tied Season 49 scores share rank 13',()=>{
   const tied=historicalResults.filter(r=>r.season===49&&r.score===93);assert.equal(tied.length,2);assert.ok(tied.every(r=>r.finish===13));
 });
 test('finalized season is appended once and unfinalized scores are excluded',()=>{
-  const game=finished();assert.equal(combinedHistory(game.history).length,73);
+  const game=finished();assert.equal(combinedHistory(withHistoricalSeed(game).history).length,73);
   const locked=lockSeason(game,seasonStandings(game).map(r=>r.profileId),'now');
-  assert.equal(combinedHistory(locked.history).length,76);assert.equal(combinedHistory([...locked.history!,...locked.history!]).length,76);
-  const chad=allTimeStandings(combinedHistory(locked.history)).find(r=>r.profileId==='player-chad')!;
+  assert.equal(combinedHistory(withHistoricalSeed(locked).history).length,76);assert.equal(combinedHistory([...withHistoricalSeed(locked).history!,...withHistoricalSeed(locked).history!]).length,76);
+  const chad=allTimeStandings(combinedHistory(withHistoricalSeed(locked).history)).find(r=>r.profileId==='player-chad')!;
   assert.equal(chad.seasons,7);assert.ok(Math.abs(chad.total-961.2083333333333)<1e-8);
 });

@@ -5,7 +5,8 @@ import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {initializeApp,cert} from 'firebase-admin/app';
 import {getAuth} from 'firebase-admin/auth';
 import {getFirestore} from 'firebase-admin/firestore';
-import {initialGame,normalizeCategories,migrateLegacyTribalState} from '../lib/game-data.ts';
+import {initialGame} from '../lib/private-league-seed.ts';
+import {normalizeCategories,migrateLegacyTribalState} from '../lib/game-data.ts';
 import {ensureEliminationScoringBoundary} from '../lib/scoring.ts';
 
 const project='demo-fantasy-scoring',base=process.env.UI_CLEANUP_TEST_URL??'http://127.0.0.1:3104';

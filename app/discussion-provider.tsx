@@ -1,16 +1,18 @@
 'use client';
+import {useVisiblePolling} from '@/app/use-visible-polling';
+import {readIntervals} from '@/lib/visible-polling';
 import {createContext,useCallback,useContext,useEffect,useMemo,useRef,useState} from 'react';
 import {getFirebase} from '@/lib/firebase';
 import type {ConversationPage,DiscussionCatalog,ReadState,ThreadPage,ThreadPreview} from '@/lib/discussions';
 import {useGame} from './game-provider';
+import {readDiscussionResponse} from '@/lib/discussion-response';
 
 export async function discussionRequest<T>(input:Record<string,unknown>,get=false,signal?:AbortSignal):Promise<T>{
   const user=getFirebase().auth.currentUser;if(!user)throw new Error('Sign in with Google first.');
-  const token=await user.getIdToken(),params=new URLSearchParams();
+  const token=await user.getIdToken();signal?.throwIfAborted();if(getFirebase().auth.currentUser?.uid!==user.uid)throw new Error('Your signed-in account changed.');const params=new URLSearchParams();
   if(get)for(const [key,value] of Object.entries(input))if(value!==undefined&&value!==null)params.set(key,String(value));
   const response=await fetch('/api/discussions'+(get?'?'+params.toString():''),{method:get?'GET':'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},...(get?{}:{body:JSON.stringify(input)}),cache:'no-store',signal});
-  const result=await response.json().catch(()=>({error:`The server returned HTTP ${response.status}. Retry after refreshing.`}));
-  if(!response.ok)throw new Error(result.error??'Unable to load or save discussions.');return result as T;
+  return readDiscussionResponse<T>(response);
 }
 type DiscussionContextValue={
   catalog:DiscussionCatalog|null;eligible:boolean;loading:boolean;error:string;revision:number;
@@ -26,17 +28,12 @@ export function DiscussionProvider({children}:{children:React.ReactNode}){
   const [revealState,setRevealed]=useState<{key:string;ids:Set<string>}>({key:'',ids:new Set()});
   const activeKey=useRef(key);activeKey.current=key;
   const generation=useRef(0);
-  const refresh=useCallback(async()=>{
+  const read=useCallback(async(signal:AbortSignal)=>{
     if(!key)return;const request=++generation.current;
-    try{const catalog=await discussionRequest<DiscussionCatalog>({view:'catalog'},true);if(activeKey.current===key&&request===generation.current)setState(old=>({key,catalog,error:'',revision:old.revision+1}));}
-    catch(error){if(activeKey.current===key&&request===generation.current)setState(old=>({key,catalog:old.key===key?old.catalog:null,error:error instanceof Error?error.message:'Could not load discussions.',revision:old.revision}));}
+    try{const catalog=await discussionRequest<DiscussionCatalog>({view:'catalog'},true,signal);if(!signal.aborted&&activeKey.current===key&&request===generation.current)setState(old=>({key,catalog,error:'',revision:old.revision+1}));}
+    catch(error){if(!signal.aborted&&activeKey.current===key&&request===generation.current)setState(old=>({key,catalog:null,error:error instanceof Error?error.message:'Could not load discussions.',revision:old.revision}));throw error;}
   },[key]);
-  useEffect(()=>{
-    if(!key)return;void refresh();
-    const update=()=>{if(document.visibilityState==='visible')void refresh();};
-    const timer=window.setInterval(update,30000);window.addEventListener('focus',update);document.addEventListener('visibilitychange',update);
-    return()=>{window.clearInterval(timer);window.removeEventListener('focus',update);document.removeEventListener('visibilitychange',update);};
-  },[key,refresh,game.season.number]);
+  const refresh=useVisiblePolling(read,readIntervals.discussions,Boolean(key));
   const catalog=eligible&&state.key===key?state.catalog:null;
   const reveal=useCallback((id:string)=>setRevealed(old=>({key,ids:new Set([...(old.key===key?old.ids:[]),id])})),[key]);
   const mutate=useCallback(async(input:Record<string,unknown>)=>{await discussionRequest(input);await refresh();},[refresh]);

@@ -1,8 +1,9 @@
-import {initialGame,type GameState} from '../../lib/game-data.ts';
+import {initialGame} from '../../lib/private-league-seed.ts';
+import {type GameState} from '../../lib/game-data.ts';
 import {scoringVersion} from '../../lib/score-ledger.ts';
 import type {ScoreCorrectionCommand} from '../../lib/score-corrections.ts';
 
-export const commissioner={uid:'test-owner',email:'donohue.js@gmail.com',verified:true};
+export const commissioner={uid:'test-owner',email:'donohue.js@gmail.com',verified:true,commissioner:true};
 export const awardedIds=['cast-thien-an','cast-brady','cast-carter','cast-kristin','cast-maggie','cast-mike','cast-ori'];
 export function correctionFixture(){
   const game=structuredClone(initialGame);

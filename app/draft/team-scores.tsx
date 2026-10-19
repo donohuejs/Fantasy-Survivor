@@ -5,6 +5,8 @@ import {PlayerName} from '../player-name';
 import {useGame} from '../game-provider';
 import {tribeForCastaway} from '@/lib/game-data';
 import {draftHistoryEntries,draftRosterSize} from '@/lib/draft-board';
+import {playerInJuryMode} from '@/lib/jury-public';
+import {ScoreContributions} from '../score-contributions';
 
 export function TeamScores(){
   const {game,standings}=useGame();
@@ -14,9 +16,11 @@ export function TeamScores(){
     <div className="team-scores-grid">{standings.map(player=>{
       const playerEntries=history.filter(entry=>entry.playerId===player.id).sort((a,b)=>a.overallPickNumber-b.overallPickNumber);
       const rosterSize=draftRosterSize(game,player.id);
+      const inJury=playerInJuryMode(game,player.id);
       const activeCount=playerEntries.filter(entry=>{const castawayId=entry.pick?.castawayId;const castaway=castawayId?game.castaways.find(item=>item.id===castawayId):undefined;return castaway?.status==='active';}).length;
-      return <article className="team-score-card" key={player.id}>
-        <header><div><p className="team-score-rank">{player.score?'Rank '+player.rank:'Team'}</p><h3><PlayerName id={player.id} name={player.name} history={game.history}/></h3></div><div className="team-score-summary"><strong>{player.score.toFixed(1)}<small> pts</small></strong><span>{activeCount} of {rosterSize} active</span></div></header>
+      return <article className={`team-score-card ${inJury?'jury-team-card':''}`} key={player.id}>
+        <header><div><p className="team-score-rank">{player.score?'Rank '+player.rank:'Team'}</p><h3><PlayerName id={player.id} name={player.name} history={game.history}/></h3>{inJury&&<span className="jury-mode-label">Jury Mode</span>}</div><div className="team-score-summary"><strong>{player.score.toFixed(1)}<small> pts</small></strong><span>{activeCount} of {rosterSize} active</span></div></header>
+        <ScoreContributions game={game} playerId={player.id} total={player.score} inJury={inJury}/>
         <div className="team-roster-grid">{Array.from({length:rosterSize},(_,index)=>{const entry=playerEntries[index];return <RosterCastaway key={entry?`${entry.playerId}-${entry.round}`:`${player.id}-empty-${index}`} entry={entry} game={game}/>;})}</div>
       </article>;
     })}</div>

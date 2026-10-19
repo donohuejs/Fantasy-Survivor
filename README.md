@@ -5,13 +5,14 @@ A standalone Next.js fantasy league application designed for Vercel, with Fireba
 ## Features
 
 - Clean Survivor 51 season with 21 castaway profiles and zero starting scores
-- Public leaderboard, castaway tracker, rules, teams, and draft board
+- Authenticated league standings, live castaway tracker, teams, and draft board; public rules and original season cast
 - Google-protected game-master dashboard
 - Three-round draft with a 1.25x blind-pick multiplier
 - Weekly scoring actions, player adjustments, automatic totals, and an audit trail
 - Local setup mode when Firebase has not yet been connected
 - Prominent Google sign-in/sign-out controls in the shared header, outside the mobile scrolling navigation
-- Public Episodes page with scoring recaps, owner commentary, linked-player comments, and league polls
+- Authorized league Episodes page with scoring recaps, owner commentary, linked-player comments, and league polls
+- Private Jury Mode predictions, partial auto-saves, server airtime locking, confirmed grading, and unified standings; see [Release A review and cutover](docs/jury-mode-release-a.md)
 - Game Master tabs for Scoring, League setup, Tribe membership, Player check-in, Draft room, and Activity log
 - Commissioner-only scoring Edit/Undo with recipient and point review, immutable audits, atomic retries, and automatic multiplier-aware totals. See [scoring corrections and the pending Episode 4 plan](docs/scoring-corrections.md).
 
@@ -47,8 +48,8 @@ Import this directory's GitHub repository into Vercel, keep the seven public set
 - Assignment is transactional, rejects duplicate account/profile links, and removes the email from the public player record. Email stays in the private signup document; UID authenticates subsequent picks. Existing manual-email assignments remain compatible until linked.
 - Registered players cannot choose or change their permanent profile assignment. A mistaken identity link needs a deliberate administrator recovery; this release does not expose an account-reassignment shortcut.
 - Paid checkboxes track receipts for the current season only. They do not charge players, award points, or prevent drafting.
-- At the end of a season, open **Review and lock final standings**. Resolve each tie explicitly, review totals, then confirm. Finalization freezes app scoring and adds one public archive of results to the all-time leaderboard.
-- **Open Season N+1** makes an admin-only full backup in `games/survivor-51/archives/N`, keeps public results in `history`, and starts the next season in the existing active document. It preserves profile IDs, UIDs and names; reverses the finalized finish order; clears cast, tribes, scores, draft picks, bonuses and paid flags. Add the new cast and tribes before starting that draft. Custom scoring categories carry forward.
+- At the end of a season, open **Review and lock final standings**. Resolve each tie explicitly, review totals, then confirm. Finalization freezes app scoring and adds one league archive of results to the all-time leaderboard.
+- **Open Season N+1** makes an admin-only full backup in `games/survivor-51/archives/N`, keeps league results in `history`, and starts the next season in the existing active document. It preserves profile IDs, UIDs and names; reverses the finalized finish order; clears cast, tribes, scores, draft picks, bonuses and paid flags. Add the new cast and tribes before starting that draft. Custom scoring categories carry forward.
 - All existing participants carry forward. New profiles enter Round 1 at Slot 1, shifting existing active players down; Round 2 reverses that order, so the prior-season Survivor winner remains the first Round 2 picker. No automatic season rollover runs in the background.
 
 ## Historical import
@@ -65,4 +66,4 @@ Hidden card assignments are stored outside the public game document and never re
 
 Before publishing, follow [the private draft deployment checklist](docs/draft-deployment.md): add the server-only credential in Vercel, publish Firestore rules separately, then deploy and rehearse with non-admin test accounts. Existing scores, profiles and payment records are not automatically reset. Old-format active drafts require explicit review.
 
-Validation: `npm run build`, `npm run lint`, and `node --experimental-strip-types --test tests/*.test.ts`. There are 252 passing local tests and 33 passing isolated Auth/Firestore emulator integration checks for scoring corrections. See [the verification findings](docs/scoring-verification.md) for the pending recap issue and production authorization boundary, and the deployment checklist for other limitations and dependency-audit findings.
+Validation: `npm run build`, `npm run lint`, and `node --experimental-strip-types --test tests/*.test.ts`. There are 324 passing local tests, 22 passing isolated Jury API/rules/browser checks, and 33 passing isolated Auth/Firestore emulator integration checks for scoring corrections. See [the verification findings](docs/scoring-verification.md) for the pending recap issue and production authorization boundary, and the deployment checklist for other limitations and dependency-audit findings.

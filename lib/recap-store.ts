@@ -1,6 +1,7 @@
 import type {Firestore} from 'firebase-admin/firestore';
 import type {GameState} from './game-data.ts';
-import {CommunityError,isCommunityOwner,makeRecap,wholeNumber,type CommunityActor,type EpisodeRecap} from './community.ts';
+import {CommunityError,makeRecap,wholeNumber,type CommunityActor,type EpisodeRecap} from './community.ts';
+import {isCommunityOwner} from './community-authority.ts';
 import {calendarEpisodes,discussionOpening,type BroadcastSchedule,type EpisodeRecord} from './discussions.ts';
 
 /** Recap changes merge into the episode; discussion metadata and comments survive. */

@@ -804,3 +804,123 @@ footer { color:var(--mist); background:var(--forest-deep); } footer span { color
   .chatter-reply.chatter-depth-2 { margin-left:16px; }
   .chatter-reply.chatter-reply-flattened { margin-left:8px; }
 }
+/* Jury Mode follows the existing panel, form, color, and typography system. */
+.jury-workspace { margin:2rem auto; padding:2rem; max-width:900px; }
+.jury-access { margin:3rem auto; padding:2rem; max-width:700px; }
+.jury-history { display:grid; gap:.5rem; max-width:500px; margin-bottom:2rem; }
+.jury-questions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; margin:1.5rem 0; }
+.jury-question { min-width:0; padding:1rem; border:1px solid #d8e3e4; border-radius:12px; background:#fafcfc; }
+.jury-question label { display:grid; gap:.5rem; margin-bottom:.75rem; }
+.jury-question label span { font-size:var(--text-small); color:#52676c; }
+.jury-question select,.jury-history select { width:100%; min-height:44px; }
+.jury-save-state { font-size:var(--text-small); min-height:1.5em; color:#385e54; }
+.jury-result { background:#edf4f2; border:1px solid #b5ceca; border-radius:12px; padding:1.25rem; margin:1.5rem 0; }
+.leader-row.jury-leader-row { background:#f1f3f2; border-color:#dce1df; }
+.jury-leader-row .avatar { background:#dde3e0; color:#4d625b; }
+.jury-leader-row .change { color:#52676c; font-size:var(--text-caption); white-space:normal; }
+.jury-mode-label { display:inline-block; max-width:100%; margin-top:5px; padding:3px 7px; border:1px solid #a0b3ad; border-radius:4px; background:#e3eae6; color:#40564f; font-size:var(--text-caption); line-height:1.3; font-weight:700; white-space:normal; }
+.torch-card.jury-torch-card { background:#263b3e; border-color:#799294; box-shadow:0 18px 45px rgba(0,0,0,.16); }
+.jury-torch-card .champion-avatar { background:#738b8c; }
+.jury-torch-card .torch-kicker { color:#d5e0dc; }
+.jury-torch-card .jury-mode-label { background:#3f5559; border-color:#7b9394; color:#eff5f3; }
+.team-score-card.jury-team-card { background:#f1f3f2; border-color:#bac8c2; }
+.jury-team-card>header { background:#e7ecea; }
+.jury-team-card>header>div:first-child { min-width:0; }
+.jury-admin details { margin:1.5rem 0; border:1px solid #d8e3e4; border-radius:12px; padding:1rem; }
+.jury-admin summary { cursor:pointer; font-weight:700; }
+.jury-admin { background:#fff; padding:1.5rem; border:1px solid #d8e3e4; border-radius:12px; }
+.jury-admin button,.jury-access button { background:#217082; color:#fff; border:0; border-radius:8px; min-height:44px; padding:.65rem 1rem; cursor:pointer; }
+.jury-admin button:disabled { opacity:.55; cursor:default; }
+.jury-table-wrap { max-width:100%; overflow-x:auto; margin:1rem 0; }
+.jury-table-wrap table { width:100%; border-collapse:collapse; text-align:left; }
+.jury-table-wrap th,.jury-table-wrap td { padding:.75rem; border-bottom:1px solid #d8e3e4; vertical-align:top; min-width:140px; font-size:var(--text-small); }
+.jury-admin fieldset { min-width:0; border:1px solid #d8e3e4; border-radius:10px; margin:1rem 0; padding:1rem; }
+.jury-inline { display:flex; align-items:end; gap:1rem; flex-wrap:wrap; margin:1rem 0; }
+.jury-inline>* { flex:1 1 150px; min-width:0; }
+.jury-roster { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.75rem; }
+.jury-roster>div { display:grid; gap:.5rem; }
+.jury-admin input[type=checkbox] { width:auto; min-height:24px; vertical-align:middle; margin-right:.5rem; }
+.jury-checks { display:grid; gap:.75rem; margin:1.5rem 0; }
+.jury-evidence { border-top:1px solid #d8e3e4; margin-top:2rem; padding-top:1rem; }
+.jury-evidence label { display:block; }
+.jury-evidence input:not([type=checkbox]),.jury-evidence textarea,.jury-evidence select { width:100%; min-height:44px; }
+.jury-vote-row { display:grid; grid-template-columns:2fr repeat(3,1fr) auto; align-items:end; gap:.5rem; margin:.75rem 0; }
+.jury-round { padding:.75rem; background:#f5f8f7; margin:1rem 0; border-radius:8px; }
+@media(max-width:650px) { .jury-questions { grid-template-columns:1fr; } .jury-workspace { padding:1rem; margin:1rem; } .jury-vote-row { grid-template-columns:repeat(2,minmax(0,1fr)); } .jury-admin .jury-inline { align-items:stretch; } }
+.score-contributions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 14px; margin:6px 0 0; font-size:var(--text-caption); line-height:1.35; font-weight:400; }
+.score-contributions div { display:grid; gap:2px; min-width:0; }
+.score-contributions dd { margin:0; font-weight:700; font-variant-numeric:tabular-nums; }
+.score-contributions dd { font-size:var(--text-small); }
+.leader-name { min-width:0; }
+.leader-row > .leader-name { grid-column:3; grid-row:1; }
+.leader-row > .change { grid-column:4; grid-row:1; }
+.leader-row .score { grid-column:-2/-1; grid-row:1; text-align:right; white-space:nowrap; }
+.score-unit { display:inline; font-size:var(--text-caption); font-weight:400; text-transform:uppercase; }
+.leader-row > .score-contributions { grid-column:3/-1; grid-row:2; margin:0 0 12px; }
+.leader-row.jury-leader-row { row-gap:6px; padding-top:10px; }
+.champion-row { display:grid; grid-template-columns:40px minmax(0,1fr) auto; gap:10px; }
+.champion-row .champion-avatar { width:40px; height:40px; }
+.champion-row .champion-info > strong { font-size:var(--text-lead); line-height:1.3; overflow-wrap:anywhere; }
+.champion-row > .champion-score { font-family:var(--font-body); font-size:var(--text-stat); text-align:right; white-space:nowrap; line-height:1; }
+.champion-row > .champion-score small { display:inline; font-size:var(--text-caption); font-weight:400; margin:0; text-transform:uppercase; }
+.jury-torch-card .champion-row { border-bottom:0; padding-bottom:12px; }
+.torch-card > .score-contributions { padding-bottom:14px; margin:0; border-bottom:1px solid #ffffff26; }
+.team-score-card > .score-contributions { margin:0; padding:12px 16px; border-bottom:1px solid var(--line); }
+.jury-results-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 16px; margin-bottom:12px; }
+.jury-results-heading .eyebrow { margin:0 0 4px; font-size:var(--text-caption); }
+.jury-results-heading h2 { margin:0; font-size:var(--text-subheading); }
+.jury-results-heading > strong { font-size:var(--text-subheading); white-space:nowrap; }
+.jury-result-list { list-style:none; padding:0; margin:0; }
+.jury-result-row { padding:12px 0; border-top:1px solid var(--line); overflow-wrap:anywhere; }
+.jury-results .jury-result-row { padding:10px 12px; margin:8px 0; border-top:0; border-radius:6px; }
+.jury-results .jury-result-row.correct { background:#e4f2e7; }
+.jury-results .jury-result-row.incorrect { background:#fcf2f1; }
+.jury-results .jury-result-row.unanswered { background:#eaedf2; }
+.jury-result-question { display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:5px; }
+.jury-result-row h3 { display:flex; align-items:baseline; gap:6px; margin:0; font-size:var(--text-small); line-height:1.4; }
+.jury-result-row p { margin:3px 0; font-size:var(--text-small); line-height:1.45; }
+.jury-result-indicator { flex:0 0 16px; font-weight:700; color:#59645d; }
+.jury-result-row.correct .jury-result-indicator { color:#24683d; }
+.jury-result-row.incorrect .jury-result-indicator { color:#a32f2f; }
+.jury-question-points { flex:0 0 auto; font-size:var(--text-body); font-weight:700; text-align:right; white-space:nowrap; }
+.jury-question-points small { font-size:var(--text-caption); font-weight:400; }
+.jury-result-row .jury-accuracy { color:#59645d; font-size:var(--text-caption); margin-top:6px; }
+.jury-results-total { display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px 12px; margin:6px 0 0; padding:12px 0 0; border-top:2px solid var(--line); font-size:var(--text-small); }
+.jury-correction-guide { padding:16px; margin:12px 0; background:#edf3ef; border-left:3px solid var(--forest); }
+.jury-correction-guide p { margin-top:0; }
+.jury-prediction-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.jury-prediction-card { min-width:0; border:1px solid var(--line); border-radius:8px; padding:14px; }
+.jury-prediction-card header { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+.jury-prediction-card h4 { margin:0; font-size:var(--text-body); overflow-wrap:anywhere; }
+.jury-prediction-card header > span { flex:0 0 auto; font-size:var(--text-caption); }
+.jury-prediction-card dl { margin:0; }
+.jury-prediction-card dl > div { padding:8px 0; border-top:1px solid var(--line); }
+.jury-prediction-card dt { font-size:var(--text-caption); font-weight:700; }
+.jury-prediction-card dd { margin:3px 0 0; font-size:var(--text-small); overflow-wrap:anywhere; }
+.jury-prediction-card dd small { display:block; margin-top:4px; font-size:var(--text-caption); color:#53656a; }
+.jury-prediction-card .jury-prediction-meta,.jury-admin .jury-evidence-help { font-size:var(--text-caption); color:#53656a; overflow-wrap:anywhere; }
+.jury-admin input,.jury-admin select,.jury-admin textarea { min-width:0; max-width:100%; }
+.jury-admin p,.jury-admin label,.jury-admin li { overflow-wrap:anywhere; }
+@media(max-width:760px) {
+  .admin-tabs-bar { display:flex; flex-wrap:nowrap; gap:4px; height:calc(56px + env(safe-area-inset-top,0px)); padding:calc(5px + env(safe-area-inset-top,0px)) max(5px,env(safe-area-inset-right,0px)) 5px max(5px,env(safe-area-inset-left,0px)); overflow-x:auto; overflow-y:hidden; scrollbar-width:none; overscroll-behavior-x:contain; border-radius:8px; }
+  .admin-tabs-bar::-webkit-scrollbar { display:none; }
+  .admin-tabs-bar button { flex:0 0 auto; min-height:44px; padding:8px 12px; white-space:nowrap; font-size:var(--text-small); }
+  html:has(.admin-tabs-bar) { scroll-padding-top:calc(64px + env(safe-area-inset-top,0px)); }
+  .jury-prediction-list { grid-template-columns:minmax(0,1fr); }
+}
+@media(max-width:520px) {
+  .leader-row { grid-template-columns:22px 36px minmax(0,1fr) max-content; gap:8px; }
+}
+@media(max-width:400px) {
+  .champion-row { grid-template-columns:32px minmax(0,1fr) auto; gap:8px; }
+  .champion-row .champion-avatar { width:32px; height:32px; }
+  .champion-row .champion-info > strong { font-size:var(--text-body); }
+  .champion-row > .champion-score { font-size:var(--text-subheading); }
+  .leader-row .score { font-size:var(--text-lead); }
+}
+@media(max-width:650px) {
+  .jury-admin .jury-roster { grid-template-columns:minmax(0,1fr); }
+  .jury-admin { padding:1rem; }
+  .jury-admin .jury-evidence fieldset { padding:12px; }
+  .team-score-card h3 { font-size:var(--text-lead); }
+}

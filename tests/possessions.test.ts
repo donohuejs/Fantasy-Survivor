@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import test from 'node:test';
-import {initialGame} from '../lib/game-data.ts';
+import {initialGame} from '../lib/private-league-seed.ts';
 import {activePossessions,assignCastaway,createPossessionRecord,recordTribalCouncilResolution,transferPossessionRecord} from '../lib/scoring.ts';
 
 const rob='cast-rob',jelly='cast-jelly',sam='cast-aaliyah',other='cast-alexis';

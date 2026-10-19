@@ -1,9 +1,11 @@
 import {NextRequest,NextResponse} from 'next/server';
 import {draftServerSetupMessage,getDraftServer} from '@/lib/firebase-admin';
-import {CommunityError,linkedAuthor,isCommunityOwner,makePoll,changeVote,resourceId,type LeaguePoll,type CommunityActor} from '@/lib/community';
+import {CommunityError,makePoll,changeVote,resourceId,type LeaguePoll,type CommunityActor} from '@/lib/community';
+import {linkedAuthor,isCommunityOwner} from '@/lib/community-authority';
 import type {GameState} from '@/lib/game-data';
 import {DiscussionStore} from '@/lib/discussion-store';
 import {saveEpisodeRecap} from '@/lib/recap-store';
+import {assertLeagueAccess} from '@/lib/league-access';
 
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
@@ -55,6 +57,7 @@ export async function POST(request:NextRequest){
     await auth.server.db.runTransaction(async tx=>{
       const gameDoc=await tx.get(ref);if(!gameDoc.exists)throw new CommunityError('The league is not ready.');
       const game=gameDoc.data() as GameState,now=new Date().toISOString();
+      assertLeagueAccess(game,auth.actor);
       if(input.action==='create-poll'){
         if(!owner)throw new CommunityError('Only the game master can open polls.');
         const poll=makePoll(game,input,now),pollRef=ref.collection('polls').doc(poll.id);

@@ -2,6 +2,10 @@ import {NextRequest,NextResponse} from 'next/server';
 import {draftServerSetupMessage,getDraftServer} from '@/lib/firebase-admin';
 import {DraftError,executeDraft,parseDraftCommand,type PrivateDeal} from '@/lib/draft';
 import type {GameState} from '@/lib/game-data';
+import {assertLeagueAccess,leagueMember} from '@/lib/league-access';
+import {CommunityError} from '@/lib/community';
+import {isCommunityOwner} from '@/lib/community-authority';
+import {migrateLegacyDraftOrder} from '@/lib/private-league-seed';
 
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
@@ -23,8 +27,11 @@ export async function POST(request:NextRequest){
     await server.db.runTransaction(async transaction=>{
       const [snapshot,privateSnapshot]=await Promise.all([transaction.get(ref),transaction.get(privateRef)]);
       if(!snapshot.exists)throw new DraftError('The game is not initialized. Ask the game master to finish league setup.');
-      const current=snapshot.data() as GameState;
-      const result=executeDraft(current,privateSnapshot.exists?privateSnapshot.data() as PrivateDeal:null,actor,command);
+      const current=migrateLegacyDraftOrder(snapshot.data() as GameState);
+      // Cached turn ownership cannot grant access after profile deactivation or reassignment.
+      assertLeagueAccess(current,actor);
+      if(command.action==='pick'&&!isCommunityOwner(actor)&&current.draft.turns[current.draft.currentPick]?.playerId!==leagueMember(current,actor).id)throw new CommunityError('It is not your turn.',{status:403,code:'authorization'});
+      const result=executeDraft(current,privateSnapshot.exists?privateSnapshot.data() as PrivateDeal:null,{...actor,commissioner:isCommunityOwner(actor)},command);
       // Starting a legacy setup may also repair the persisted player slots. Later turns only change draft fields.
       transaction.update(ref,{draft:result.game.draft,draftPicks:result.game.draftPicks,...(command.action==='start'?{players:result.game.players,draftOrderVersion:result.game.draftOrderVersion}: {})});
       if(command.action==='start')transaction.set(privateRef,result.deal!);
@@ -32,6 +39,7 @@ export async function POST(request:NextRequest){
     // Do not return the transaction result: it contains the hidden deck.
     return reply({ok:true});
   }catch(error){
+    if(error instanceof CommunityError)return reply({error:error.message},error.status);
     if(error instanceof DraftError)return reply({error:error.message},409);
     // Keep credentials, tokens, card mappings and raw error messages out of logs.
     const code=typeof error==='object'&&error!==null&&'code' in error?String(error.code):'unknown';

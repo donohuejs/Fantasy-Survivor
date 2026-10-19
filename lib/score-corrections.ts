@@ -2,7 +2,7 @@ import type {GameState,ScoreEvent} from './game-data.ts';
 import {seasonStandings} from './league.ts';
 import {canonicalJson,castawayScoreTotals,effectiveScorePoints,scoreActionKey,scoringVersion} from './score-ledger.ts';
 
-export type ScoringActor={uid:string;email:string;verified:boolean};
+export type ScoringActor={uid:string;email:string;verified:boolean;commissioner?:boolean};
 export type ScoreCorrectionCommand={id:string;season:number;kind:'edit'|'undo';scope:'action'|'entry';eventId:string;recipientIds:string[];points:number;reason:string;expectedVersion:string};
 export type ScoreImpact={id:string;name:string;before:number;after:number;delta:number};
 export type ScoreCorrection={id:string;season:number;kind:'edit'|'undo';scope:'action'|'entry';eventId:string;actionId:string;episode?:number;reason:string;at:string;actorUid:string;command:ScoreCorrectionCommand;before:ScoreEvent[];after:ScoreEvent[];castaways:ScoreImpact[];standings:ScoreImpact[]};
@@ -11,8 +11,8 @@ export class ScoreCorrectionError extends Error{
   readonly status:number;
   constructor(message:string,status=409){super(message);this.name='ScoreCorrectionError';this.status=status;}
 }
-export function assertScoringCommissioner(actor:ScoringActor){
-  if(!actor.uid||!actor.verified||actor.email.toLowerCase()!=='donohue.js@gmail.com')throw new ScoreCorrectionError('Only the game master can correct scoring.',403);
+function assertAuthorizedScoringActor(actor:ScoringActor){
+  if(!actor.uid||!actor.verified||actor.commissioner!==true)throw new ScoreCorrectionError('Only the game master can correct scoring.',403);
 }
 export function parseScoreCorrection(input:unknown):ScoreCorrectionCommand{
   if(!input||typeof input!=='object'||Array.isArray(input))throw new ScoreCorrectionError('Invalid correction.',400);
@@ -31,7 +31,7 @@ export function sameCorrection(left:ScoreCorrectionCommand,right:ScoreCorrection
 
 /** No normalization or gameplay reconciliation: only the selected scoring action changes. */
 export async function planScoreCorrection(game:GameState,actor:ScoringActor,raw:ScoreCorrectionCommand,at:string):Promise<{game:GameState;preview:ScoreCorrectionPreview}>{
-  assertScoringCommissioner(actor);
+  assertAuthorizedScoringActor(actor);
   const command=parseScoreCorrection(raw);
   if(game.season.number!==command.season)throw new ScoreCorrectionError('The active season changed. Reload before saving.');
   if(game.season.finalized)throw new ScoreCorrectionError('Final results are locked.');
@@ -39,6 +39,7 @@ export async function planScoreCorrection(game:GameState,actor:ScoringActor,raw:
   if(expectedVersion!==command.expectedVersion)throw new ScoreCorrectionError('Scores or rosters changed during your review. Close this editor and review again.');
   const event=game.scoreEvents.find(e=>e.id===command.eventId);
   if(!event)throw new ScoreCorrectionError('This scoring entry no longer exists.');
+  if(event.source==='jury')throw new ScoreCorrectionError('Correct Jury awards by confirming a revised answer key in Jury Mode.');
   if(game.scoreEvents.filter(e=>e.id===event.id).length!==1)throw new ScoreCorrectionError('Duplicate entry IDs need review before correction.');
   const before=game.scoreEvents.filter(e=>scoreActionKey(e)===scoreActionKey(event));
   const target=command.scope==='entry'?[event]:before;

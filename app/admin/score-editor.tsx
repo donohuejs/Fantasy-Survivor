@@ -1,4 +1,5 @@
 'use client';
+import {requestId} from '@/lib/request-id';
 
 import {useEffect,useRef,useState} from 'react';
 import type {GameState,ScoreEvent} from '@/lib/game-data';
@@ -53,7 +54,7 @@ function ScoreEditor({game,selection,onClose,onSaved}:{game:GameState;selection:
   const roster=playerTarget?opened.players:opened.castaways;
   const [recipientIds,setRecipientIds]=useState(targets.map(e=>(playerTarget?e.playerId:e.castawayId)!));
   const [pointValue,setPointValue]=useState(String(targets[0].points)),[reason,setReason]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[review,setReview]=useState<{command:ScoreCorrectionCommand;preview:ScoreCorrectionPreview}|null>(null);
-  const dialog=useRef<HTMLDialogElement>(null),opId=useRef(crypto.randomUUID());
+  const dialog=useRef<HTMLDialogElement>(null),opId=useRef(requestId());
   useEffect(()=>{const node=dialog.current;node?.showModal();return()=>node?.close();},[]);
   const undo=selection.kind==='undo';
   async function preview(){
@@ -67,7 +68,7 @@ function ScoreEditor({game,selection,onClose,onSaved}:{game:GameState;selection:
     if(!review||busy)return;setBusy(true);setError('');
     try{await correctScore(review.command,true);onSaved();}catch(error){setError(error instanceof Error?error.message:'Unable to save.');}finally{setBusy(false);}
   }
-  const change=()=>{setReview(null);opId.current=crypto.randomUUID();};
+  const change=()=>{setReview(null);opId.current=requestId();};
   return <dialog ref={dialog} className="score-editor" aria-labelledby="score-editor-title" onCancel={e=>{if(busy)e.preventDefault();else onClose();}}>
     <div className="score-editor-heading"><div><p className="eyebrow dark">{selection.scope==='entry'?'Individual entry':'Scoring action'} · {event.episode?'Episode '+event.episode:'Season adjustment'}</p><h2 id="score-editor-title">{undo?'Undo':'Edit'} {event.tribeName?event.tribeName+' · ':''}{event.actionLabel||opened.categories.find(c=>c.id===event.categoryId)?.label||'Adjustment'}</h2></div><button type="button" aria-label="Close scoring editor" disabled={busy} onClick={onClose}>×</button></div>
     <p>Corrections preserve the original award and recalculate totals with each fantasy pick’s multiplier.</p>
@@ -87,7 +88,7 @@ function ScoreEditor({game,selection,onClose,onSaved}:{game:GameState;selection:
       <p>{review.preview.correction.after.filter(e=>e.scoringStatus!=='reversed').length} recipients after saving.</p>
       {review.preview.recap&&<p className={review.preview.recap.scoringDiffersAfterSave?'setup-notice':undefined}>{review.preview.recap.exists?`The saved ${review.preview.recap.status} recap will remain unchanged.${review.preview.recap.scoringDiffersAfterSave?' Its scoring snapshot will differ from the corrected ledger. Review that snapshot separately before updating or publishing the recap.':''}`:'There is no saved episode snapshot to change.'}</p>}
       <h3>Castaway totals</h3><ImpactList rows={review.preview.correction.castaways}/><h3>Fantasy-team standings</h3><ImpactList rows={review.preview.correction.standings}/>
-      <div className="episode-confirmation-actions"><button type="button" className="secondary-button" disabled={busy} onClick={()=>{setReview(null);opId.current=crypto.randomUUID();}}>Back to edit</button><button type="button" className="primary-button" disabled={busy} onClick={save}>{busy?'Saving…':undo?`Confirm undo ${targets.length} award${targets.length===1?'':'s'}`:'Save correction'}</button></div>
+      <div className="episode-confirmation-actions"><button type="button" className="secondary-button" disabled={busy} onClick={()=>{setReview(null);opId.current=requestId();}}>Back to edit</button><button type="button" className="primary-button" disabled={busy} onClick={save}>{busy?'Saving…':undo?`Confirm undo ${targets.length} award${targets.length===1?'':'s'}`:'Save correction'}</button></div>
     </section>}
     {error&&<p className="scoring-error" role="alert">{error}</p>}
   </dialog>;

@@ -1,6 +1,5 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
-import { getAuth, type User } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { connectAuthEmulator, getAuth, type User } from 'firebase/auth';
 
 export type FirebaseUser = User;
 export const firebaseConfig = {
@@ -22,7 +21,12 @@ export const firebaseConfigured = missingFirebaseSettings.length === 0;
 export function getFirebase() {
   if (!firebaseConfigured) throw new Error(`Firebase is not configured. Missing: ${missingFirebaseSettings.join(', ')}. Add these to Vercel Production environment variables and redeploy.`);
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-  return {auth:getAuth(app),db:getFirestore(app)};
+  const auth=getAuth(app);
+  if(process.env.NEXT_PUBLIC_LOCAL_ACCEPTANCE==='1'){
+    if(process.env.NODE_ENV==='production'||firebaseConfig.projectId!=='demo-fantasy-scoring'||firebaseConfig.apiKey!=='demo-api-key')throw new Error('Invalid local acceptance Firebase configuration.');
+    if(typeof window!=='undefined'&&!auth.emulatorConfig)connectAuthEmulator(auth,window.location.origin,{disableWarnings:true});
+  }
+  return {auth};
 }
 
 export function authenticationError(error:unknown):string {

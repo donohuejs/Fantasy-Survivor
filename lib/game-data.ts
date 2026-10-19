@@ -15,7 +15,7 @@ export type PossessionHistoryEntry = {action:'acquired'|'updated'|'played'|'expi
 export type Possession = {id:string;seasonId:string;lineageId:string;castawayId:string;originalCastawayId:string;itemName:string;category:PossessionCategory;status:PossessionStatus;acquiredEpisode?:number;acquiredAt?:string;playedEpisode?:number;playedAt?:string;playedByCastawayId?:string;playedForCastawayId?:string;successful?:boolean;transferredFromPossessionId?:string;transferredToPossessionId?:string;notes?:string;updatedAt?:string;history:PossessionHistoryEntry[]};
 export type DraftPick = { id:string; playerId:string; castawayId:string; round:number; pickNumber:number; multiplier:number; decision?:'keep'|'swap'; keptAt?:number };
 export type RecipientMode = 'individual'|'tribe'|'all-active'|'custom';
-export type ScoreEvent = { scoringStatus?:'corrected'|'reversed'; scoringActionId?:string; correctionId?:string; correctedAt?:string; id:string; castawayId?:string; playerId?:string; categoryId?:string; points:number; episode?:number; note?:string; createdAt:string; batchId?:string; awardKey?:string; actionLabel?:string; recipientName?:string; tribeId?:string; tribeName?:string; source?:'standard'|'episode-wide'|'one-time-bonus'|'first-tribal-council'|'tribe-wide'|'tribal-council'|'milestone'|'elimination'; recipientMode?:RecipientMode; recipientIds?:string[]; tribalCouncilId?:string; eliminationReason?:EliminationReason; resolved?:boolean };
+export type ScoreEvent = { scoringStatus?:'corrected'|'reversed'; scoringActionId?:string; correctionId?:string; correctedAt?:string; id:string; castawayId?:string; playerId?:string; categoryId?:string; points:number; episode?:number; note?:string; createdAt:string; batchId?:string; awardKey?:string; actionLabel?:string; recipientName?:string; tribeId?:string; tribeName?:string; source?:'jury'|'standard'|'episode-wide'|'one-time-bonus'|'first-tribal-council'|'tribe-wide'|'tribal-council'|'milestone'|'elimination'; recipientMode?:RecipientMode; recipientIds?:string[]; tribalCouncilId?:string; eliminationReason?:EliminationReason; resolved?:boolean };
 export type CategoryPhase = 'pre-merge'|'merge-only';
 export type Category = { id:string; label:string; points:number; group:string; details?:string; target:'individual'|'tribe'; recipientModes?:RecipientMode[]; custom?:boolean; phase?:CategoryPhase; recipientStatus?:Castaway['status']; bulkOnly?:boolean; retired?:boolean; dynamicPoints?:'episode'; systemManaged?:boolean };
 export type DraftTurn = { playerId:string; playerName:string; email:string; uid?:string; round:number; pickNumber:number };
@@ -30,7 +30,7 @@ export type TribalCouncilResolutionRecord = {resolutionKey:string;tribeId:string
 export type TribalVoteRecord = {id:string;tribalCouncilId:string;episode:number;castawayId:string;countedVotes:number;nullifiedVotes:number;extraVotes:number;revote:boolean;round:number;recordedAt:string};
 export type MergeSnapshot = {episode:number;activeCastawayIds:string[];idolPossessionIds:string[];fantasyRosters:Record<string,string[]>;intactFantasyPlayerIds:string[];createdAt:string};
 export type FinalFiveSnapshot = {episode:number;activeCastawayIds:string[];voteTotals:Record<string,number>;mostCastawayIds:string[];leastCastawayIds:string[];createdAt:string};
-export type GameState = { scoringRevision?:number; localScoreCorrections?:import('./score-corrections.ts').ScoreCorrection[]; season:{ id:string; name:string; number:number; currentEpisode:number; episodeStarted?:boolean; episodeStatus?:EpisodeStatus; entryFee:number; eliminationScoringEffectiveEpisode?:number; mergeEpisode?:number; mergeState?:'pre-merge'|'merged'; mergeOccurred?:boolean; mergeSnapshot?:MergeSnapshot; finalFiveSnapshot?:FinalFiveSnapshot; finalized?:boolean }; players:Player[]; castaways:Castaway[]; draftPicks:DraftPick[]; scoreEvents:ScoreEvent[]; draft:DraftState; tribes:Tribe[]; categories:Category[]; possessions?:Possession[]; tribalCouncilResolutions?:TribalCouncilResolutionRecord[]; tribalCouncils?:TribalCouncilRecord[]; tribalAttendance?:TribalAttendanceRecord[]; tribalVotes?:TribalVoteRecord[]; history?:SeasonArchive[]; draftOrderVersion?:2 };
+export type GameState = { juryMode?:{enabled:boolean;activationEpisode:number;reviewedEliminations:Array<{castawayId:string;episode:number;source:string}>}; scoringRevision?:number; localScoreCorrections?:import('./score-corrections.ts').ScoreCorrection[]; season:{ id:string; name:string; number:number; currentEpisode:number; episodeStarted?:boolean; episodeStatus?:EpisodeStatus; entryFee:number; eliminationScoringEffectiveEpisode?:number; mergeEpisode?:number; mergeState?:'pre-merge'|'merged'; mergeOccurred?:boolean; mergeSnapshot?:MergeSnapshot; finalFiveSnapshot?:FinalFiveSnapshot; finalized?:boolean }; players:Player[]; castaways:Castaway[]; draftPicks:DraftPick[]; scoreEvents:ScoreEvent[]; draft:DraftState; tribes:Tribe[]; categories:Category[]; possessions?:Possession[]; tribalCouncilResolutions?:TribalCouncilResolutionRecord[]; tribalCouncils?:TribalCouncilRecord[]; tribalAttendance?:TribalAttendanceRecord[]; tribalVotes?:TribalVoteRecord[]; history?:SeasonArchive[]; draftOrderVersion?:2 };
 
 const photo = (filename:string) => `https://public-assets-pressexpress.s3.amazonaws.com/assets/releases/docimages/ac468eba/${filename}`;
 const cast: Array<[string,string,number,string,string,string]> = [
@@ -118,8 +118,6 @@ export function normalizeCategories(saved:Category[]|undefined):Category[] {
   return [...normalized,...categories.filter(category=>!existing.some(savedCategory=>savedCategory.id===category.id))];
 }
 
-const priorFinish = ['Chad','Jennie','Joey','Ross','Josh','Dunna','Katie','Jackie','Steph','Hilary','Dustin','Zoda','Stanzi'];
-const players = priorFinish.map((name,index) => ({id:`player-${name.toLowerCase()}`,name,email:'',entryBonus:0,priorFinish:index+1,draftSlot:priorFinish.length-index}));
 export const DRAFT_ORDER_VERSION = 2;
 export function activePlayers(roster:Player[]):Player[]{return roster.filter(player=>player.active!==false);}
 export function tribeForCastaway(game:Pick<GameState,'tribes'|'castaways'>,castawayId:string):Tribe|undefined {
@@ -142,34 +140,17 @@ export function movePlayerToDraftFront(roster:Player[],playerId:string):Player[]
 export function insertPlayerAtDraftFront(roster:Player[],player:Player):Player[]{
   return movePlayerToDraftFront([...roster.filter(item=>item.id!==player.id),player],player.id);
 }
-const currentSeasonPossessions:Possession[] = [
-  {id:'possession-final-five-idol-rob',seasonId:'season-51',lineageId:'possession-final-five-idol-rob',castawayId:'cast-rob',originalCastawayId:'cast-rob',itemName:'Final 5 Immunity Idol',category:'idol',status:'active',history:[{action:'acquired',at:''}]},
-  {id:'possession-final-five-idol-jelly',seasonId:'season-51',lineageId:'possession-final-five-idol-jelly',castawayId:'cast-jelly',originalCastawayId:'cast-jelly',itemName:'Final 5 Immunity Idol',category:'idol',status:'active',history:[{action:'acquired',at:''}]},
-];
-export function seedCurrentSeasonPossessions(seasonId:string,seasonNumber:number,existing:Possession[]|undefined):Possession[]{
-  if(existing?.length||seasonNumber!==51)return existing??[];
-  return currentSeasonPossessions.map(possession=>({...possession,seasonId}));
-}
-export function migrateLegacyDraftOrder(game:GameState):GameState{
-  if(game.draftOrderVersion===DRAFT_ORDER_VERSION)return game;
-  const canReorder=game.draft.status==='setup'&&game.draftPicks.length===0;
-  const adam=game.players.find(player=>player.active!==false&&player.name.trim().toLowerCase()==='adam');
-  const previousWinner=adam&&((adam.priorFinish===1)||game.history?.some(archive=>archive.season===game.season.number-1&&archive.results.some(result=>result.profileId===adam.id&&result.finish===1)));
-  const legacyNewPlayer=Boolean(adam&&!previousWinner&&adam.priorFinish===adam.draftSlot);
-  const players=canReorder&&adam&&!previousWinner?movePlayerToDraftFront(game.players,adam.id).map(player=>legacyNewPlayer&&player.id===adam.id?{...player,priorFinish:0}:player):game.players;
-  return {...game,draftOrderVersion:DRAFT_ORDER_VERSION,players,draft:canReorder?{...game.draft,turns:buildDraftTurns(players)}:game.draft};
-}
 export function buildDraftTurns(roster:Player[],thirdRound:Player[]=[]):DraftTurn[]{
   const first=draftOrder(roster);
   return [first,[...first].reverse(),thirdRound].flatMap((roundPlayers,roundIndex)=>roundPlayers.map((player,index)=>({playerId:player.id,playerName:player.name,email:player.uid?'':player.email.toLowerCase(),...(player.uid?{uid:player.uid}:{}),round:roundIndex+1,pickNumber:index+1})));
 }
 export const initialGame: GameState = {
-  tribes:[{id:'savu',name:'Savu',color:'#7030A0'},{id:'toka',name:'Toka',color:'#F2CC24'}],
+  tribes:[],
   categories,
   season:{id:'season-51',name:'Survivor 51',number:51,currentEpisode:1,episodeStarted:false,episodeStatus:'not-started',entryFee:10,eliminationScoringEffectiveEpisode:4},
-  players,
+  players:[],
   castaways:cast.map(([name,shortName,age,occupation,bio,imageSlug]) => ({id:`cast-${shortName.toLowerCase().replace(/\s/g,'-')}`,name,shortName,age,occupation,bio,imageUrl:photo(imageSlug),status:'active'})),
-  draftPicks:[], scoreEvents:[], possessions:currentSeasonPossessions, tribalCouncilResolutions:[], draft:{status:'setup',currentPick:0,turns:buildDraftTurns(players)}, draftOrderVersion:DRAFT_ORDER_VERSION,
+  draftPicks:[], scoreEvents:[], possessions:[], tribalCouncilResolutions:[], draft:{status:'setup',currentPick:0,turns:[]}, draftOrderVersion:DRAFT_ORDER_VERSION,
 };
 
 /**
