@@ -32,7 +32,8 @@ async function renderLayouts(game:GameState){
   const link=moduleUrl(`import {jsx} from ${JSON.stringify(jsxRuntime)};export default function Link({children,...props}){return jsx('a',{...props,children});}`);
   const image=moduleUrl(`import {jsx} from ${JSON.stringify(jsxRuntime)};export default function Image({priority,...props}){return jsx('img',props);}`);
   const scores=await componentUrl('app/score-contributions.tsx');
-  const home=await import(await componentUrl('app/page.tsx',{'./game-provider':context,'./site-header':empty,'./player-name':names,'./community-polls':empty,'./discussion-content':empty,'./score-contributions':scores,'next/link':link,'next/image':image}));
+  const discord=await componentUrl('app/discord-invite.tsx',{'./game-provider':context,'./discord-invite.module.css':moduleUrl('export default {invite:"discord-invite"};'),'next/image':image});
+  const home=await import(await componentUrl('app/page.tsx',{'./game-provider':context,'./site-header':empty,'./player-name':names,'./community-polls':empty,'./discussion-content':empty,'./score-contributions':scores,'./discord-invite':discord,'next/link':link,'next/image':image}));
   const teams=await import(await componentUrl('app/draft/team-scores.tsx',{'../game-provider':context,'../player-name':names,'../score-contributions':scores}));
   const homepage=renderToStaticMarkup(React.createElement(home.default));
   const teamPage=renderToStaticMarkup(React.createElement(teams.TeamScores));

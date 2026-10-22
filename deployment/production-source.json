@@ -120,6 +120,14 @@
       "sha256": "04cdbd4b4afbc48cf8a502b828d9bf5a1681edb3bee183ce68b92d8846d20279"
     },
     {
+      "path": "app/discord-invite.module.css",
+      "sha256": "29d930ff373c52db1cdef33853a4d706ed7f35087898fa6f53b985b5a4f54230"
+    },
+    {
+      "path": "app/discord-invite.tsx",
+      "sha256": "c9a6affd66735ceffbb686ef31e3908e6497ad02a46fd8a49a16018736b47e5c"
+    },
+    {
       "path": "app/discussion-content.tsx",
       "sha256": "bc9dcb8381276581c9d66e6335ea9c7c268951f6f637725e655a6ddbb48e3e82"
     },
@@ -201,7 +209,7 @@
     },
     {
       "path": "app/page.tsx",
-      "sha256": "b05d80ed5961548fac1188e0963d6505eac37bf8e53057c9c906479911800375"
+      "sha256": "eb5b916d6fb4cdb84e406b5dac27cf428ea72c92d76853300220290caf495e9d"
     },
     {
       "path": "app/player-name.tsx",
@@ -420,6 +428,10 @@
       "sha256": "2202007a0e1a46a9687d7a670a528ed723d14ff1d0465ec7f8f348b391c771d5"
     },
     {
+      "path": "public/branding/discord-clyde-white.svg",
+      "sha256": "eb3bf5a2e8b9f9aa39c1b1d38aeaa7c2997084567634c55f4141aa39cf426cec"
+    },
+    {
       "path": "public/branding/survivor-51-icon-192.png",
       "sha256": "e2d686ca48f1d62f2ffa80d92e14e6d84916f8126be1b9ace385986c01badfb3"
     },
@@ -439,5 +451,9 @@
       "path": "vercel.json",
       "sha256": "49a5a9ff20f036ffa78a37543dee6692373ab0a261623c60e8dac37bfd2299e5"
     }
-  ]
+  ],
+  "featureProvenance": {
+    "discordSourceCommit": "9c3695b3f1b3e749f579053e243f6f40db4c4e22",
+    "reconciledBaseline": "407e43c111e9767be104f5c9c3e7826d074a58f6"
+  }
 }
