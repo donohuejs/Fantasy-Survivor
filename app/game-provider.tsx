@@ -103,16 +103,18 @@ export function GameProvider({children}:{children:React.ReactNode}) {
     if(!response.ok)throw Object.assign(new Error(result.error??'Unable to load or save the league.'),{status:response.status});return result;
   }
   useEffect(()=>{
-    if(!firebaseConfigured||!user)return;let active=true;
+    // Ordinary accounts already receive their own signup from registration below.
+    // The Commissioner alone needs the complete check-in catalog.
+    if(!firebaseConfigured||!user||!isAdmin)return;let active=true;
     async function refresh(signal:AbortSignal){try{const {rows}=await authenticatedRequest<{rows:PlayerSignup[]}>('registration',undefined,signal);if(active&&!signal.aborted)setSignupState({owner:user!.uid,rows,error:'',loaded:true});}catch(error){if(active&&!signal.aborted)setSignupState({owner:user!.uid,rows:[],error:error instanceof Error?error.message:'Registrations could not load.',loaded:true});throw error;}}
     const poll=startVisiblePolling(refresh,readIntervals.registration,['league-refresh']);return()=>{active=false;poll.stop();};
-  },[user]);
+  },[user,isAdmin]);
   // Signup association is server-side, UID-keyed, verified and revocation checked.
   useEffect(()=>{
     if(!firebaseConfigured||!user)return;let active=true;
     queueMicrotask(()=>{if(active)setRegistrationState({owner:user.uid,status:'registering',error:''});});
     const timeout=setTimeout(()=>{if(active)setRegistrationState({owner:user.uid,status:'error',error:'Registration is taking longer than expected. Check your connection and retry.'});},15000);
-    void authenticatedRequest<{signup:PlayerSignup}>('registration',{}).then(({signup})=>{clearTimeout(timeout);if(active){setRegistrationState({owner:user.uid,status:'registered',signup,error:''});window.dispatchEvent(new Event('league-refresh'));}}).catch(error=>{clearTimeout(timeout);if(active)setRegistrationState({owner:user.uid,status:'error',error:registrationErrorMessage(error)});});
+    void authenticatedRequest<{signup:PlayerSignup}>('registration',{}).then(({signup})=>{clearTimeout(timeout);if(active){setRegistrationState({owner:user.uid,status:'registered',signup,error:''});setSignupState(old=>old.owner===user.uid&&old.loaded?old:{owner:user.uid,rows:[signup],error:'',loaded:true});window.dispatchEvent(new Event('league-refresh'));}}).catch(error=>{clearTimeout(timeout);if(active)setRegistrationState({owner:user.uid,status:'error',error:registrationErrorMessage(error)});});
     return()=>{active=false;clearTimeout(timeout);};
   },[user,registrationAttempt]);
   async function persist(next:GameState){if(!localSetup)throw new Error('Cloud game changes require the authenticated server.');window.localStorage.setItem(storageKey,JSON.stringify(next));setGame(next);}
@@ -129,7 +131,6 @@ export function GameProvider({children}:{children:React.ReactNode}) {
   }).map((player,index) => ({...player,rank:index+1})),[game,castawayScores]);
 
   async function login() {
-    if(process.env.NEXT_PUBLIC_LOCAL_ACCEPTANCE==='1'){window.location.assign('/acceptance');return;}
     if(authBusy)return;
     setAuthError('');setAuthBusy(true);
     try {

@@ -1,3 +1,4 @@
+import 'server-only';
 import {assertScoringCommissioner} from './scoring-authority.ts';
 import type {Firestore} from 'firebase-admin/firestore';
 import type {GameState} from './game-data.ts';

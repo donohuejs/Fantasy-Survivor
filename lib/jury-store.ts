@@ -1,3 +1,4 @@
+import 'server-only';
 import {createHash} from 'node:crypto';
 import type {Firestore} from 'firebase-admin/firestore';
 import type {GameState} from './game-data.ts';
@@ -5,7 +6,7 @@ import {resourceId,type CommunityActor} from './community.ts';
 import {isCommunityOwner} from './community-authority.ts';
 import {assertLeagueAccess,leagueMember} from './league-access.ts';
 import {canonicalJson} from './score-ledger.ts';
-import {mayViewConfirmedJuryResults,playerJuryResults} from './jury-results.ts';
+import {mayViewConfirmedJuryResults,playerJuryResults,confirmedAccuracy,juryQuestionAccuracy} from './jury-results.ts';
 import {JuryError,JURY_RULES_VERSION,activationPreview,answerKey,applyJuryAwards,assertSnapshotMergeHistory,confirmedFacts,eligibleForEpisode,eliminationSource,emptyFacts,gradePrediction,juryEligibility,playerSnapshot,saveJuryAnswer,suggestedFacts,validateSnapshot,type JuryConfig,type JuryEpisode,type JuryFacts,type JuryPrediction,type JurySnapshot,type QuestionId,type Reconciliation} from './jury.ts';
 
 const digest=(value:unknown)=>createHash('sha256').update(canonicalJson(value)).digest('hex');
@@ -33,7 +34,7 @@ export class JuryStore {
     const player=leagueMember(game,this.actor),eligibility=juryEligibility(game,player.id,config?.reconciliations);
     const visible=episodes.docs.map(d=>d.data() as unknown as JuryEpisode).filter(e=>eligibleForEpisode(game,config,player.id,e.snapshot.episode)||predictions.some(p=>p.episode===e.snapshot.episode));
     // Read private grading rows only on the server, and only if this viewer can see confirmed results.
-    const needsAccuracy=visible.some(e=>mayViewConfirmedJuryResults(e,predictions.find(p=>p.playerId===player.id&&p.episode===e.snapshot.episode)??null,now));
+    const needsAccuracy=visible.some(e=>!confirmedAccuracy(e)&&mayViewConfirmedJuryResults(e,predictions.find(p=>p.playerId===player.id&&p.episode===e.snapshot.episode)??null,now));
     const gradingRows=needsAccuracy?(await tx.get(root.collection('juryPredictions').where('season','==',game.season.number))).docs.map(d=>d.data() as JuryPrediction):[];
     return {serverTime:now,enabled:config?.enabled??false,eligibility,episodes:visible.sort((a,b)=>b.snapshot.episode-a.snapshot.episode).map(e=>{
       const prediction=predictions.find(p=>p.playerId===player.id&&p.episode===e.snapshot.episode)??null,locked=Date.parse(now)>=Date.parse(e.snapshot.airtime);
@@ -114,7 +115,9 @@ export class JuryStore {
         if(input.action==='preview-grade')return {ok:true,key,awards,previewToken,keyRevision};
         if(input.previewToken!==previewToken||input.confirmed!==true)throw new JuryError('Review the current five-question key and affected awards before confirming.');
         tx.update(root,{scoreEvents:next.scoreEvents,scoringRevision:(game.scoringRevision??0)+1});
-        tx.update(ref,{key,keyRevision,confirmedAt:at,confirmedBy:this.actor.uid,gradedAt:at,revision:record.revision+1,confirmedEvidenceRevision:record.revision+1});
+        const gradedRows=predictions.map(p=>{const award=awards.find(a=>a.playerId===p.playerId)!;return {...p,grade:award.grade,gradingEligible:award.eligible,gradedAt:at};});
+        const accuracy={keyRevision,gradedAt:at,questions:juryQuestionAccuracy({...record,keyRevision,gradedAt:at},gradedRows)};
+        tx.update(ref,{key,keyRevision,confirmedAt:at,confirmedBy:this.actor.uid,gradedAt:at,revision:record.revision+1,confirmedEvidenceRevision:record.revision+1,accuracy});
         for(const award of awards)tx.update(root.collection('juryPredictions').doc(episodeId(season,episode)+'_'+award.playerId),{grade:award.grade,gradingEligible:award.eligible,gradedAt:at});
         tx.create(auditRef,receipt({episode,beforeKey:record.key,afterKey:key,keyRevision,awards,previewToken}));return {ok:true,keyRevision};
       }

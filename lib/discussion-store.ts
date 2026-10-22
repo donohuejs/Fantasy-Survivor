@@ -1,3 +1,4 @@
+import 'server-only';
 import type {Firestore,Transaction,DocumentReference,DocumentSnapshot,Query} from 'firebase-admin/firestore';
 import type {GameState} from './game-data.ts';
 import {CommunityError,requiredText,resourceId,type CommunityActor,type EpisodeRecap} from './community.ts';

@@ -1,3 +1,4 @@
+import 'server-only';
 import type {Firestore} from 'firebase-admin/firestore';
 import type {GameState} from './game-data.ts';
 import {CommunityError,makeRecap,wholeNumber,type CommunityActor,type EpisodeRecap} from './community.ts';

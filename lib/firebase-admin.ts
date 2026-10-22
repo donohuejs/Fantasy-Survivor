@@ -1,5 +1,5 @@
 import 'server-only';
-import {localAcceptance} from './acceptance-environment';
+import {assertRuntime} from './production-environment';
 
 export type DraftServerSetupCode='missing-project-id'|'missing-credential'|'invalid-json'|'project-mismatch'|'missing-fields'|'sdk-load-failed'|'sdk-init-failed';
 type FirebaseServiceAccountJson={project_id:string;client_email:string;private_key:string};
@@ -25,7 +25,7 @@ export function draftServerSetupMessage(error:unknown){
 
 // Import only from server routes. Never use NEXT_PUBLIC_ for this credential.
 export async function getDraftServer(){
-  localAcceptance();
+  assertRuntime();
   const projectId=process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim();
   const raw=process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if(!projectId)throw new DraftServerSetupError('missing-project-id');

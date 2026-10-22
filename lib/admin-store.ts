@@ -1,3 +1,4 @@
+import 'server-only';
 import {createHash} from 'node:crypto';
 import type {Firestore} from 'firebase-admin/firestore';
 import {CommunityError,resourceId,type CommunityActor} from './community.ts';

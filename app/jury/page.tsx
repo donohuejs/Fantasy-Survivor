@@ -2,7 +2,7 @@
 import {useVisiblePolling} from '@/app/use-visible-polling';
 import {readIntervals} from '@/lib/visible-polling';
 import {requestId} from '@/lib/request-id';
-import {useCallback,useRef,useState} from 'react';
+import {useCallback,useEffect,useRef,useState} from 'react';
 import {SiteHeader} from '../site-header';
 import {useGame} from '../game-provider';
 import {answerOptions,questionIds,type QuestionId} from '@/lib/jury';
@@ -10,7 +10,7 @@ import {juryRequest,juryQuestionLabels,type PlayerJuryCatalog,type PlayerJuryEpi
 import {JuryResults} from './results';
 
 export default function JuryPage(){
-  const {user,cloud}=useGame();
+  const {user,cloud,game}=useGame();
   const [state,setState]=useState<{uid:string;data:PlayerJuryCatalog|null;error:string}>({uid:'',data:null,error:''});
   const [selected,setSelected]=useState<number|null>(null);
   const refreshSequence=useRef(0);
@@ -20,8 +20,11 @@ export default function JuryPage(){
     try{const data=await juryRequest<PlayerJuryCatalog>({},true,signal);if(!signal.aborted&&sequence===refreshSequence.current)setState({uid:user.uid,data,error:''});}
     catch(error){if(!signal.aborted&&sequence===refreshSequence.current)setState(old=>({...old,uid:user.uid,error:error instanceof Error?error.message:'Could not load predictions.'}));throw error;}
   },[user,cloud]);
-  const refresh=useVisiblePolling(read,readIntervals.jury,Boolean(user&&cloud));
   const data=state.uid===user?.uid?state.data:null;
+  const confirmedOnly=Boolean(data?.episodes.length&&data.episodes.every(e=>e.locked&&e.results));
+  const refresh=useVisiblePolling(read,confirmedOnly?readIntervals.juryResults:readIntervals.jury,Boolean(user&&cloud));
+  const scoringVersion=user?.uid+':'+(game.scoringRevision??0),previousVersion=useRef(scoringVersion);
+  useEffect(()=>{if(previousVersion.current!==scoringVersion){previousVersion.current=scoringVersion;void refresh();}},[scoringVersion,refresh]);
   const episode=data?.episodes.find(e=>e.snapshot.episode===selected)??data?.episodes[0];
   return <main className="inner-page"><SiteHeader active="/jury" subtitle="Jury Mode"/><section className="inner-hero"><p className="eyebrow">Stay in the game</p><h1>Jury Mode</h1><p>Keep earning league points with five predictions each episode. Each answer saves separately before airtime.</p></section><section className="panel jury-workspace">
     {state.error&&<p role="alert" className="setup-notice">{state.error} <button onClick={refresh}>Refresh</button></p>}

@@ -26,9 +26,9 @@ test('closed popups are visible and retryable',()=>{
 test('unexpected errors retain their useful message',()=>{
   assert.equal(authenticationError(new Error('Test sign-out failure')),'Test sign-out failure');
 });
-test('production page with missing config does not claim a wrong account',()=>{
+test('production prerender does not claim a wrong signed-in account',()=>{
   const html=readFileSync(new URL('../.next/server/app/admin.html',import.meta.url),'utf8');
-  assert.match(html,/Firebase setup is incomplete/);
+  assert.match(html,/Checking|Loading|Sign in|Firebase setup is incomplete/);
   assert.doesNotMatch(html,/>This account is not the game master\.</);
   assert.doesNotMatch(html,/an unknown account/);
 });

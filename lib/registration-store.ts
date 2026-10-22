@@ -1,3 +1,4 @@
+import 'server-only';
 import type {Firestore} from 'firebase-admin/firestore';
 import {CommunityError,type CommunityActor} from './community.ts';
 import {isCommunityOwner} from './community-authority.ts';

@@ -18,8 +18,12 @@ export function juryQuestionAccuracy(record:JuryEpisode,predictions:JuryPredicti
   }
   return totals;
 }
+export function confirmedAccuracy(record:JuryEpisode){
+  const cached=record.accuracy;
+  return cached&&cached.keyRevision===record.keyRevision&&cached.gradedAt===record.gradedAt&&questionIds.every(q=>Number.isSafeInteger(cached.questions?.[q]?.correct)&&Number.isSafeInteger(cached.questions?.[q]?.answered)&&cached.questions[q].correct>=0&&cached.questions[q].answered>=cached.questions[q].correct)?cached.questions:null;
+}
 export function playerJuryResults(record:JuryEpisode,prediction:JuryPrediction|null,predictions:JuryPrediction[],now:string):PlayerJuryResults|null{
   if(!mayViewConfirmedJuryResults(record,prediction,now))return null;
-  const accuracy=juryQuestionAccuracy(record,predictions);
+  const accuracy=confirmedAccuracy(record)??juryQuestionAccuracy(record,predictions);
   return {keyRevision:record.keyRevision,total:prediction?.grade?.total??0,cleanSweep:prediction?.grade?.cleanSweep??0,questions:questionIds.map(id=>({id,title:juryQuestionTitle(record.snapshot,id),answer:prediction?.answers[id]?juryAnswerLabel(record.snapshot,id,prediction.answers[id]!.value):null,correctAnswers:record.key![id].map(value=>juryAnswerLabel(record.snapshot,id,value)),outcome:!prediction?.answers[id]?'unanswered':prediction.grade!.correct[id]?'correct':'incorrect',points:prediction?.grade?.points[id]??0,accuracy:accuracy[id]}))};
 }

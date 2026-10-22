@@ -1,11 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {localAcceptance} from '../lib/acceptance-environment.ts';
+import {localAcceptance} from './helpers/local-acceptance.ts';
+import {localAcceptance as productionAcceptance} from '../lib/acceptance-environment.ts';
 import {requestId} from '../lib/request-id.ts';
 import {acceptanceGame,acceptanceSnapshot,acceptanceFacts} from '../scripts/iphone-fixture.ts';
 import {juryEligibility,answerKey,saveJuryAnswer,gradePrediction,type JuryPrediction} from '../lib/jury.ts';
 const env={NODE_ENV:'development',LOCAL_ACCEPTANCE:'1',NEXT_PUBLIC_LOCAL_ACCEPTANCE:'1',NEXT_PUBLIC_FIREBASE_PROJECT_ID:'demo-fantasy-scoring',NEXT_PUBLIC_FIREBASE_API_KEY:'demo-api-key',FIRESTORE_EMULATOR_HOST:'127.0.0.1:8085',FIREBASE_AUTH_EMULATOR_HOST:'127.0.0.1:9098',FIREBASE_SERVICE_ACCOUNT_JSON:JSON.stringify({project_id:'demo-fantasy-scoring',client_email:'synthetic-server@demo-fantasy-scoring.iam.gserviceaccount.com'})};
+test('deployed application permanently disables local acceptance',()=>{assert.equal(productionAcceptance(),false);});
+
 test('acceptance refuses production, cloud hosts, mixed projects and incomplete emulator configuration',()=>{
   assert.equal(localAcceptance(env),true);assert.equal(localAcceptance({}),false);
   for(const changed of [{NODE_ENV:'production'},{FIRESTORE_EMULATOR_HOST:'firestore.googleapis.com'},{FIREBASE_AUTH_EMULATOR_HOST:''},{NEXT_PUBLIC_FIREBASE_PROJECT_ID:'real-project'},{NEXT_PUBLIC_LOCAL_ACCEPTANCE:''},{FIREBASE_SERVICE_ACCOUNT_JSON:'{}'}])assert.throws(()=>localAcceptance({...env,...changed}),/local acceptance|Local acceptance/);

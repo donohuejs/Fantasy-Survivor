@@ -30,5 +30,5 @@ test('backgrounding cancels an outstanding read; immediate resume queues a fresh
 test('accepted-fixture hourly request/read model is reproducible using actual scheduler intervals',async()=>{
   const costs={league:3,registration:3,polls:4,discussions:7,operator:1,jury:9},old={league:15000,registration:15000,polls:15000,discussions:30000,operator:15000,jury:15000};let before=0,after=0,requests=0;const c=clock();
   const polls=Object.entries(costs).map(([key,cost])=>{before+=3600000/old[key as keyof typeof old]*cost;return startVisiblePolling(async()=>{requests++;after+=cost;},readIntervals[key as keyof typeof costs],[],c.env);});
-  await c.advance(3599999);assert.equal(before,5640);assert.equal(after,2250);assert.equal(requests,450);c.hide();await c.advance(3600000);assert.equal(after,2250);polls.forEach(p=>p.stop());
+  await c.advance(3599999);assert.equal(before,5640);assert.equal(after,1128);assert.equal(requests,276);c.hide();await c.advance(3600000);assert.equal(after,1128);polls.forEach(p=>p.stop());
 });

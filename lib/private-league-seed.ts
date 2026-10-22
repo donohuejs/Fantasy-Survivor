@@ -1,3 +1,4 @@
+import 'server-only';
 // Private compatibility data: server stores and test fixtures only. Never import from client modules.
 import {initialGame as publicGame,buildDraftTurns,DRAFT_ORDER_VERSION,movePlayerToDraftFront,type GameState,type SeasonArchive,type Possession} from './game-data.ts';
 import {combinedHistory,type HistoricalResult} from './history-data.ts';

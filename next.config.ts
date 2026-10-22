@@ -1,6 +1,9 @@
+import {assertProductionConfiguration} from './lib/production-policy.ts';
+assertProductionConfiguration(process.env,"production");
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot:process.cwd(),
   allowedDevOrigins:process.env.LOCAL_ACCEPTANCE==='1'&&process.env.LOCAL_ACCEPTANCE_HOST?[process.env.LOCAL_ACCEPTANCE_HOST]:[],
   productionBrowserSourceMaps:false,
   // Firebase Admin and Firestore use Node-native dependencies. Keep them

@@ -1,5 +1,7 @@
 // Read refresh scheduling only. Writes and server authorization never use this timer.
-export const readIntervals={league:30000,registration:120000,polls:60000,recaps:60000,discussions:60000,jury:30000,operator:60000,staging:60000} as const;
+// Scores stay prompt. Slow-changing catalogs refresh on focus and explicit writes,
+// with a five-minute fallback; prediction writes never wait for these timers.
+export const readIntervals={league:30000,registration:300000,polls:300000,recaps:300000,discussions:300000,jury:60000,juryResults:300000,operator:60000,staging:60000} as const;
 export type PollEnvironment={now:()=>number;visible:()=>boolean;later:(fn:()=>void,ms:number)=>unknown;cancel:(id:unknown)=>void;listen:(name:string,fn:()=>void)=>()=>void};
 function browserEnvironment():PollEnvironment{return {
   now:()=>Date.now(),visible:()=>document.visibilityState!=='hidden',

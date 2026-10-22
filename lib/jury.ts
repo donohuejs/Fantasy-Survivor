@@ -15,7 +15,7 @@ export type JuryCouncil={id:string;tribeId:string;rounds:Array<{id:string;votes:
 export type JuryFacts={mergeOccurred:boolean|null;immunityComplete:boolean;immunityWinnerIds:string[];councilsComplete:boolean;votesComplete:boolean;councils:JuryCouncil[];itemsComplete:boolean;items:Array<{id:string;councilId:string;kind:'idol'|'advantage'|'shot-in-the-dark';successful:boolean}>;provenance:string};
 export type JuryKey={q1:string[];q2:string[];q3:string[];q4:string[];q5:string[]};
 export type JuryGrade={points:Record<QuestionId,number>;correct:Record<QuestionId,boolean>;cleanSweep:number;total:number;keyRevision:number};
-export type JuryEpisode={snapshot:JurySnapshot;facts:JuryFacts;revision:number;key:JuryKey|null;keyRevision:number;confirmedAt:string|null;confirmedBy:string|null;gradedAt:string|null;confirmedEvidenceRevision?:number};
+export type JuryEpisode={snapshot:JurySnapshot;facts:JuryFacts;revision:number;key:JuryKey|null;keyRevision:number;confirmedAt:string|null;confirmedBy:string|null;gradedAt:string|null;confirmedEvidenceRevision?:number;accuracy?:{keyRevision:number;gradedAt:string;questions:Record<QuestionId,{correct:number;answered:number}>}};
 export class JuryError extends Error {readonly status:number;constructor(message:string,status=409){super(message);this.name='JuryError';this.status=status;}}
 export const eliminationSource=(cast:GameState['castaways'][number])=>canonicalJson({status:cast.status,episode:cast.eliminationEpisode??null,reason:cast.eliminationReason??null});
 const unique=(values:string[])=>[...new Set(values)].sort();
