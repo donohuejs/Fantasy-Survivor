@@ -1,0 +1,23 @@
+.workspace{display:grid;gap:1.25rem;min-width:0}
+.dashboard{border:1px solid #cedfdf;background:#fffefa;border-radius:1.35rem;padding:clamp(1.1rem,3vw,2rem);box-shadow:0 9px 28px rgba(23,58,63,.055)}
+.header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:1rem}
+.header h2{margin:.25rem 0 0;color:#13333b;font:700 clamp(2rem,5vw,3rem)/1.12 Georgia,serif}
+.status{display:inline-flex;align-items:center;border-radius:99px;padding:.45rem .85rem;font-weight:750;white-space:nowrap;background:#e5f1f1;color:#125d68}
+.status[data-status=BLOCKED]{background:#fff0d8;color:#8a4d08}
+.status[data-status=NEEDS_REVIEW]{background:#e8edf7;color:#304c85}
+.status[data-status=OPEN]{background:#ddf4e4;color:#176038}
+.status[data-status=LOCKED]{background:#ede9eb;color:#594650}
+.status[data-status=GRADED]{background:#e3f1e5;color:#27633b}
+.explanation{color:#38565a;font-size:1.05rem;line-height:1.55;max-width:65ch}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;margin:1.2rem 0}
+.facts>div{border-radius:.85rem;border:1px solid #d6e5e4;background:#f1f7f5;padding:1rem;min-width:0}
+.facts span{display:block;color:#526b6d;font-size:.85rem;margin-bottom:.35rem}
+.facts strong{font-size:1.35rem;color:#14383f;overflow-wrap:anywhere}
+.facts strong.deadline{font-size:1rem;line-height:1.45}
+.warning{border-left:4px solid #c68119;background:#fff7e8;padding:.7rem .9rem;border-radius:.3rem;color:#71470d}
+.actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1rem}
+.actions button{min-height:44px}
+.advanced{border:1px solid #d0dddd;border-radius:1rem;background:#fff;padding:1rem;min-width:0}
+.advanced>summary{cursor:pointer;font-weight:700;color:#173942;min-height:44px;align-content:center}
+.advancedHelp{color:#4a676b;line-height:1.5}
+@media(max-width:620px){.dashboard{padding:1rem}.header{align-items:flex-start}.facts{grid-template-columns:1fr}.facts>div{display:flex;align-items:center;justify-content:space-between;gap:.7rem}.facts span{margin:0}.facts strong{text-align:right}.actions{flex-direction:column}.actions button{width:100%}}

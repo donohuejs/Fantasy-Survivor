@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {adminTabs,tabFromHash,tabForKey} from '../lib/admin-navigation.ts';
 
-test('all seven game-master sections have distinct deep links',()=>{
-  assert.deepEqual(adminTabs.map(t=>t.label),['Scoring','Recaps & polls','League setup','Tribe membership','Player check-in','Draft room','Activity log']);
-  assert.equal(new Set(adminTabs.map(t=>t.id)).size,7);
+test('all eight game-master sections have distinct deep links',()=>{
+  assert.deepEqual(adminTabs.map(t=>t.label),['Scoring','Jury Mode','Recaps & polls','League setup','Tribe membership','Player check-in','Draft room','Activity log']);
+  assert.equal(new Set(adminTabs.map(t=>t.id)).size,8);
   for(const tab of adminTabs)assert.equal(tabFromHash('#'+tab.id),tab.id);
 });
 test('empty and invalid section links safely open Scoring',()=>{
@@ -13,6 +13,8 @@ test('empty and invalid section links safely open Scoring',()=>{
 test('keyboard arrows wrap across the tab row',()=>{
   assert.equal(tabForKey('scoring','ArrowLeft'),'activity-log');
   assert.equal(tabForKey('activity-log','ArrowRight'),'scoring');
+  assert.equal(tabForKey('scoring','ArrowRight'),'jury-mode');
+  assert.equal(tabForKey('jury-mode','ArrowRight'),'recaps-polls');
   assert.equal(tabForKey('tribe-membership','ArrowRight'),'player-check-in');
 });
 test('Home and End select edge tabs; unrelated keys are not intercepted',()=>{

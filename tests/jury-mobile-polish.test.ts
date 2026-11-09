@@ -19,9 +19,9 @@ async function component(file:string):Promise<string>{
 async function render(file:string,name:string,props:object){const loaded=await import(await component(file));return renderToStaticMarkup(React.createElement(loaded[name],props));}
 function record(confirmed=false):JuryEpisode{return {snapshot:acceptanceSnapshot(game,'2026-10-17T00:00:00Z'),facts:acceptanceFacts(),revision:confirmed?5:1,key:confirmed?{q1:['amber'],q2:['idol'],q3:['2'],q4:['synthetic-fern','synthetic-gale'],q5:['synthetic-dusk']}:null,keyRevision:confirmed?2:0,gradedAt:confirmed?'2026-10-17T01:00:00Z':null,confirmedAt:null,confirmedBy:null,...(confirmed?{confirmedEvidenceRevision:5}:{})};}
 
-test('shared Game Master tab strip preserves all seven deep links and mounted panels',async()=>{
+test('shared Game Master tab strip preserves all eight deep links and mounted panels',async()=>{
   const html=await render('app/admin/admin-tabs.tsx','AdminTabs',{panels:Object.fromEntries(adminTabs.map(tab=>[tab.id,'Unsaved '+tab.id]))});
-  assert.match(html,/role="tablist" aria-label="Game master sections"/);assert.equal((html.match(/role="tab"/g)??[]).length,7);assert.doesNotMatch(html,/<select/);
+  assert.match(html,/role="tablist" aria-label="Game master sections"/);assert.equal((html.match(/role="tab"/g)??[]).length,8);assert.doesNotMatch(html,/<select/);
   for(const tab of adminTabs){assert(html.includes('id="tab-'+tab.id+'"'));assert(html.includes('id="panel-'+tab.id+'"'));assert(html.includes('Unsaved '+tab.id));}
 });
 test('private predictions render readable player cards with all answers and administrative metadata',async()=>{

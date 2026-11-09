@@ -13,7 +13,7 @@ import {RecapManager} from './recap-manager';
 import {ScoringHistory} from './score-editor';
 import {playerDisplayName} from '@/lib/player-honors';
 import {activePlayers} from '@/lib/game-data';
-import {JuryManager} from './jury-manager';
+import {JuryWorkspace} from './jury-workspace';
 
 export default function Admin(){
   const {game,standings,user,isAdmin,cloud,authLoading,addAdjustment,addPlayer,startDraft,toggleDraft,undoDraftPick,resetSeason}=useGame();
@@ -39,7 +39,7 @@ export default function Admin(){
   if(!isAdmin)return <main className="admin-shell"><SiteHeader active="/admin" subtitle="Game master"/><section className="admin-intro"><div><h1>This account is not the game master.</h1><p>Use the authorized league owner account.</p><AuthControls/></div></section></main>;
 
   const scoring=<>
-    {locked?<p className="setup-notice">Final results are locked. Open the next season in League setup before recording new scores.</p>:<><ScoringManager key={game.season.number}/><JuryManager key={'jury-'+game.season.number}/></>}
+    {locked?<p className="setup-notice">Final results are locked. Open the next season in League setup before recording new scores.</p>:<ScoringManager key={game.season.number}/>}
   </>;
   const setup=<>
     <section className="setup-section"><h2>League setup</h2><p>Add new profiles here, then link their Google accounts in <a href="#player-check-in">Player check-in</a>. New profiles automatically enter Round 1 at Slot 1; existing active players shift down, and Round 2 reverses that order. Returning accounts remain linked to their permanent profiles.</p>
@@ -66,6 +66,7 @@ export default function Admin(){
     {saved&&<p className="admin-feedback" role="status">{saved}</p>}
     <AdminTabs key={game.season.number} panels={{
       scoring,
+      'jury-mode':<JuryWorkspace key={'jury-'+game.season.number} seasonLocked={locked}/>,
       'recaps-polls':<RecapManager/>,
       'league-setup':setup,
       'tribe-membership':locked?<p className="setup-notice">This season is finalized. Tribe membership is locked.</p>:<TribeManagement/>,
