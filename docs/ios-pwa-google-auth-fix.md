@@ -40,7 +40,7 @@ This proves the isolated same-origin redirect approach in the owner's iPhone env
 
 The November 18 read-only Vercel alias lookup showed `fantasy-survivor-theta.vercel.app` currently serving **`dpl_H5hcgzYvRyDr2UedkddjQKsQKw7D`**, a READY CLI production deployment dated October 23, 2026. It is **newer** than the October 22 deployment `dpl_HhFiTj5Zix6bWELxu9BuQ5EUqcUR` recorded in `deployment/production-source.json`.
 
-The live deployment source listing contains **115** source files versus the historical manifest's **110**. All 110 historical paths are still present. Comparing their SHA-1 source identifiers shows **13 existing files changed**, including Jury-related components/stores, Episodes, Discussions, rules-page presentation, and global styles; **five live files are new**:
+The live deployment source listing contains **115** source files versus the historical manifest's **110**. The observed file paths and SHA-1 identifiers are preserved in `deployment/serving-source-2026-11-18.json` for future source verification. All 110 historical paths are still present. Comparing their SHA-1 source identifiers shows **13 existing files changed**, including Jury-related components/stores, Episodes, Discussions, rules-page presentation, and global styles; **five live files are new**:
 
 - `app/admin/jury-snapshot-form.tsx`
 - `app/jury/prediction-episode.tsx`
@@ -82,7 +82,7 @@ Verify that no registration/score/Jury data or Firebase security configuration i
 
 - Node 22.23.5: TypeScript `--noEmit`, full ESLint and Next.js 16.2.6 webpack production-equivalent build **passed** with synthetic public configuration, the PWA flag enabled, and no server credential.
 - The compiled routes manifest includes a transparent `/__/auth/:path*` external rewrite to `fantasy-survivor-9da59.firebaseapp.com`, and no matching HTTP redirect. This is a build verification only, not proof of a live production proxy.
-- Full synthetic suite, including the new 111-file candidate integrity and source-package checks, with the one **intentionally rejecting baseline hash assertion** skipped: **462 passed, 1 skipped, 0 failed**. The baseline checksum assertion correctly rejects the auth patch; do not mutate the baseline manifest to hide the rejection.
+- Full synthetic suite, including historical candidate integrity, blocked packaging, and the newer live-source inventory comparison, with the one **intentionally rejecting baseline hash assertion** skipped: **463 passed, 1 skipped, 0 failed**. The baseline checksum assertion correctly rejects the auth patch; do not mutate the baseline manifest to hide the rejection.
 - Protected auth-only staging and physical iPhone login tests passed as reported above. Current live-source reconciliation, a real-game production cutover, and end-to-end game-account verification remain pending; no production changes were made.
 
 Reference: https://firebase.google.com/docs/auth/web/redirect-best-practices

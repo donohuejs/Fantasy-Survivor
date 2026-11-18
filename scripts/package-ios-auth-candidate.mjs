@@ -14,9 +14,13 @@ const added=['lib/pwa-auth.ts'];
 export async function inspectIosAuthCandidate(root=process.cwd()){
   const baseline=JSON.parse(await readFile(path.join(root,'deployment/production-source.json'),'utf8'));
   const candidate=JSON.parse(await readFile(path.join(root,'deployment/ios-pwa-auth-candidate.json'),'utf8'));
+  const serving=JSON.parse(await readFile(path.join(root,'deployment/serving-source-2026-11-18.json'),'utf8'));
   assert.equal(candidate.format,1);
   assert.equal(candidate.status,'historical-review-only');
   assert.equal(candidate.baselineDeployment,baseline.provenance.deployment);
+  assert.equal(candidate.observedServingDeployment,serving.deployment);
+  assert.equal(serving.alias,'fantasy-survivor-theta.vercel.app');
+  assert.equal(serving.files.length,115);
   assert.deepEqual(Object.keys(candidate.modified).sort(),modified);
   assert.deepEqual(Object.keys(candidate.added).sort(),added);
 

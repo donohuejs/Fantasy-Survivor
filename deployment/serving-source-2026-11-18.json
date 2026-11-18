@@ -1,0 +1,469 @@
+{
+  "format": 1,
+  "observedDate": "2026-11-18",
+  "alias": "fantasy-survivor-theta.vercel.app",
+  "deployment": "dpl_H5hcgzYvRyDr2UedkddjQKsQKw7D",
+  "source": "Vercel deployment source-file identifiers (SHA-1), read only",
+  "files": [
+    {
+      "path": ".vercelignore",
+      "sha1": "885c566d1d49cf95ea6680a61f12fd9f423191cd"
+    },
+    {
+      "path": "app/admin/admin-tabs.tsx",
+      "sha1": "5a3155353c6b502524b05f204d1fa19f51a2f7d4"
+    },
+    {
+      "path": "app/admin/discussion-schedule.tsx",
+      "sha1": "a446fa4acd6e484fcd01bc63643bd37eea08ce56"
+    },
+    {
+      "path": "app/admin/jury-evidence-presentation.ts",
+      "sha1": "7630b97e143075cc1b9c0043c61591aaef9eb3f7"
+    },
+    {
+      "path": "app/admin/jury-manager.tsx",
+      "sha1": "ddd1ee7a9d163658edbfcfb1ba33f3ccc968043b"
+    },
+    {
+      "path": "app/admin/jury-predictions.tsx",
+      "sha1": "f1aec8dee95b308643a62f70eba4afa067c75bca"
+    },
+    {
+      "path": "app/admin/jury-snapshot-form.tsx",
+      "sha1": "9f4ca7140d51e2febdf89c83aabd2ae986509576"
+    },
+    {
+      "path": "app/admin/page.tsx",
+      "sha1": "c15414891efc35b29ec69a6741e1e34c41bd8686"
+    },
+    {
+      "path": "app/admin/player-signups.tsx",
+      "sha1": "5bfacb9732221d41a7ad8d47dbc441d6fa6a8cca"
+    },
+    {
+      "path": "app/admin/possession-manager.tsx",
+      "sha1": "a9cd3602a821efa3a322accad87bc47fbd870893"
+    },
+    {
+      "path": "app/admin/recap-manager.tsx",
+      "sha1": "9174ca6f3d6def2e1eeec56cfa03ef26d4bb09eb"
+    },
+    {
+      "path": "app/admin/recipient-selector.tsx",
+      "sha1": "fe52ab3dcd2d8b1e994c2b78bd8eaba1c91e8a8a"
+    },
+    {
+      "path": "app/admin/score-editor.tsx",
+      "sha1": "f625578782f078e5c9e58e6e09b31f360b6f74e3"
+    },
+    {
+      "path": "app/admin/scoring-manager.tsx",
+      "sha1": "c9b958cf4403486340bcb471b6e55796cf518761"
+    },
+    {
+      "path": "app/admin/season-manager.tsx",
+      "sha1": "1bd489e51c88da9764a54fbd723c0763582fea53"
+    },
+    {
+      "path": "app/admin/tribal-council-manager.tsx",
+      "sha1": "8a070cc110b49d7e7cb6ead1fc93c8b4de2814b2"
+    },
+    {
+      "path": "app/api/admin/route.ts",
+      "sha1": "8cb5c6e4762abd1a5b3a0dc34ea085c6d39ccfd6"
+    },
+    {
+      "path": "app/api/community/route.ts",
+      "sha1": "f692baa4567a853861de8dcb2513bc459b0162b0"
+    },
+    {
+      "path": "app/api/discussions/route.ts",
+      "sha1": "e346bf4206a615f08f1b42ea187372a51228fafb"
+    },
+    {
+      "path": "app/api/draft/route.ts",
+      "sha1": "5492fd0c3dfaeaa791ef243f9aa92e1c8cdb96d3"
+    },
+    {
+      "path": "app/api/jury/route.ts",
+      "sha1": "f3b6cfdce83b51969b5cb76152eaf15814525cb9"
+    },
+    {
+      "path": "app/api/league/route.ts",
+      "sha1": "0fb3e9e86a816fac29ac7ebabba18e442a560d36"
+    },
+    {
+      "path": "app/api/registration/route.ts",
+      "sha1": "aaba98094c159a27a5d2c77f19cdea0461eb60ec"
+    },
+    {
+      "path": "app/api/scoring/route.ts",
+      "sha1": "2469b0ca011c2c3aba2c6bc255bde6d71174e15c"
+    },
+    {
+      "path": "app/auth-controls.tsx",
+      "sha1": "89ac3a057e9d2b3f6731e5132349ffaee2978a9a"
+    },
+    {
+      "path": "app/castaways/page.tsx",
+      "sha1": "f4ef8e5f087f07670eadbbac91a82cf68fa751fd"
+    },
+    {
+      "path": "app/chatter/page.tsx",
+      "sha1": "a8ceac6641f34f60349f36e94c662ff0f9f97728"
+    },
+    {
+      "path": "app/community-polls.tsx",
+      "sha1": "c35018056a109df0e0e8576066da016d5801d410"
+    },
+    {
+      "path": "app/discord-invite.module.css",
+      "sha1": "26a5777236281d05732ce5982d5c50381e3404e8"
+    },
+    {
+      "path": "app/discord-invite.tsx",
+      "sha1": "fb1f4bd07b88fa37dcfaf486da6ca4b322a52c28"
+    },
+    {
+      "path": "app/discussion-content.tsx",
+      "sha1": "c7331055708e4676f646e6be072ab46aac70bb4c"
+    },
+    {
+      "path": "app/discussion-provider.tsx",
+      "sha1": "2415f0ecd8829d637bf3c0c11b96bbde9fa20743"
+    },
+    {
+      "path": "app/draft/castaway-pool.tsx",
+      "sha1": "cf73b2d649f50a085a013df2299e072bc4984618"
+    },
+    {
+      "path": "app/draft/draft-board.tsx",
+      "sha1": "28e3957b94117c3834d525fa5bb0ca15f50dd619"
+    },
+    {
+      "path": "app/draft/draft-choice.tsx",
+      "sha1": "0441b1fa97d8a5730ee4b5a98a16fd1eab362998"
+    },
+    {
+      "path": "app/draft/page.tsx",
+      "sha1": "344d4af9f25368fc40842e22e287b3bc2d0a5481"
+    },
+    {
+      "path": "app/draft/team-scores.tsx",
+      "sha1": "0660abc13572135c71d392b84af85d25aa7e7937"
+    },
+    {
+      "path": "app/episodes/community-client.ts",
+      "sha1": "49c031874ff4830476510874129f5bfe692bd861"
+    },
+    {
+      "path": "app/episodes/episode-content.tsx",
+      "sha1": "cfcac76810fe21c24d3643d782ed35da24da1228"
+    },
+    {
+      "path": "app/episodes/page.tsx",
+      "sha1": "e5d688078d37ff82ce362c8535956a0637483a7f"
+    },
+    {
+      "path": "app/game-provider.tsx",
+      "sha1": "b7796764ea7cda2acbf161cef89e702a281a5b93"
+    },
+    {
+      "path": "app/globals.css",
+      "sha1": "d063435c121fcf2c945321abfaae73c2374908f2"
+    },
+    {
+      "path": "app/history/page.tsx",
+      "sha1": "434b8b1b1bb7e6925ea92edc6572e8f52db5fd58"
+    },
+    {
+      "path": "app/jury/client.ts",
+      "sha1": "70a2194b09ab0aebc83789567b4c80e60d23f2cd"
+    },
+    {
+      "path": "app/jury/page.tsx",
+      "sha1": "9ab68a24b1c96c742690bdf5248a631e2ed35be5"
+    },
+    {
+      "path": "app/jury/prediction-episode.tsx",
+      "sha1": "e455a2fdf46ef7a895b2329672a5abe6b74a5dbc"
+    },
+    {
+      "path": "app/jury/results.tsx",
+      "sha1": "a29f43741898e0ad7405ede0aea6cc1df68b762c"
+    },
+    {
+      "path": "app/layout.tsx",
+      "sha1": "39eff45d6662f473f13ae8b961f36780adac3774"
+    },
+    {
+      "path": "app/league-client.ts",
+      "sha1": "4f4d7892492f06fca7854865d38c025f65e9529c"
+    },
+    {
+      "path": "app/league-gate.tsx",
+      "sha1": "90f554f257d1f19e3e2808e891ef651a3a4178ce"
+    },
+    {
+      "path": "app/manifest.ts",
+      "sha1": "1dfd51c0ae1afe8d38e8b2ab8bb6c02051f73e9f"
+    },
+    {
+      "path": "app/page.tsx",
+      "sha1": "48ce97f35ed778cf52a9b900540c8c421f81c8a0"
+    },
+    {
+      "path": "app/player-name.tsx",
+      "sha1": "f2191a7dc148bd593a8972c1c6e7a13fd5ae76cd"
+    },
+    {
+      "path": "app/rules/page.tsx",
+      "sha1": "925938913b2cdb2ed110ee4f40db6cacb4ca3f8d"
+    },
+    {
+      "path": "app/score-contributions.tsx",
+      "sha1": "baf7da6f7c3e044a10ab46bd3d7fb921d8235ad8"
+    },
+    {
+      "path": "app/site-header.tsx",
+      "sha1": "c9b1c4befc6775bf06e65cfd82983e430d0ce711"
+    },
+    {
+      "path": "app/use-visible-polling.ts",
+      "sha1": "d41d44faaa0e1ad5866b59af2cd78f4e250190a5"
+    },
+    {
+      "path": "eslint.config.mjs",
+      "sha1": "9e06bc169e3142595ee92ed8c747374d6c3cbd87"
+    },
+    {
+      "path": "lib/acceptance-environment.ts",
+      "sha1": "79e82e9dd5f9dee7730822d2f37a63b80a829c0a"
+    },
+    {
+      "path": "lib/account-access.ts",
+      "sha1": "d7765f3828dc4bde3cb5e5178a67a4a7f356b08d"
+    },
+    {
+      "path": "lib/admin-auth.ts",
+      "sha1": "bd5ec93972183aab3303fb15cfe061203fc2c55d"
+    },
+    {
+      "path": "lib/admin-command.ts",
+      "sha1": "22be9fccdae79bd5ab4c70c89e954bdada2f5d03"
+    },
+    {
+      "path": "lib/admin-navigation.ts",
+      "sha1": "31e4c676481bb75dfd2387531de8ab3c8e8830b5"
+    },
+    {
+      "path": "lib/admin-store.ts",
+      "sha1": "101b812cad14604b5be0438d32fd8c179911eaf1"
+    },
+    {
+      "path": "lib/castaway-leaderboard.ts",
+      "sha1": "6173e858e0a8d8e930612dd90cb73717c92a01e2"
+    },
+    {
+      "path": "lib/community-auth.ts",
+      "sha1": "17bafbc28a56e94fac8b4a8d5bbbccb9f15d5b0b"
+    },
+    {
+      "path": "lib/community-authority.ts",
+      "sha1": "27d534d5d4f4b9bf0fa1143074dd021f5f3d5145"
+    },
+    {
+      "path": "lib/community-errors.ts",
+      "sha1": "e93091741dab3761de32e68533aeb07fa916a96a"
+    },
+    {
+      "path": "lib/community.ts",
+      "sha1": "82fdda7fe3e81f7c6bbd81977a5689b5154a0f15"
+    },
+    {
+      "path": "lib/discussion-response.ts",
+      "sha1": "7f522eb4c9072d102035ccc39815f9f1de8bca74"
+    },
+    {
+      "path": "lib/discussion-store.ts",
+      "sha1": "d74e0b7ae3b3d3d95414d1f3376e7bac35b48a0a"
+    },
+    {
+      "path": "lib/discussions.ts",
+      "sha1": "b4f0f99988b0bf5cdedbaa3f68c262b4de8308f6"
+    },
+    {
+      "path": "lib/draft-board.ts",
+      "sha1": "98d0eafaa5438246966b64ee3ea636dcf603b2f8"
+    },
+    {
+      "path": "lib/draft.ts",
+      "sha1": "a749bd47e107ad83e7dd2d9dd390b0885e9fef96"
+    },
+    {
+      "path": "lib/firebase-admin.ts",
+      "sha1": "a8bf870273df3aefc98440204b6d22e8ddd4aa87"
+    },
+    {
+      "path": "lib/firebase.ts",
+      "sha1": "31bd574ff18e8584a452d5af5a02ba2cbc5f9adb"
+    },
+    {
+      "path": "lib/firestore-data.ts",
+      "sha1": "255cac09c0bb2a27b93914adc6538a13a92e1227"
+    },
+    {
+      "path": "lib/game-data.ts",
+      "sha1": "be6450642a2cc073481736127eadecdaede590f1"
+    },
+    {
+      "path": "lib/game-normalization.ts",
+      "sha1": "e0f581747ce180c344eb040cfb392e4ecc8bd19a"
+    },
+    {
+      "path": "lib/history-data.ts",
+      "sha1": "15a35d4598dfa1e2786ed1a7efe3393d083fe8a7"
+    },
+    {
+      "path": "lib/homepage.ts",
+      "sha1": "a59a1d37a0ad6394a903b9066ab8019c246afe67"
+    },
+    {
+      "path": "lib/jury-airtime.ts",
+      "sha1": "6e35d80340bcda0f8c247dcd351986c980747380"
+    },
+    {
+      "path": "lib/jury-public.ts",
+      "sha1": "99bafb5140806bd4f2ee3282c4e79c63799ce638"
+    },
+    {
+      "path": "lib/jury-q3-audit.ts",
+      "sha1": "fb06c03744fa2b7425fc01844889e6c712dda592"
+    },
+    {
+      "path": "lib/jury-questions.ts",
+      "sha1": "f591225ae2de4e7c15d403e4a8c01dd2f68891ae"
+    },
+    {
+      "path": "lib/jury-results.ts",
+      "sha1": "380b96ad933a0c21624218689071ab0fe9930a4e"
+    },
+    {
+      "path": "lib/jury-store.ts",
+      "sha1": "98078ff34480a23f679a3d354ed6484a7eb12e8f"
+    },
+    {
+      "path": "lib/jury.ts",
+      "sha1": "2353eb174a4d6f48d4dec1e42700f5dd399f80d5"
+    },
+    {
+      "path": "lib/league-access.ts",
+      "sha1": "99994deef88e32a796af948bda3971656faeb467"
+    },
+    {
+      "path": "lib/league.ts",
+      "sha1": "c9e85dacfc4c1c15c83a49605dc05f6ce9b0c75d"
+    },
+    {
+      "path": "lib/legacy-possession-seed.ts",
+      "sha1": "443a0f778888b07a2009d0eae220a7baffb2eed2"
+    },
+    {
+      "path": "lib/player-honors.ts",
+      "sha1": "fcc0a6eae80d22f265b64df2f00518785af6bd17"
+    },
+    {
+      "path": "lib/player-points.ts",
+      "sha1": "a32b81fcb9e49fd8ed296c1699051c35aa4a79b5"
+    },
+    {
+      "path": "lib/private-league-seed.ts",
+      "sha1": "d6fa57cfdc0d003af5f3b9cb02fdb4647fb5122a"
+    },
+    {
+      "path": "lib/production-environment.ts",
+      "sha1": "3108de5da7430e5c4ae3fcf8b89bd709c4e27835"
+    },
+    {
+      "path": "lib/production-policy.ts",
+      "sha1": "6b28c2880b2ad46bb0b76493cdce45a0322cd1c0"
+    },
+    {
+      "path": "lib/recap-store.ts",
+      "sha1": "b11dd2ad7847ddf9cce99ea67d0216e34a316da1"
+    },
+    {
+      "path": "lib/registration-store.ts",
+      "sha1": "02d5164843e1fed37693e474cdedc84ffaaacfd6"
+    },
+    {
+      "path": "lib/registration.ts",
+      "sha1": "9dfb47c7bca5229b3ca7fae8dac6e66e98bebe5d"
+    },
+    {
+      "path": "lib/request-id.ts",
+      "sha1": "a149ac48cb214094e69903a4443c182f5c65ec68"
+    },
+    {
+      "path": "lib/score-correction-store.ts",
+      "sha1": "59152cf635d46c46db3151c03238683aadcf3eaa"
+    },
+    {
+      "path": "lib/score-corrections.ts",
+      "sha1": "aaa7a7a141bb45b3546a0d54444d5317d3736fcb"
+    },
+    {
+      "path": "lib/score-ledger.ts",
+      "sha1": "5db4dbe4c5df0dcdf1feb6501603af5fe5704c0a"
+    },
+    {
+      "path": "lib/scoring-authority.ts",
+      "sha1": "61f783a764b9febeb80dad5310bb541866fd5425"
+    },
+    {
+      "path": "lib/scoring.ts",
+      "sha1": "507ca76e8ffa3257cbe423e0e965e7251a447288"
+    },
+    {
+      "path": "lib/visible-polling.ts",
+      "sha1": "ab8dc0aa0e9e3fd0b98e0f9fc4ef616a50e9bf99"
+    },
+    {
+      "path": "next.config.ts",
+      "sha1": "509ed8c0b7e196307208ee4769cd12caf1d3278b"
+    },
+    {
+      "path": "package-lock.json",
+      "sha1": "6f724c399396f8c52713f010fbe70dde38bdf033"
+    },
+    {
+      "path": "package.json",
+      "sha1": "782a921c1d89e067acd13af62a801e9b7c9d75b9"
+    },
+    {
+      "path": "public/branding/discord-clyde-white.svg",
+      "sha1": "47c841cd2c3ce529a0c88150fafa32a5fea88b4e"
+    },
+    {
+      "path": "public/branding/survivor-51-icon-192.png",
+      "sha1": "0745384da6382951041eb7222251ecd07b13c14f"
+    },
+    {
+      "path": "public/branding/survivor-51-icon-512.png",
+      "sha1": "e51bd425a9436caab3a339f03d3919079a6ead24"
+    },
+    {
+      "path": "public/branding/survivor-51-main.jpg",
+      "sha1": "77ca006d54d78a827f7d7f9e3fc149a0dba1f363"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha1": "7cf9d3431bc6241352de4425bb6557ae35d47547"
+    },
+    {
+      "path": "vercel.json",
+      "sha1": "d3c92cee787b5b616ce7e104ac5c06ae418d08bd"
+    }
+  ]
+}
