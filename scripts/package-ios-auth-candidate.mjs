@@ -15,7 +15,7 @@ export async function inspectIosAuthCandidate(root=process.cwd()){
   const baseline=JSON.parse(await readFile(path.join(root,'deployment/production-source.json'),'utf8'));
   const candidate=JSON.parse(await readFile(path.join(root,'deployment/ios-pwa-auth-candidate.json'),'utf8'));
   assert.equal(candidate.format,1);
-  assert.equal(candidate.status,'review-only');
+  assert.equal(candidate.status,'historical-review-only');
   assert.equal(candidate.baselineDeployment,baseline.provenance.deployment);
   assert.deepEqual(Object.keys(candidate.modified).sort(),modified);
   assert.deepEqual(Object.keys(candidate.added).sort(),added);
@@ -37,13 +37,16 @@ export async function inspectIosAuthCandidate(root=process.cwd()){
     files.push({path:name,sha256:expected,sha1:createHash('sha1').update(bytes).digest('hex')});
   }
   return {
-    status:'review-only',baselineDeployment:baseline.provenance.deployment,
+    status:'historical-review-only',baselineDeployment:baseline.provenance.deployment,
+    observedServingDeployment:candidate.observedServingDeployment,
     changedInputs:modified,newInputs:added,files,sourceDigest:sha256(JSON.stringify(files)),
   };
 }
 
 export async function makeIosAuthCandidatePackage(root=process.cwd()){
   const inspected=await inspectIosAuthCandidate(root);
+  assert.equal(inspected.baselineDeployment,inspected.observedServingDeployment,
+    'Refusing to package: the current serving deployment is newer than the historical protected source. Reconcile live source first.');
   const destination=await mkdtemp(path.join(tmpdir(),'fantasy-ios-auth-review-'));
   for(const file of inspected.files){
     const bytes=await readFile(path.join(root,file.path));
@@ -62,5 +65,5 @@ export async function makeIosAuthCandidatePackage(root=process.cwd()){
 if(process.argv[1]&&import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href){
   const packaged=process.argv.includes('--package');
   const result=packaged?await makeIosAuthCandidatePackage():await inspectIosAuthCandidate();
-  console.log(JSON.stringify({status:result.status,baselineDeployment:result.baselineDeployment,sourceDigest:result.sourceDigest,productionInputs:result.files.length,changedInputs:result.changedInputs,newInputs:result.newInputs,...(packaged?{destination:result.destination}:{})},null,2));
+  console.log(JSON.stringify({status:result.status,baselineDeployment:result.baselineDeployment,observedServingDeployment:result.observedServingDeployment,sourceDigest:result.sourceDigest,productionInputs:result.files.length,changedInputs:result.changedInputs,newInputs:result.newInputs,...(packaged?{destination:result.destination}:{})},null,2));
 }

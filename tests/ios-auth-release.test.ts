@@ -1,14 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile,rm} from 'node:fs/promises';
-import {createHash} from 'node:crypto';
-import path from 'node:path';
+import {readFile} from 'node:fs/promises';
 import {inspectIosAuthCandidate,makeIosAuthCandidatePackage} from '../scripts/package-ios-auth-candidate.mjs';
 
 test('iPhone auth candidate changes exactly five reviewed deployment inputs',async()=>{
   const result=await inspectIosAuthCandidate();
-  assert.equal(result.status,'review-only');
+  assert.equal(result.status,'historical-review-only');
   assert.equal(result.baselineDeployment,'dpl_HhFiTj5Zix6bWELxu9BuQ5EUqcUR');
+  assert.equal(result.observedServingDeployment,'dpl_H5hcgzYvRyDr2UedkddjQKsQKw7D');
   assert.deepEqual(result.changedInputs,['app/game-provider.tsx','lib/firebase.ts','next.config.ts','vercel.json']);
   assert.deepEqual(result.newInputs,['lib/pwa-auth.ts']);
   assert.equal(result.files.length,111);
@@ -21,21 +20,6 @@ test('iPhone auth candidate changes exactly five reviewed deployment inputs',asy
   }
 });
 
-test('iPhone auth candidate packages only the reviewed source without test credentials',async()=>{
-  const result=await makeIosAuthCandidatePackage();
-  try{
-    assert.equal(result.files.length,111);
-    for(const file of result.files){
-      const bytes=await readFile(path.join(result.destination,file.path));
-      assert.equal(createHash('sha256').update(bytes).digest('hex'),file.sha256,file.path);
-    }
-    const descriptor=JSON.parse(await readFile(path.join(result.destination,'production-package.json'),'utf8'));
-    assert.equal(descriptor.status,'review-only');
-    assert.equal(descriptor.sourceDigest,result.sourceDigest);
-    assert(await readFile(path.join(result.destination,'.vercelignore'),'utf8').then(value=>value.includes('production-package.json')));
-    await assert.rejects(readFile(path.join(result.destination,'.env.local')));
-    await assert.rejects(readFile(path.join(result.destination,'firestore.rules')));
-  }finally{
-    await rm(result.destination,{recursive:true});
-  }
+test('historical candidate refuses packaging while a newer production deployment is serving',async()=>{
+  await assert.rejects(makeIosAuthCandidatePackage(),/Refusing to package: the current serving deployment is newer/);
 });

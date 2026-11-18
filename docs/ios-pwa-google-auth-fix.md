@@ -2,7 +2,7 @@
 
 Date: November 18, 2026. Branch: `fix/ios-pwa-google-auth-2026-11-18`.
 
-**State: isolated Google login test PASSED on a physical iPhone; real-game integration is under release review; NOT deployed to the real game; NOT authorized for production.**
+**State: isolated Google login test PASSED on a physical iPhone; local auth patch built and tested; real-game release BLOCKED until its newer serving source is reconciled; NOT authorized for production.**
 
 ## Reproduction and diagnosis
 
@@ -36,6 +36,22 @@ The owner reported these actual iPhone outcomes:
 
 This proves the isolated same-origin redirect approach in the owner's iPhone environment. It **does not** independently prove that the full game, its registration API, player-to-UID membership, navigation, or live Firebase project will behave identically. All of those remain separate release gates.
 
+## Current serving release differs from the protected historical package
+
+The November 18 read-only Vercel alias lookup showed `fantasy-survivor-theta.vercel.app` currently serving **`dpl_H5hcgzYvRyDr2UedkddjQKsQKw7D`**, a READY CLI production deployment dated October 23, 2026. It is **newer** than the October 22 deployment `dpl_HhFiTj5Zix6bWELxu9BuQ5EUqcUR` recorded in `deployment/production-source.json`.
+
+The live deployment source listing contains **115** source files versus the historical manifest's **110**. All 110 historical paths are still present. Comparing their SHA-1 source identifiers shows **13 existing files changed**, including Jury-related components/stores, Episodes, Discussions, rules-page presentation, and global styles; **five live files are new**:
+
+- `app/admin/jury-snapshot-form.tsx`
+- `app/jury/prediction-episode.tsx`
+- `lib/jury-airtime.ts`
+- `lib/jury-q3-audit.ts`
+- `lib/jury-questions.ts`
+
+The four existing files changed by this auth fix matched the historical version in the serving release **before** applying the auth patch. That makes the change itself portable, but the historical 111-file package would omit or replace newer live code. **Do not deploy or promote that package.**
+
+Before a real-game release, obtain the complete, checksum-verified **115-file serving source** (the available Vercel source-content tool truncates some larger files), layer only the four modified auth inputs and one new helper onto it, produce a new **116-file** approved source manifest, then rerun compilation and game/Jury regression tests. Do not approximate missing live source with older Git files. This reconciliation is a hard stop, independent of the passing auth-only staging test.
+
 ## Full-game acceptance for the eventual production release
 
 | Case | Required outcome |
@@ -53,12 +69,12 @@ Verify that no registration/score/Jury data or Firebase security configuration i
 ## Release gate — no production changes yet
 
 - Development branch pushes must not initiate auto-deployments to the existing production Vercel project; the branch is explicitly disabled in `vercel.json`.
-- The protected, approved production manifest at `deployment/production-source.json` remains unchanged. The separate review-only delta at `deployment/ios-pwa-auth-candidate.json` pins exactly **four changed production inputs** (`app/game-provider.tsx`, `lib/firebase.ts`, `next.config.ts`, `vercel.json`) and **one new production input** (`lib/pwa-auth.ts`) atop the 110-file approved package. No other application, API, or security-rule input may drift.
-- `node scripts/package-ios-auth-candidate.mjs` verifies all **111** candidate inputs without producing or deploying any package. `node scripts/package-ios-auth-candidate.mjs --package` produces a source-only temporary **review artifact**, again without a cloud operation. Its descriptor is excluded from an eventual upload by `.vercelignore`. The approved baseline packaging script must continue to reject the modified files; do not silently overwrite the baseline manifest.
-- The current source-only candidate digest is `20ccc8d06670eb899fb9972da184567129f37ad7fb2763e615a5df5361ddebdf`; a changed digest requires renewed review before any deployment.
+- The historical, protected production manifest at `deployment/production-source.json` remains unchanged. The separate review-only delta at `deployment/ios-pwa-auth-candidate.json` pins exactly **four changed inputs** (`app/game-provider.tsx`, `lib/firebase.ts`, `next.config.ts`, `vercel.json`) and **one new input** (`lib/pwa-auth.ts`) atop that 110-file package. **This is a historical-baseline verification artifact, not a deployable representation of the current serving game.** No unrelated application, API, or security-rule input may drift in the eventual live-based candidate.
+- `node scripts/package-ios-auth-candidate.mjs` verifies all **111** historical candidate inputs without producing or deploying anything. The `--package` path **now refuses to create even a temporary source bundle** because the currently serving release is newer. Packaging must remain blocked until live source reconciliation. The approved baseline packaging script must also continue to reject the modified files; do not silently overwrite the baseline manifest.
+- The historical-baseline auth candidate digest is `20ccc8d06670eb899fb9972da184567129f37ad7fb2763e615a5df5361ddebdf`. It **must not** be used as the release checksum for the newer serving deployment.
 - Run focused tests, type-check, lint, a production-equivalent compile, and the full synthetic regression suite before requesting release approval. After a separately authorized real-game release, repeat the physical iPhone checks and test refresh/navigation, unlinked-member denials, assigned profile identity, and signed-in game/Jury navigation.
 - **Before deployment**, explicitly authorize the real game's exact serving hostname `fantasy-survivor-theta.vercel.app` in the production Firebase Auth authorized-domain list (if not already there), and `https://fantasy-survivor-theta.vercel.app/__/auth/handler` in the correct **production** Google OAuth web client's Authorized redirect URIs. This is different from the staging Firebase project and cannot be inferred from its passing test.
-- Enable `NEXT_PUBLIC_FIREBASE_PWA_REDIRECT=1` in the real game's **Vercel Production build environment**, not only at runtime. Confirm the compiled external rewrite on the protected production candidate URL, confirm the callback stays on that host, and rehearse a rollback to the currently verified deployment (`dpl_HhFiTj5Zix6bWELxu9BuQ5EUqcUR`). This code flag is OFF by default.
+- Enable `NEXT_PUBLIC_FIREBASE_PWA_REDIRECT=1` in the real game's **Vercel Production build environment**, not only at runtime. Confirm the compiled external rewrite on the protected production candidate URL, confirm the callback stays on that host, and rehearse a rollback to the **current serving deployment** (`dpl_H5hcgzYvRyDr2UedkddjQKsQKw7D`). This code flag is OFF by default.
 - Production Firebase/GCP configuration changes, Vercel environment changes, a real-game production deployment (`--prod --skip-domain`), and promotion of the serving alias all require **separate explicit authorization**. Do **not** use normal merge-to-main, direct Git auto-deploy, or implicit domain promotion.
 - Keep the existing Jury Mode staging project, the real-game Firebase Auth user identities, Firestore Rules, scores, registration records, predictions, and league data untouched.
 
@@ -67,6 +83,6 @@ Verify that no registration/score/Jury data or Firebase security configuration i
 - Node 22.23.5: TypeScript `--noEmit`, full ESLint and Next.js 16.2.6 webpack production-equivalent build **passed** with synthetic public configuration, the PWA flag enabled, and no server credential.
 - The compiled routes manifest includes a transparent `/__/auth/:path*` external rewrite to `fantasy-survivor-9da59.firebaseapp.com`, and no matching HTTP redirect. This is a build verification only, not proof of a live production proxy.
 - Full synthetic suite, including the new 111-file candidate integrity and source-package checks, with the one **intentionally rejecting baseline hash assertion** skipped: **462 passed, 1 skipped, 0 failed**. The baseline checksum assertion correctly rejects the auth patch; do not mutate the baseline manifest to hide the rejection.
-- Protected auth-only staging and physical iPhone login tests passed as reported above. A real-game production cutover and end-to-end game-account verification are still pending approval.
+- Protected auth-only staging and physical iPhone login tests passed as reported above. Current live-source reconciliation, a real-game production cutover, and end-to-end game-account verification remain pending; no production changes were made.
 
 Reference: https://firebase.google.com/docs/auth/web/redirect-best-practices
