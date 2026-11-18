@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "status": "review-only",
+  "baselineDeployment": "dpl_HhFiTj5Zix6bWELxu9BuQ5EUqcUR",
+  "modified": {
+    "app/game-provider.tsx": "4a27f15864dae5ca5dd19981b946531689d5a1d4eb4e92c1b97a332d0b8bf852",
+    "lib/firebase.ts": "7f5f6df8a22cccc09df40225a4b5c06358a0e05306e80080a97360fc566ccb2e",
+    "next.config.ts": "a87df7d481ea655c618b9d756098d4bf82f47110a44d457b2dc6b0512453ccc4",
+    "vercel.json": "5691ca35847741fce941467557ace312f2c385c271d6fc9e4e55cf90dec2d54f"
+  },
+  "added": {
+    "lib/pwa-auth.ts": "98bacdc43f4de910f250589673657e2b1324b2fbe0063f0b3e49d6fc11c27960"
+  }
+}

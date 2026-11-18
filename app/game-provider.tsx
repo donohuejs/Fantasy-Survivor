@@ -75,17 +75,21 @@ export function GameProvider({children}:{children:React.ReactNode}) {
     }
     const stops:Array<()=>void>=[];
     let active=true;
+    let redirectFailure='';
     const timer=setTimeout(()=>{if(active){setAuthLoading(false);setAuthError('Authentication is taking too long to initialize. Check your connection or content blocker, then reload.')}},15000);
     try {
       const {auth}=getFirebase();
       // A standalone iOS app uses a same-origin full-page redirect. Resume it
       // once on startup; all account and league access still uses Firebase UID.
       if(currentPwaAuthDomain())void resumeGoogleRedirect(auth).catch(error=>{
-        if(active)setAuthError(authenticationError(error));
+        if(active){redirectFailure=authenticationError(error);setAuthError(redirectFailure);}
       });
       stops.push(onAuthStateChanged(auth,(nextUser)=>{
         if(!active)return;
-        clearTimeout(timer);setGame(initialGame);setAccessState({uid:nextUser?.uid??'',status:nextUser?'loading':'signed-out',error:''});setUser(nextUser);setAuthLoading(false);setAuthError('');
+        clearTimeout(timer);setGame(initialGame);setAccessState({uid:nextUser?.uid??'',status:nextUser?'loading':'signed-out',error:''});setUser(nextUser);setAuthLoading(false);
+        // An auth-state callback can run after a failed redirect. Do not hide
+        // the Google sign-in error merely because the anonymous state loaded.
+        if(nextUser||!redirectFailure)setAuthError('');
       },(error)=>{clearTimeout(timer);if(active){setAuthLoading(false);setAuthError(authenticationError(error));}}));
     } catch(error) {
       clearTimeout(timer);

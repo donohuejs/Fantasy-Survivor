@@ -1,8 +1,8 @@
-# iOS Home Screen Google sign-in — isolated candidate
+# iOS Home Screen Google sign-in — release review candidate
 
 Date: November 18, 2026. Branch: `fix/ios-pwa-google-auth-2026-11-18`.
 
-**State: locally built and tested; NOT validated on a physical iPhone; NOT authorized for production.**
+**State: isolated Google login test PASSED on a physical iPhone; real-game integration is under release review; NOT deployed to the real game; NOT authorized for production.**
 
 ## Reproduction and diagnosis
 
@@ -21,19 +21,26 @@ Follow Firebase's official *Option 3: Proxy auth requests to firebaseapp.com* fo
 
 No changes to Firebase Rules, profiles, registration, scoring, Jury Mode, server tokens, or Firestore data are included.
 
-## Staging prerequisites — **do not skip**
+## Isolated staging evidence — November 18
 
-1. Select an authorized, **separate** staging application and Firebase project. Do **not** target `fantasy-survivor-9da59` or the existing synthetic Jury fixture. No such new cloud resources are provisioned by this branch.
-2. Enable Google Auth for the staging Firebase project and authorize the **exact immutable HTTPS preview hostname** under Firebase Authentication → Authorized domains. Configure the OAuth client with `https://<preview-host>/__/auth/handler` as a permitted redirect URI. Never use a wildcard `vercel.app` domain.
-3. Confirm the preview is access-protected and contains no production credentials or game data. The current app's production configuration guard intentionally rejects an unmodified Preview deployment; use a separate sanitized staging build with explicit staging guards, not a regular deployment of this branch to the production Vercel project.
-4. Enable `NEXT_PUBLIC_FIREBASE_PWA_REDIRECT=1` only in that protected staging build. Do not enable it in any production deployment before the owner accepts physical iPhone tests.
-5. Verify `/__/auth/handler` is being served by a transparent rewrite on the exact preview hostname. A 302 to `firebaseapp.com` is a failure, not a passing proxy check.
+An entirely separate Firebase project (`fantasy-survivor-auth-fix-test`) and access-protected Vercel project (`fantasy-survivor-auth-test`) were created for a **Google login-only test page** at `https://fantasy-survivor-auth-test.vercel.app`. The staging Google provider and OAuth redirect URI `https://fantasy-survivor-auth-test.vercel.app/__/auth/handler` were authorized. The helper path returned HTTP 200 through the same-host reverse proxy. No league reads, game APIs, player records, scoring writes, or Jury Mode access exist in this harness.
 
-## Acceptance on a physical iPhone
+The owner reported these actual iPhone outcomes:
+
+| Test | Result |
+| --- | --- |
+| Safari Google sign-in | PASS — successful Google login shown in Safari |
+| Installed Home Screen icon Google sign-in | PASS — returned to the installed app as signed in |
+| Close and reopen installed icon | PASS — login persisted |
+| Sign out and sign in again | PASS — owner confirmed successful repeat |
+
+This proves the isolated same-origin redirect approach in the owner's iPhone environment. It **does not** independently prove that the full game, its registration API, player-to-UID membership, navigation, or live Firebase project will behave identically. All of those remain separate release gates.
+
+## Full-game acceptance for the eventual production release
 
 | Case | Required outcome |
 | --- | --- |
-| Safari on staging host | Existing Google popup sign-in continues to work |
+| Safari on the real-game host | Existing Google popup sign-in continues to work |
 | Home Screen initial Google sign-in | Returns to the installed app without the missing-initial-state error |
 | Close and reopen icon | Account remains authenticated |
 | Sign out and sign in again | New redirect round trip succeeds |
@@ -43,18 +50,23 @@ No changes to Firebase Rules, profiles, registration, scoring, Jury Mode, server
 
 Verify that no registration/score/Jury data or Firebase security configuration in production changed. If iOS returns the callback into Safari rather than the installed app, treat this candidate as failed; do not promote it. Investigate an in-app OAuth/credential-exchange alternative instead.
 
-## Release gate
+## Release gate — no production changes yet
 
 - Development branch pushes must not initiate auto-deployments to the existing production Vercel project; the branch is explicitly disabled in `vercel.json`.
-- Run focused tests, type-check, lint, production-equivalent compile, full synthetic regression suite, and protected iPhone acceptance before proposing a production release.
-- Reconcile this branch against the verified source-only production package and its manifest during a separate, authorized release workflow. Do **not** use normal merge-to-main, direct Git auto-deploy, or implicit domain promotion.
+- The protected, approved production manifest at `deployment/production-source.json` remains unchanged. The separate review-only delta at `deployment/ios-pwa-auth-candidate.json` pins exactly **four changed production inputs** (`app/game-provider.tsx`, `lib/firebase.ts`, `next.config.ts`, `vercel.json`) and **one new production input** (`lib/pwa-auth.ts`) atop the 110-file approved package. No other application, API, or security-rule input may drift.
+- `node scripts/package-ios-auth-candidate.mjs` verifies all **111** candidate inputs without producing or deploying any package. `node scripts/package-ios-auth-candidate.mjs --package` produces a source-only temporary **review artifact**, again without a cloud operation. Its descriptor is excluded from an eventual upload by `.vercelignore`. The approved baseline packaging script must continue to reject the modified files; do not silently overwrite the baseline manifest.
+- The current source-only candidate digest is `20ccc8d06670eb899fb9972da184567129f37ad7fb2763e615a5df5361ddebdf`; a changed digest requires renewed review before any deployment.
+- Run focused tests, type-check, lint, a production-equivalent compile, and the full synthetic regression suite before requesting release approval. After a separately authorized real-game release, repeat the physical iPhone checks and test refresh/navigation, unlinked-member denials, assigned profile identity, and signed-in game/Jury navigation.
+- **Before deployment**, explicitly authorize the real game's exact serving hostname `fantasy-survivor-theta.vercel.app` in the production Firebase Auth authorized-domain list (if not already there), and `https://fantasy-survivor-theta.vercel.app/__/auth/handler` in the correct **production** Google OAuth web client's Authorized redirect URIs. This is different from the staging Firebase project and cannot be inferred from its passing test.
+- Enable `NEXT_PUBLIC_FIREBASE_PWA_REDIRECT=1` in the real game's **Vercel Production build environment**, not only at runtime. Confirm the compiled external rewrite on the protected production candidate URL, confirm the callback stays on that host, and rehearse a rollback to the currently verified deployment (`dpl_HhFiTj5Zix6bWELxu9BuQ5EUqcUR`). This code flag is OFF by default.
+- Production Firebase/GCP configuration changes, Vercel environment changes, a real-game production deployment (`--prod --skip-domain`), and promotion of the serving alias all require **separate explicit authorization**. Do **not** use normal merge-to-main, direct Git auto-deploy, or implicit domain promotion.
+- Keep the existing Jury Mode staging project, the real-game Firebase Auth user identities, Firestore Rules, scores, registration records, predictions, and league data untouched.
 
 ### Local verification recorded November 18
 
-- Node 22.23.5: targeted Firebase/PWA tests **12 passed**.
-- TypeScript `--noEmit`, ESLint of changed code, and Next.js 16.2.6 webpack production-equivalent build **passed** with synthetic public configuration and no server credential.
-- The compiled routes manifest includes the same-origin `/__/auth/:path*` external proxy when the feature flag is on.
-- Full synthetic suite with the one **intentionally failing production-package hash assertion** excluded: **460 passed, 1 skipped, 0 failed**. The current `deployment/production-source.json` checksums are for the approved old package and correctly reject changed application files. Do not update them until release reconciliation.
-- Cloud OAuth configuration, an independent protected staging deployment, and physical iPhone testing are **pending**; this is not an end-to-end authentication success claim.
+- Node 22.23.5: TypeScript `--noEmit`, full ESLint and Next.js 16.2.6 webpack production-equivalent build **passed** with synthetic public configuration, the PWA flag enabled, and no server credential.
+- The compiled routes manifest includes a transparent `/__/auth/:path*` external rewrite to `fantasy-survivor-9da59.firebaseapp.com`, and no matching HTTP redirect. This is a build verification only, not proof of a live production proxy.
+- Full synthetic suite, including the new 111-file candidate integrity and source-package checks, with the one **intentionally rejecting baseline hash assertion** skipped: **462 passed, 1 skipped, 0 failed**. The baseline checksum assertion correctly rejects the auth patch; do not mutate the baseline manifest to hide the rejection.
+- Protected auth-only staging and physical iPhone login tests passed as reported above. A real-game production cutover and end-to-end game-account verification are still pending approval.
 
 Reference: https://firebase.google.com/docs/auth/web/redirect-best-practices
