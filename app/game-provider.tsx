@@ -3,7 +3,8 @@ import {startVisiblePolling,readIntervals} from '@/lib/visible-polling';
 import {requestId} from '@/lib/request-id';
 import {createContext,useContext,useEffect,useMemo,useState} from 'react';
 import {firebaseConfigured,getFirebase,authenticationError,type FirebaseUser} from '@/lib/firebase';
-import {GoogleAuthProvider,onAuthStateChanged,signInWithPopup,signOut} from 'firebase/auth';
+import {currentPwaAuthDomain} from '@/lib/pwa-auth';
+import {GoogleAuthProvider,getRedirectResult,onAuthStateChanged,signInWithPopup,signInWithRedirect,signOut,type Auth,type UserCredential} from 'firebase/auth';
 import {activePlayers,initialGame,type GameState,type Tribe,type Castaway,type PossessionStatus} from '@/lib/game-data';
 import type {ScoringInput,EpisodeWideAwardInput,EpisodeStartInput,EpisodeFinishInput,CastawayBonusInput,CastawayEliminationInput,EliminationReasonUpdateInput,FirstTribalCouncilInput,TribalCouncilSurvivalInput,TribalCouncilResolutionInput,CustomActionInput,PossessionInput} from '@/lib/scoring';
 import {seasonStandings,type PlayerSignup} from '@/lib/league';
@@ -33,6 +34,12 @@ type GameContextValue = {
 
 const GameContext = createContext<GameContextValue | null>(null);
 const storageKey = 'fantasy-survivor-51-game';
+const redirectResults = new WeakMap<Auth,Promise<UserCredential|null>>();
+function resumeGoogleRedirect(auth:Auth):Promise<UserCredential|null> {
+  let result=redirectResults.get(auth);
+  if(!result){result=getRedirectResult(auth);redirectResults.set(auth,result);}
+  return result;
+}
 export function GameProvider({children}:{children:React.ReactNode}) {
   const [game,setGame] = useState<GameState>(initialGame);
   const [loading,setLoading] = useState(firebaseConfigured);
@@ -68,12 +75,21 @@ export function GameProvider({children}:{children:React.ReactNode}) {
     }
     const stops:Array<()=>void>=[];
     let active=true;
+    let redirectFailure='';
     const timer=setTimeout(()=>{if(active){setAuthLoading(false);setAuthError('Authentication is taking too long to initialize. Check your connection or content blocker, then reload.')}},15000);
     try {
       const {auth}=getFirebase();
+      // A standalone iOS app uses a same-origin full-page redirect. Resume it
+      // once on startup; all account and league access still uses Firebase UID.
+      if(currentPwaAuthDomain())void resumeGoogleRedirect(auth).catch(error=>{
+        if(active){redirectFailure=authenticationError(error);setAuthError(redirectFailure);}
+      });
       stops.push(onAuthStateChanged(auth,(nextUser)=>{
         if(!active)return;
-        clearTimeout(timer);setGame(initialGame);setAccessState({uid:nextUser?.uid??'',status:nextUser?'loading':'signed-out',error:''});setUser(nextUser);setAuthLoading(false);setAuthError('');
+        clearTimeout(timer);setGame(initialGame);setAccessState({uid:nextUser?.uid??'',status:nextUser?'loading':'signed-out',error:''});setUser(nextUser);setAuthLoading(false);
+        // An auth-state callback can run after a failed redirect. Do not hide
+        // the Google sign-in error merely because the anonymous state loaded.
+        if(nextUser||!redirectFailure)setAuthError('');
       },(error)=>{clearTimeout(timer);if(active){setAuthLoading(false);setAuthError(authenticationError(error));}}));
     } catch(error) {
       clearTimeout(timer);
@@ -136,6 +152,10 @@ export function GameProvider({children}:{children:React.ReactNode}) {
     try {
       const {auth}=getFirebase();
       const provider=new GoogleAuthProvider();provider.setCustomParameters({prompt:'select_account'});
+      if(currentPwaAuthDomain()){
+        await signInWithRedirect(auth,provider);
+        return;
+      }
       const result=await signInWithPopup(auth,provider);
       setUser(result.user);setAuthLoading(false);
     } catch(error){setAuthError(authenticationError(error));}
