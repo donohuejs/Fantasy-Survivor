@@ -1,5 +1,6 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth, type User } from 'firebase/auth';
+import { currentPwaAuthDomain } from './pwa-auth.ts';
 
 export type FirebaseUser = User;
 export const firebaseConfig = {
@@ -20,7 +21,11 @@ export const firebaseConfigured = missingFirebaseSettings.length === 0;
 
 export function getFirebase() {
   if (!firebaseConfigured) throw new Error(`Firebase is not configured. Missing: ${missingFirebaseSettings.join(', ')}. Add these to Vercel Production environment variables and redeploy.`);
-  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  const pwaAuthDomain = currentPwaAuthDomain();
+  const app = getApps().length ? getApp() : initializeApp(pwaAuthDomain ? {
+    ...firebaseConfig,
+    authDomain:pwaAuthDomain,
+  } : firebaseConfig);
   const auth=getAuth(app);
 
   return {auth};
